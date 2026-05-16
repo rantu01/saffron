@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SaffronEdge — Marketing Agency Website
 
-## Getting Started
+A modern marketing agency website built with Next.js and Tailwind CSS. This repo contains the landing pages and UI components used by Saffron Edge for case studies, services, and client testimonials.
 
-First, run the development server:
+## Features
+
+- Next.js App Router (app/)
+- Tailwind CSS for utility-first styling
+- Framer Motion for subtle UI animations
+- Responsive components for hero, testimonials, case studies, and blog grids
+
+## Quick Start
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Open the site in your browser:
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+```text
+http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Scripts
 
-## Learn More
+- `npm run dev` — start Next.js in development mode
+- `npm run build` — create an optimized production build
+- `npm run start` — run the production build locally
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `app/` — Next.js App Router pages and layout
+- `app/Component/` — reusable UI components (Hero, TestimonialsSlider, Footer, etc.)
+- `public/` — static assets (images, logos)
+- `tailwind.config.js` — Tailwind configuration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes & Tips
 
-## Deploy on Vercel
+- If you see port conflicts when starting the dev server, stop the running process or change the port.
+- On Windows, if `npm` scripts are blocked by policy, run `npm.cmd` instead.
+- Images in the repo may reference external URLs; for offline work, replace them with local files in `public/`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app is deployable to Vercel (recommended) or any platform that supports Next.js. For Vercel, connect the repository and use the default build command `npm run build`.
+
+## Contact
+
+For questions about this repository, contact the project owner or your internal team.
+
+---
+
+_Generated: tidy README for local development and deployment._
