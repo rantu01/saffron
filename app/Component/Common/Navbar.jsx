@@ -10,6 +10,7 @@ const Navbar = () => {
   // ব্যানারটি দেখাবে কি দেখাবে না তা ট্র্যাক করার জন্য state
   // শুধুমাত্র হোমপেজে দেখানো হবে — অন্য পেজে অটো hide হবে
   const [showBanner, setShowBanner] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -100,18 +101,116 @@ const Navbar = () => {
             </button>
           </div>
 
-          {/* ডানদিকের Contact Us বাটন */}
-          <div>
-            <Link
-              href="/contact"
-              className="bg-[#E05305] text-white px-6 py-2.5 rounded-md font-semibold text-base hover:bg-[#c84a04] transition-colors inline-block"
+          {/* ডানদিকের Contact Us বাটন + মোবাইল হ্যামবার */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden p-2 rounded-md focus:outline-none"
+              aria-label="Open menu"
             >
-              Contact Us
-            </Link>
+              <span className="sr-only">Open menu</span>
+              <div className="w-6 h-5 flex flex-col justify-between">
+                <span className="block h-[2px] bg-gray-800 rounded"></span>
+                <span className="block h-[2px] bg-gray-800 rounded"></span>
+                <span className="block h-[2px] bg-gray-800 rounded"></span>
+              </div>
+            </button>
+
+            <div className="hidden md:block">
+              <Link
+                href="/contact"
+                className="bg-[#E05305] text-white px-6 py-2.5 rounded-md font-semibold text-base hover:bg-[#c84a04] transition-colors inline-block"
+              >
+                Contact Us
+              </Link>
+            </div>
           </div>
         </div>
 
       </nav>
+
+      {/* Mobile Drawer (right side) */}
+      <div className={`fixed inset-0 z-50 transition-all ${mobileOpen ? 'visible' : 'invisible pointer-events-none'}`}>
+        {/* Backdrop */}
+        <div
+          onClick={() => setMobileOpen(false)}
+          className={`fixed inset-0 bg-black/40 transition-opacity duration-300 ease-in-out ${mobileOpen ? 'opacity-100' : 'opacity-0'
+            }`}
+        />
+
+        {/* Drawer Body */}
+        <aside
+          className={`fixed top-0 right-0 h-full w-80 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+        >
+          {/* Header */}
+          <div className="p-4 flex items-center justify-between border-b">
+            <Link href="/" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
+              <Image
+                src="/imgi_114_b1hwuyvwud51xaw9fnyu.webp"
+                alt="saffronedge logo"
+                width={120}
+                height={34}
+                className="object-contain"
+              />
+            </Link>
+
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="p-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Navigation Links */}
+          <div className="p-6 h-[calc(100%-145px)] overflow-y-auto">
+            <nav className="flex flex-col gap-2 text-gray-800 font-medium">
+              <Link href="/services" onClick={() => setMobileOpen(false)} className="w-full p-3 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                Services
+              </Link>
+
+              <Link href="/case-study" onClick={() => setMobileOpen(false)} className="w-full p-3 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                Case Studies
+              </Link>
+
+              {/* Resources Section with Sub-links */}
+              <div className="flex flex-col gap-1">
+                <Link href="/resources" onClick={() => setMobileOpen(false)} className="w-full p-3 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                  Resources
+                </Link>
+                <div className="pl-4 flex flex-col gap-1 text-sm text-gray-600">
+                  <Link href="/resources?tab=ebook" onClick={() => setMobileOpen(false)} className="p-2 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                    • Ebook
+                  </Link>
+                  <Link href="/resources?tab=templates" onClick={() => setMobileOpen(false)} className="p-2 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                    • Templates
+                  </Link>
+                  <Link href="/resources?tab=calculators" onClick={() => setMobileOpen(false)} className="p-2 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                    • Calculators
+                  </Link>
+                </div>
+              </div>
+
+              <Link href="/company" onClick={() => setMobileOpen(false)} className="w-full p-3 rounded-md hover:bg-[#FFF1E9] transition-colors">
+                Company
+              </Link>
+            </nav>
+          </div>
+
+          {/* Footer / CTA */}
+          <div className="p-6 border-t absolute bottom-0 left-0 right-0 bg-white">
+            <Link
+              href="/contact"
+              onClick={() => setMobileOpen(false)}
+              className="block bg-[#E05305] text-white text-center py-3 rounded-md font-medium hover:bg-[#c84a04] transition-colors shadow-sm"
+            >
+              Contact Us
+            </Link>
+          </div>
+        </aside>
+      </div>
     </header>
   );
 };
