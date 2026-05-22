@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { X, ChevronDown, LayoutGrid, BookOpen, FileCode, Calculator, Briefcase, Bookmark } from 'lucide-react'; // আইকনের জন্য lucide-react ব্যবহার করা হয়েছে
+import { useAuth } from '@/app/Component/Auth/AuthProvider';
 
 const Navbar = () => {
   // ব্যানারটি দেখাবে কি দেখাবে না তা ট্র্যাক করার জন্য state
@@ -12,6 +13,25 @@ const Navbar = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
+  const { user, loading, logout } = useAuth();
+  const [role, setRole] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    async function loadRole() {
+      if (!user?.uid) return setRole(null);
+      try {
+        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
+        const data = await res.json();
+        if (mounted && data?.success) setRole(data.dashboard?.role || null);
+      } catch (e) {
+        if (mounted) setRole(null);
+      }
+    }
+
+    loadRole();
+    return () => (mounted = false);
+  }, [user?.uid]);
 
   useEffect(() => {
     setShowBanner(pathname === '/');
@@ -116,7 +136,43 @@ const Navbar = () => {
               </div>
             </button>
 
-            <div className="hidden md:block">
+            <div className="hidden md:flex items-center gap-3">
+              {!loading && user && role !== 'admin' && (
+                <Link
+                  href="/user-dashboard"
+                  className="border border-slate-300 text-slate-700 px-6 py-2.5 rounded-md font-semibold text-base hover:bg-gray-100 transition-colors inline-block"
+                >
+                  Dashboard
+                </Link>
+              )}
+
+              {!loading && user && role === 'admin' && (
+                <Link
+                  href="/admin"
+                  className="ml-3 border border-slate-300 text-slate-700 px-4 py-2.5 rounded-md font-semibold text-base hover:bg-gray-100 transition-colors inline-block"
+                >
+                  Admin
+                </Link>
+              )}
+
+              {!loading && !user && (
+                <Link
+                  href="/login"
+                  className="border border-[#E05305] text-[#E05305] px-6 py-2.5 rounded-md font-semibold text-base hover:bg-[#FFF1E9] transition-colors inline-block"
+                >
+                  Login
+                </Link>
+              )}
+
+              {!loading && user && (
+                <button
+                  onClick={logout}
+                  className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-md font-semibold text-base hover:bg-gray-100 transition-colors inline-block"
+                >
+                  Logout
+                </button>
+              )}
+
               <Link
                 href="/contact"
                 className="bg-[#E05305] text-white px-6 py-2.5 rounded-md font-semibold text-base hover:bg-[#c84a04] transition-colors inline-block"
@@ -201,6 +257,48 @@ const Navbar = () => {
 
           {/* Footer / CTA */}
           <div className="p-6 border-t absolute bottom-0 left-0 right-0 bg-white">
+            {!loading && user && role !== 'admin' && (
+              <Link
+                href="/user-dashboard"
+                onClick={() => setMobileOpen(false)}
+                className="mb-3 block border border-slate-300 text-slate-700 text-center py-3 rounded-md font-medium hover:bg-gray-100 transition-colors"
+              >
+                Dashboard
+              </Link>
+            )}
+
+            {!loading && user && role === 'admin' && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileOpen(false)}
+                className="mb-3 block border border-slate-300 text-slate-700 text-center py-3 rounded-md font-medium hover:bg-gray-100 transition-colors"
+              >
+                Admin
+              </Link>
+            )}
+
+            {!loading && !user && (
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
+                className="mb-3 block border border-[#E05305] text-[#E05305] text-center py-3 rounded-md font-medium hover:bg-[#FFF1E9] transition-colors"
+              >
+                Login
+              </Link>
+            )}
+
+            {!loading && user && (
+              <button
+                onClick={async () => {
+                  await logout();
+                  setMobileOpen(false);
+                }}
+                className="mb-3 block w-full border border-gray-300 text-gray-700 text-center py-3 rounded-md font-medium hover:bg-gray-100 transition-colors"
+              >
+                Logout
+              </button>
+            )}
+
             <Link
               href="/contact"
               onClick={() => setMobileOpen(false)}
