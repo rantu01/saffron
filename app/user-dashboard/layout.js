@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <div className="min-h-screen bg-[#FFF8F3] text-slate-900">
+          <div className="min-h-screen lg:bg-[#FFF8F3] bg-[#121212] lg:text-slate-900 text-white">
             <ClientLayout>{children}</ClientLayout>
           </div>
         </AuthProvider>

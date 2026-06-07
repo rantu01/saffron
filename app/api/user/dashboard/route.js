@@ -27,7 +27,17 @@ export async function GET(request) {
       success: true,
       dashboard: {
         availableBalance: user?.availableBalance || 0,
+        totalEarned: user?.totalEarned || 0,
+        usdRate: 129,
         role: user?.role || "user",
+        accountStatus: user?.accountStatus || "active",
+        accountType: user?.accountType || (user?.isDemoAccount ? "demo" : "main"),
+        isDemoAccount: Boolean(user?.isDemoAccount || user?.accountType === "demo"),
+        inviterUid: user?.inviterUid || "",
+        inviterEmail: user?.inviterEmail || "",
+        freezeReason: user?.freezeReason || null,
+        freezeThreshold: Number(user?.freezeThreshold || 0),
+        demoProfitSharePercent: Number(user?.demoProfitSharePercent || 20),
         tasks,
       },
     });

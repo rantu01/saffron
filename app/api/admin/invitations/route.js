@@ -31,8 +31,13 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(request) {
   try {
+    const body = await request.json().catch(() => ({}));
+    const createdByUid = typeof body.createdByUid === "string" ? body.createdByUid : "";
+    const createdByEmail = typeof body.createdByEmail === "string" ? body.createdByEmail : "";
+    const createdByName = typeof body.createdByName === "string" ? body.createdByName : "";
+
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
@@ -48,6 +53,9 @@ export async function POST() {
     const doc = {
       code,
       isActive: true,
+      createdByUid,
+      createdByEmail,
+      createdByName,
       usedByUid: "",
       usedByEmail: "",
       usedAt: null,

@@ -1,6 +1,5 @@
 "use client";
 
-import { Menu } from "lucide-react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -29,25 +28,30 @@ export default function UserTopbar({ onToggle }) {
   }, [user?.uid]);
 
   return (
-    <header className="sticky top-0 z-20 border-b border-[#F1E7DF] bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b lg:border-[#F1E7DF] border-transparent lg:bg-white/90 bg-[#121212] backdrop-blur">
       <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3">
+        {/* Mobile topbar — ultra-minimalist dark */}
+        <div className="flex w-full items-center justify-between lg:hidden">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p>
+          </div>
           <button
-            type="button"
-            onClick={onToggle}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[#F1E7DF] bg-white text-slate-700 shadow-sm transition hover:border-[#F59E0B] hover:text-[#C2410C] lg:hidden"
-            aria-label="Toggle sidebar"
+            onClick={handleLogout}
+            className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-400/60"
           >
-            <Menu size={18} />
+            Logout
           </button>
+        </div>
 
+        {/* Desktop topbar — original clean style */}
+        <div className="hidden min-w-0 items-center gap-3 lg:flex">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#C2410C]">Dashboard</p>
             <h1 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">Welcome{profile?.displayName ? `, ${profile.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 sm:gap-4">
+        <div className="hidden items-center gap-3 sm:gap-4 lg:flex">
           <div className="flex items-center gap-3 rounded-2xl border border-[#F1E7DF] bg-white px-3 py-2 shadow-sm">
             <div className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#EA580C] text-sm font-bold text-white">
               {profile?.avatarUrl ? (

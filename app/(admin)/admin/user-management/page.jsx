@@ -7,6 +7,7 @@ export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   const loadData = async () => {
     setLoading(true);
@@ -27,7 +28,26 @@ export default function UserManagementPage() {
   };
 
   useEffect(() => {
-    loadData();
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      try {
+        const [usersRes, invitationsRes] = await Promise.all([
+          fetch("/api/admin/users"),
+          fetch("/api/admin/invitations"),
+        ]);
+        const usersData = await usersRes.json();
+        const invitationsData = await invitationsRes.json();
+        if (!cancelled) {
+          setUsers(usersData.users || []);
+          setInvitations(invitationsData.invitations || []);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
   }, []);
 
   const updateUser = async (uid, updateFields) => {
@@ -42,7 +62,6 @@ export default function UserManagementPage() {
       await Swal.fire({ icon: "error", title: "Update failed", text: result.message || "Please try again." });
       return;
     }
-
     await Swal.fire({ icon: "success", title: "User updated", timer: 1200, showConfirmButton: false });
     loadData();
   };
@@ -50,99 +69,208 @@ export default function UserManagementPage() {
   const createInvitationCode = async () => {
     const response = await fetch("/api/admin/invitations", { method: "POST" });
     const result = await response.json();
-
     if (!response.ok || !result.success) {
       await Swal.fire({ icon: "error", title: "Generation failed", text: result.message || "Please try again." });
       return;
     }
-
-    await Swal.fire({
-      icon: "success",
-      title: "Invitation code created",
-      text: `New code: ${result.invitation.code}`,
-    });
-
+    await Swal.fire({ icon: "success", title: "Invitation code created", text: `New code: ${result.invitation.code}` });
     loadData();
   };
+
+  const createReferralCodeForUser = async (user) => {
+    const response = await fetch("/api/admin/invitations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ createdByUid: user.uid, createdByEmail: user.email || "", createdByName: user.displayName || "" }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      await Swal.fire({ icon: "error", title: "Generation failed", text: result.message || "Please try again." });
+      return;
+    }
+    await Swal.fire({ icon: "success", title: "Referral code created", text: `${user.email || user.uid}: ${result.invitation.code}` });
+    loadData();
+  };
+
+  const createDemoAccount = async (user) => {
+    const { value: formValues } = await Swal.fire({
+      title: "Create Demo Account",
+      html: `
+        <div style="text-align:left;margin-bottom:8px;font-size:13px;color:#475569;">Email</div>
+        <input id="swal-email" class="swal2-input" type="email" value="demo_${user.email || user.uid}" style="width:100%">
+        <div style="text-align:left;margin-bottom:8px;margin-top:12px;font-size:13px;color:#475569;">Password</div>
+        <input id="swal-password" class="swal2-input" type="password" placeholder="Enter password" style="width:100%">
+      `,
+      focusConfirm: false, showCancelButton: true, confirmButtonText: "Create",
+      preConfirm: () => {
+        const email = document.getElementById("swal-email").value.trim();
+        const password = document.getElementById("swal-password").value;
+        if (!email) { Swal.showValidationMessage("Email is required"); return false; }
+        if (!password || password.length < 6) { Swal.showValidationMessage("Password must be at least 6 characters"); return false; }
+        return { email, password };
+      },
+    });
+    if (!formValues) return;
+    const response = await fetch("/api/admin/users", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid: user.uid, email: formValues.email, password: formValues.password }),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      await Swal.fire({ icon: "error", title: "Creation failed", text: result.message || "Please try again." });
+      return;
+    }
+    await Swal.fire({ icon: "success", title: "Demo account created", text: `Email: ${result.user.email}` });
+    loadData();
+  };
+
+  const formatMoney = (val) => {
+    const n = Number(val || 0);
+    if (!Number.isFinite(n)) return "0.00";
+    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  const filteredUsers = users.filter((u) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return u.email?.toLowerCase().includes(q) || u.uid?.toLowerCase().includes(q) || u.displayName?.toLowerCase().includes(q);
+  });
 
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-semibold">User Management</h1>
-        <button
-          onClick={createInvitationCode}
-          className="bg-[#E05305] text-white rounded px-4 py-2.5 font-medium hover:bg-[#c84a04] transition"
-        >
+        <div>
+          <h1 className="text-2xl font-semibold">User Management</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{users.length} total users</p>
+        </div>
+        <button onClick={createInvitationCode} className="bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition">
           Generate Invitation Code
         </button>
       </div>
 
-      <div className="bg-white rounded shadow p-4 md:p-6">
-        <h2 className="text-lg font-semibold mb-4">Users</h2>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm mb-6">
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search by email, name, or UID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white flex-1 max-w-md"
+          />
+        </div>
+      </div>
 
+      <div className="space-y-3">
         {loading ? (
-          <p className="text-slate-600">Loading...</p>
-        ) : users.length ? (
-          <div className="space-y-3">
-            {users.map((user) => (
-              <div key={user.uid} className="border border-slate-200 rounded-lg p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{user.email || user.uid}</p>
-                    <p className="text-xs text-slate-500 mt-1">UID: {user.uid}</p>
+          <p className="text-slate-500">Loading...</p>
+        ) : filteredUsers.length ? (
+          filteredUsers.map((user) => (
+            <div key={user.uid} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-900">{user.displayName || user.email || user.uid}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${user.role === "admin" ? "bg-purple-50 text-purple-700" : "bg-slate-50 text-slate-600"}`}>
+                      {user.role || "user"}
+                    </span>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-
-                    <p>Role : </p>
-                    <select
-                      defaultValue={user.role || "user"}
-                      onChange={(event) => updateUser(user.uid, { role: event.target.value })}
-                      className="border border-slate-300 rounded px-2 py-1.5 text-sm"
-                    >
-                      <option value="user">user</option>
-                      <option value="admin">admin</option>
-                    </select>
-
-                    <p>Balance : </p>
-
-                    <input
-                      type="number"
-                      step="0.01"
-                      defaultValue={Number(user.availableBalance || 0)}
-                      className="border border-slate-300 rounded px-2 py-1.5 text-sm w-32"
-                      onBlur={(event) => updateUser(user.uid, { availableBalance: event.target.value })}
-                    />
+                  <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">UID: {user.uid.slice(0, 24)}...</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                    <span>Phone: {user.phoneNumber || "—"}</span>
+                    {user.inviterEmail && <span>Invited by: {user.inviterEmail}</span>}
+                    <span className="capitalize">{user.accountType || (user.isDemoAccount ? "demo" : "main")}</span>
                   </div>
                 </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    defaultValue={user.role || "user"}
+                    onChange={(e) => updateUser(user.uid, { role: e.target.value })}
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                  >
+                    <option value="user">user</option>
+                    <option value="admin">admin</option>
+                  </select>
+
+                  <input
+                    type="number" step="0.01"
+                    defaultValue={Number(user.availableBalance || 0)}
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white"
+                    onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })}
+                  />
+
+                  <select
+                    defaultValue={user.accountType || (user.isDemoAccount ? "demo" : "main")}
+                    onChange={(e) => updateUser(user.uid, { accountType: e.target.value })}
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                  >
+                    <option value="main">main</option>
+                    <option value="demo">demo</option>
+                  </select>
+
+                  <select
+                    defaultValue={user.accountStatus || "active"}
+                    onChange={(e) => updateUser(user.uid, { accountStatus: e.target.value })}
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                  >
+                    <option value="active">active</option>
+                    <option value="frozen">frozen</option>
+                  </select>
+
+                  {user.accountType !== "demo" && !user.isDemoAccount && (
+                    <button onClick={() => createDemoAccount(user)} className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-emerald-700 transition">
+                      Create Demo
+                    </button>
+                  )}
+
+                  <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">
+                    Referral Code
+                  </button>
+                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         ) : (
-          <p className="text-slate-600">No users found.</p>
+          <p className="text-slate-500">No users found.</p>
         )}
       </div>
 
-      <div className="mt-6 bg-white rounded shadow p-4 md:p-6">
-        <h2 className="text-lg font-semibold mb-4">Invitation Codes</h2>
+      <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100">
+          <h2 className="text-lg font-semibold">Invitation Codes ({invitations.length})</h2>
+        </div>
         {invitations.length ? (
-          <div className="space-y-2">
-            {invitations.map((invitation) => (
-              <div key={invitation._id} className="border border-slate-200 rounded-lg p-3 flex items-center justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-slate-900 tracking-widest">{invitation.code}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {invitation.usedByEmail ? `Used by: ${invitation.usedByEmail}` : "Unused"}
-                  </p>
-                </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full ${invitation.usedByUid ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}`}>
-                  {invitation.usedByUid ? "Used" : "Available"}
-                </span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="py-3 px-4">Code</th>
+                  <th className="py-3 px-4">Owner</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Used By</th>
+                  <th className="py-3 px-4">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {invitations.map((inv) => (
+                  <tr key={inv._id} className="hover:bg-slate-50/40">
+                    <td className="py-3 px-4 font-mono font-bold tracking-widest">{inv.code}</td>
+                    <td className="py-3 px-4 text-slate-600">{inv.createdByEmail || inv.createdByUid?.slice(0, 16) || "Global"}</td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${inv.usedByUid ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                        {inv.usedByUid ? "Used" : "Available"}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-slate-600">{inv.usedByEmail || "—"}</td>
+                    <td className="py-3 px-4 text-xs text-slate-400">{new Date(inv.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
-          <p className="text-slate-600">No invitation codes generated yet.</p>
+          <p className="p-6 text-center text-slate-500">No invitation codes generated yet.</p>
         )}
       </div>
     </div>
