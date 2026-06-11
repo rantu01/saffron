@@ -84,7 +84,74 @@ export default function UserDashboardPage() {
   }, [user?.uid]);
 
   if (loading || isLoading) {
-    return <div className="max-w-7xl mx-auto px-4 py-10 text-slate-600 font-medium">Loading dashboard...</div>;
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-8 animate-pulse">
+        {/* Header skeleton */}
+        <div className="mb-8">
+          <div className="h-3 w-24 bg-slate-200 rounded mb-2" />
+          <div className="h-8 w-48 bg-slate-200 rounded mb-2" />
+          <div className="h-4 w-72 bg-slate-200 rounded" />
+        </div>
+
+        {/* 4 stat cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-3 w-24 bg-slate-200 rounded" />
+                <div className="h-9 w-9 bg-slate-200 rounded-lg" />
+              </div>
+              <div className="h-8 w-28 bg-slate-200 rounded mb-3" />
+              <div className="h-5 w-20 bg-slate-200 rounded" />
+            </div>
+          ))}
+        </div>
+
+        {/* Table skeleton */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10">
+          <div className="p-5 border-b border-slate-100">
+            <div className="h-5 w-48 bg-slate-200 rounded mb-1" />
+            <div className="h-3 w-64 bg-slate-200 rounded" />
+          </div>
+          <div className="p-5 border-b border-slate-100 bg-slate-50/60">
+            <div className="h-8 w-64 bg-slate-200 rounded-lg" />
+          </div>
+          <div className="p-5 space-y-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="h-4 w-32 bg-slate-200 rounded" />
+                <div className="h-4 w-24 bg-slate-200 rounded" />
+                <div className="h-5 w-16 bg-slate-200 rounded-full" />
+                <div className="h-4 w-20 bg-slate-200 rounded ml-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom grid skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-5 w-32 bg-slate-200 rounded" />
+                <div className="h-3 w-16 bg-slate-200 rounded" />
+              </div>
+              <div className="space-y-3">
+                {[...Array(2)].map((_, j) => (
+                  <div key={j} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+                    <div>
+                      <div className="h-4 w-20 bg-slate-200 rounded mb-1" />
+                      <div className="h-3 w-24 bg-slate-200 rounded" />
+                    </div>
+                    <div className="h-5 w-16 bg-slate-200 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   if (!user) {
@@ -138,22 +205,7 @@ export default function UserDashboardPage() {
           </div>
         </div>
 
-        {/* Card 2: USD Rate / Account Type */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">USD Rate / Type</span>
-              <span className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </span>
-            </div>
-            {/* Kept dynamic details while implementing image look */}
-            <div className="text-3xl font-bold text-slate-900 mt-4">{formatMoney(dashboard.usdRate || 129)}</div>
-          </div>
-          <div className="mt-4 text-xs font-medium text-emerald-600 bg-emerald-50/50 py-1.5 px-3 rounded-md w-max capitalize">
-            {dashboard.accountType || (dashboard.isDemoAccount ? 'Demo Account' : 'BDT to USD')}
-          </div>
-        </div>
+        
 
         {/* Card 3: Completed / Total Earnings */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">

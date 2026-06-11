@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getUserTaskSetProgress, initializeUserTaskSet } from "@/lib/taskSetModel";
 import { ObjectId } from "mongodb";
-import { buildTaskFinancialProfile, getTaskRequiredBalance, getTaskRewardMultiplier, isCombinationTask, getCombinationReward, roundCurrency } from "@/lib/taskModel";
-import { creditUserBalance, freezeUserForBalance, getUserByUid, isDemoUser } from "@/lib/userModel";
+import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
-import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
-import { sendTaskCompleted, sendBalanceFrozen } from "@/lib/whatsappService";
+import { roundCurrency } from "@/lib/taskModel";
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { taskId, uid } = body;
+    const { taskId, uid, feedback, ratingOption } = body;
 
     if (!taskId || !uid) {
       return NextResponse.json({ success: false, message: "taskId and uid required" }, { status: 400 });
@@ -34,160 +31,95 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Task already completed" }, { status: 400 });
     }
 
+    if (task.status === 'cancelled') {
+      return NextResponse.json({ success: false, message: "Task was cancelled." }, { status: 400 });
+    }
+
+    // Validate submission based on task's submissionConfig
+    const subConfig = task.submissionConfig;
+    if (subConfig) {
+      if (subConfig.requireRating !== false) {
+        if (!ratingOption) {
+          return NextResponse.json({ success: false, message: "Rating selection is required." }, { status: 400 });
+        }
+        if (Array.isArray(subConfig.ratingOptions) && subConfig.ratingOptions.length && !subConfig.ratingOptions.includes(ratingOption)) {
+          return NextResponse.json({ success: false, message: "Invalid rating option selected." }, { status: 400 });
+        }
+      }
+      if (subConfig.requireFeedback !== false) {
+        if (!feedback || !feedback.trim()) {
+          return NextResponse.json({ success: false, message: "Feedback is required." }, { status: 400 });
+        }
+        const maxLen = Math.min(Math.max(Number(subConfig.maxFeedbackLength) || 500, 1), 5000);
+        if (feedback.length > maxLen) {
+          return NextResponse.json({ success: false, message: `Feedback exceeds ${maxLen} character limit.` }, { status: 400 });
+        }
+      }
+    }
+
     const user = await getUserByUid(uid);
     if (!user) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
-    if (user.accountStatus === "frozen" && user.freezeReason !== "balance_requirement") {
-      return NextResponse.json({ success: false, message: "Your account is frozen." }, { status: 403 });
-    }
+    const totalAmount = Number(task.totalAmount || 0);
+    const profit = Number(task.profit || 0);
+    const earned = roundCurrency(totalAmount + profit);
 
-    // Initialize user task set if needed
-    let setProgress = await getUserTaskSetProgress(uid);
-    if (!setProgress) {
-      await initializeUserTaskSet(uid, task.setNumber || 1);
-      setProgress = await getUserTaskSetProgress(uid);
-    }
+    const updateFields = {
+      status: 'completed',
+      completedAt: new Date(),
+      earnedAmount: earned,
+      updatedAt: new Date(),
+    };
 
-    // Check if task is at current position (sequential check)
-    const expectedPosition = setProgress.currentPosition + 1;
-    if ((task.position || 1) !== expectedPosition) {
-      return NextResponse.json({
-        success: false,
-        message: `Complete task ${expectedPosition} first`,
-        currentPosition: setProgress.currentPosition,
-        expectedPosition,
-      }, { status: 400 });
-    }
-
-    const taskFinancialProfile = buildTaskFinancialProfile(task, task.position, task.setNumber);
-    const requiredBalance = getTaskRequiredBalance(taskFinancialProfile);
-
-    if (Number(user.availableBalance || 0) < requiredBalance) {
-      await freezeUserForBalance(uid, requiredBalance, {
-        taskId: String(task._id),
-        taskSetNumber: task.setNumber || 1,
-        taskPosition: task.position || 1,
-      });
-
-      const wsSettings = await getWhatsAppSettings();
-      if (wsSettings?.enabled && wsSettings.notifyOnBalanceFreeze !== false && user.phoneNumber) {
-        const name = user.displayName || user.email || "User";
-        sendBalanceFrozen(user.phoneNumber, name, requiredBalance, user.availableBalance || 0).catch(() => {});
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: `Your account is temporarily frozen. Please maintain a balance of $${requiredBalance} to continue.`,
-          requiredBalance,
-          accountStatus: "frozen",
-        },
-        { status: 400 }
-      );
-    }
-
-    const comboTask = isCombinationTask(taskFinancialProfile);
-    let baseReward = Number(task.reward || 0);
-    let multiplier = getTaskRewardMultiplier(taskFinancialProfile);
-    let earned = baseReward * multiplier;
-    let comboProfitInfo = null;
-
-    if (comboTask && task.combinationPositions) {
-      comboProfitInfo = getCombinationReward(task.combinationPositions, task.position, 30);
-      if (comboProfitInfo) {
-        earned = roundCurrency(baseReward * multiplier + baseReward * comboProfitInfo.baseRewardFraction);
-      }
-    }
+    if (feedback !== undefined) updateFields.feedback = feedback;
+    if (ratingOption !== undefined) updateFields.ratingOption = ratingOption;
 
     await db.collection("tasks").updateOne(
       { _id: task._id },
-      {
-        $set: {
-          status: 'completed',
-          completedAt: new Date(),
-          earnedAmount: earned,
-          isCombinationTask: comboTask,
-          multiplier,
-          requiredBalance,
-          taskType: taskFinancialProfile.taskType,
-          profitPercent: comboProfitInfo?.profitPercent || (comboTask ? 25 : 0),
-          updatedAt: new Date(),
-        },
-      }
+      { $set: updateFields }
     );
 
+    const balanceBefore = Number(user.availableBalance || 0);
     await creditUserBalance(uid, earned, { autoResolveFreeze: true });
     const userAfterTask = await getUserByUid(uid);
+    const balanceAfter = Number(userAfterTask?.availableBalance || 0);
 
     await createBalanceLog({
       uid,
       email: user?.email || "",
       type: "task_earnings",
       amount: earned,
-      balanceBefore: Number(user.availableBalance || 0),
-      balanceAfter: Number(userAfterTask?.availableBalance || 0),
-      description: `Task completed: ${task.title || "Task"} (${comboTask ? `${multiplier}x combo` : `${multiplier}x`})`,
+      balanceBefore,
+      balanceAfter,
+      description: `Task completed: ${task.appName || task.title || "Task"} (total $${totalAmount} + profit $${profit})`,
       referenceId: String(task._id),
       referenceType: "task",
-      metadata: { taskPosition: task.position, isCombinationTask: comboTask, multiplier },
+      metadata: { totalAmount, profit, appName: task.appName },
     });
 
-    let inviterShareAmount = 0;
-    if (isDemoUser(user) && user.inviterUid) {
-      const sharePercent = Number(user.demoProfitSharePercent || 20);
-      inviterShareAmount = (earned * sharePercent) / 100;
-
-      const inviter = await getUserByUid(user.inviterUid);
-      if (inviter && inviter.accountType !== "demo") {
-        const inviterBefore = Number(inviter.availableBalance || 0);
-        await creditUserBalance(user.inviterUid, inviterShareAmount, { autoResolveFreeze: true });
-        const inviterAfter = await getUserByUid(user.inviterUid);
-        await createBalanceLog({
-          uid: user.inviterUid,
-          email: inviter.email || "",
-          type: "referral_commission",
-          amount: inviterShareAmount,
-          balanceBefore: inviterBefore,
-          balanceAfter: Number(inviterAfter?.availableBalance || 0),
-          description: `Referral commission from ${user.email || uid} (${sharePercent}%)`,
-          referenceId: String(task._id),
-          referenceType: "task_referral",
-          metadata: { sourceUid: uid, sourceEmail: user.email, sharePercent },
-        });
-      } else {
-        inviterShareAmount = 0;
-      }
-    }
-
-    // Update task set progress
-    const updatedSetProgress = await db.collection("userTaskSets").findOneAndUpdate(
+    // Update task set progress if using set system
+    await db.collection("userTaskSets").findOneAndUpdate(
       { uid, setNumber: task.setNumber || 1 },
       { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
       { returnDocument: "after" }
-    );
-
-    const wsSettings = await getWhatsAppSettings();
-    if (wsSettings?.enabled && wsSettings.notifyOnTaskComplete !== false && user.phoneNumber) {
-      const name = user.displayName || user.email || "User";
-      sendTaskCompleted(user.phoneNumber, name, task.title, earned, userAfterTask?.availableBalance || 0).catch(() => {});
-    }
+    ).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      message: "Task marked completed",
+      message: `You earned $${formatMoney(earned)}`,
       earned,
-      baseReward,
-      multiplier,
-      requiredBalance,
-      inviterShareAmount,
-      isCombinationTask: comboTask,
-      profitPercent: comboProfitInfo?.profitPercent || 0,
-      combinationPositions: task.combinationPositions || [],
-      setProgress: updatedSetProgress.value,
+      totalAmount,
+      profit,
     });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message || 'Failed to complete task' }, { status: 500 });
   }
+}
+
+function formatMoney(val) {
+  const n = Number(val || 0);
+  if (!Number.isFinite(n)) return '0.00';
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }

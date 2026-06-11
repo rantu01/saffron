@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
 
 export async function GET(request) {
   try {
@@ -30,42 +29,43 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, description, assigneeUid, assigneeEmail, reward, setNumber = 1, position, taskType, requiredBalance } = body;
+    const { appName, appLogo, totalAmount, description, submissionConfig } = body;
 
-    if (!title || !assigneeUid) {
+    if (!appName || !totalAmount) {
       return NextResponse.json(
-        { success: false, message: "title and assigneeUid are required." },
+        { success: false, message: "appName and totalAmount are required." },
         { status: 400 }
       );
     }
 
+    const totalAmt = Math.max(0, Number(totalAmount) || 0);
+    const profit = Math.round(totalAmt * 0.5) / 100;
+
+    const config = submissionConfig && typeof submissionConfig === "object" ? {
+      requireRating: submissionConfig.requireRating !== false,
+      ratingOptions: Array.isArray(submissionConfig.ratingOptions) && submissionConfig.ratingOptions.length
+        ? submissionConfig.ratingOptions
+        : ["Peace of mind and security, very good app.", "Convenient, easy, and simple.", "Update too often.", "This is very good software.", "Free is quite good, but from time to time it shows that the server is busy, I hope to get improved."],
+      requireFeedback: submissionConfig.requireFeedback !== false,
+      maxFeedbackLength: Math.min(Math.max(Number(submissionConfig.maxFeedbackLength) || 500, 1), 5000),
+    } : null;
+
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    const combinationPositions = generateCombinationPositions();
-
-    const taskProfile = buildTaskFinancialProfile(
-      { title, description, assigneeUid, assigneeEmail, reward, setNumber, position, taskType, requiredBalance },
-      position,
-      setNumber,
-      combinationPositions
-    );
-
     const now = new Date();
     const task = {
-      title,
+      appName,
+      appLogo: appLogo || "",
       description: description || "",
-      assigneeUid,
-      assigneeEmail: assigneeEmail || "",
-      reward: taskProfile.reward,
-      status: "pending",
-      setNumber: taskProfile.setNumber,
-      position: taskProfile.position || 0,
-      taskType: taskProfile.taskType,
-      isCombinationTask: taskProfile.isCombinationTask,
-      profitMultiplier: taskProfile.profitMultiplier,
-      requiredBalance: taskProfile.requiredBalance,
-      combinationPositions: taskProfile.combinationPositions,
+      totalAmount: totalAmt,
+      profit,
+      reward: profit,
+      isTemplate: true,
+      submissionConfig: config,
+      assigneeUid: null,
+      assigneeEmail: null,
+      status: "available",
       createdAt: now,
       updatedAt: now,
     };
@@ -74,12 +74,12 @@ export async function POST(request) {
 
     return NextResponse.json({
       success: true,
-      message: "Task assigned successfully.",
+      message: "Task created successfully.",
       task: { ...task, _id: result.insertedId },
     });
   } catch (error) {
     return NextResponse.json(
-      { success: false, message: error.message || "Task assignment failed." },
+      { success: false, message: error.message || "Task creation failed." },
       { status: 500 }
     );
   }
