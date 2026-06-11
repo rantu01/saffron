@@ -3,10 +3,11 @@
 import { ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import NotificationBell from "@/app/Component/Common/NotificationBell";
 
 export default function DashboardTopbar({ onToggle }) {
     const router = useRouter();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
 
     const handleLogout = async () => {
         await logout();
@@ -39,6 +40,7 @@ export default function DashboardTopbar({ onToggle }) {
                 </div>
 
                 <div className="hidden items-center gap-3 sm:gap-4 lg:flex">
+                    <NotificationBell uid={user?.uid} />
                     <div className="flex items-center gap-3 rounded-2xl border border-[#E5DED6] bg-white px-3 py-2 shadow-sm">
                         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#F59E0B] to-[#EA580C] text-sm font-bold text-white">
                             SE

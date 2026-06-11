@@ -13,7 +13,7 @@ export async function POST(request) {
       );
     }
 
-    const user = await syncAuthenticatedUser({
+    const result = await syncAuthenticatedUser({
       uid,
       email,
       displayName,
@@ -21,7 +21,14 @@ export async function POST(request) {
       invitationCode,
     });
 
-    return NextResponse.json({ success: true, message: "User synced.", user });
+    const { isNewUser, ...user } = result;
+
+    return NextResponse.json({
+      success: true,
+      message: "User synced.",
+      user,
+      isNewUser: Boolean(isNewUser),
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Sync failed." },

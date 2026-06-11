@@ -3,6 +3,7 @@
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import NotificationBell from "@/app/Component/Common/NotificationBell";
 
 export default function UserTopbar({ onToggle }) {
   const { user, logout } = useAuth();
@@ -52,6 +53,7 @@ export default function UserTopbar({ onToggle }) {
         </div>
 
         <div className="hidden items-center gap-3 sm:gap-4 lg:flex">
+          <NotificationBell uid={user?.uid} />
           <div className="flex items-center gap-3 rounded-2xl border border-[#F1E7DF] bg-white px-3 py-2 shadow-sm">
             <div className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#EA580C] text-sm font-bold text-white">
               {profile?.avatarUrl ? (

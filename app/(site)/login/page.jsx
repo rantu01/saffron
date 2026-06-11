@@ -85,27 +85,38 @@ export default function SaffronEdgeAuth() {
       if (!syncResponse.ok || !syncResult.success) {
         throw new Error(syncResult.message || 'Failed to sync user data.');
       }
-      await Swal.fire({
-        icon: 'success',
-        title: isLoginView ? 'Login successful' : 'Registration successful',
-        text: isLoginView ? 'Welcome back!' : 'Your account has been created.',
-        timer: 1500,
-        showConfirmButton: false,
-      });
+
+      const isNewUser = Boolean(syncResult.isNewUser);
+
+      if (!isLoginView) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Registration successful',
+          text: 'Your account has been created.',
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Login successful',
+          text: 'Welcome back!',
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      }
 
       // After sync, fetch dashboard to determine role and redirect accordingly
       try {
         const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}`);
         const dashData = await dashRes.json();
         const role = dashData?.dashboard?.role || 'user';
-        if (role === 'admin') {
-          router.push('/admin');
-        } else {
-          router.push('/user-dashboard');
-        }
+        const basePath = role === 'admin' ? '/admin' : '/user-dashboard';
+        const queryParam = isNewUser ? '?welcome=true' : '';
+        router.push(`${basePath}${queryParam}`);
       } catch (e) {
         // fallback
-        router.push('/user-dashboard');
+        router.push(`/user-dashboard${isNewUser ? '?welcome=true' : ''}`);
       }
     } catch (error) {
       console.error('Auth error', error);

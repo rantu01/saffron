@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 
 export default function UserDashboardPage() {
@@ -13,6 +13,20 @@ export default function UserDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   
+  // Welcome bonus toast
+  const searchParams = useSearchParams();
+  const [showWelcomeToast, setShowWelcomeToast] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("welcome") === "true") {
+      setShowWelcomeToast(true);
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState(null, "", cleanUrl);
+      const timer = setTimeout(() => setShowWelcomeToast(false), 6000);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams]);
+
   // Search state for Ad Accounts / Tasks
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -173,7 +187,25 @@ export default function UserDashboardPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8  min-h-screen">
+    <div className="max-w-7xl mx-auto px-4 py-8 min-h-screen relative">
+      {/* Welcome Bonus Toast */}
+      {showWelcomeToast && (
+        <div className="fixed top-4 right-4 z-50 animate-slide-down">
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-emerald-900">Welcome! You've received a $100 signup bonus.</p>
+              <p className="text-xs text-emerald-700 mt-0.5">Check your balance to see the credit.</p>
+            </div>
+            <button onClick={() => setShowWelcomeToast(false)} className="text-emerald-400 hover:text-emerald-600 ml-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header section from image */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
