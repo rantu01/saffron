@@ -69,6 +69,9 @@ export default function TaskManagementPage() {
   // ─️ Group Assignment Form ──
   const [groupAssign, setGroupAssign] = useState({ groupId: "", assigneeUid: "" });
 
+  // ── Group Task List ──
+  const [selectedGroupTaskId, setSelectedGroupTaskId] = useState("");
+
   const formatMoney = (val) => {
     const n = Number(val || 0);
     if (!Number.isFinite(n)) return "0.00";
@@ -419,6 +422,15 @@ export default function TaskManagementPage() {
 
   // ── Available groups for task creation (not full) ──
   const availableGroups = taskGroups.filter((g) => g.taskCount < 30);
+
+  // ── Group Tasks ──
+  const groupTaskList = selectedGroupTaskId
+    ? tasks.filter(
+        (t) =>
+          (t.taskGroupId === selectedGroupTaskId || t.parentTaskGroupId === selectedGroupTaskId) &&
+          t.isTemplate
+      )
+    : [];
 
   // ── Filters ──
   const filteredTasks = tasks.filter((task) => {
@@ -779,7 +791,98 @@ export default function TaskManagementPage() {
       </div>
 
       {/* ════════════════════════════════════════════════
-          SECTION 3: TASKS TABLE
+          SECTION 3: GROUP TASK LIST
+          ════════════════════════════════════════════════ */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+          <select
+            value={selectedGroupTaskId}
+            onChange={(e) => setSelectedGroupTaskId(e.target.value)}
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+          >
+            <option value="">Select a group to view tasks</option>
+            {taskGroups.map((g) => (
+              <option key={g._id} value={g._id}>
+                {g.name} ({g.taskCount || 0} tasks)
+              </option>
+            ))}
+          </select>
+          {selectedGroupTaskId && (
+            <span className="text-xs text-slate-400">{groupTaskList.length} task{groupTaskList.length !== 1 ? "s" : ""} in this group</span>
+          )}
+        </div>
+
+        {!selectedGroupTaskId ? (
+          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <svg className="h-10 w-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+            <p className="text-sm font-medium">Select a group to view its tasks</p>
+          </div>
+        ) : groupTaskList.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                  <th className="py-3 px-4">App Name</th>
+                  <th className="py-3 px-4">Logo</th>
+                  <th className="py-3 px-4">Total Amount</th>
+                  <th className="py-3 px-4">Profit</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4">Date</th>
+                  <th className="py-3 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {groupTaskList.map((task) => (
+                  <tr key={task._id} className="hover:bg-slate-50/40">
+                    <td className="py-3 px-4 font-medium text-slate-900">{task.appName || task.title || "—"}</td>
+                    <td className="py-3 px-4">
+                      {task.appLogo ? (
+                        <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" />
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
+                    <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        task.status === "completed" ? "bg-emerald-50 text-emerald-700" :
+                        task.status === "cancelled" ? "bg-red-50 text-red-700" :
+                        task.status === "available" ? "bg-blue-50 text-blue-700" :
+                        "bg-amber-50 text-amber-700"
+                      }`}>
+                        {task.status}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-xs text-slate-400">{new Date(task.createdAt).toLocaleDateString()}</td>
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openEditModal(task)}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTask(task)}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="p-6 text-center text-slate-500">No tasks in this group.</p>
+        )}
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          SECTION 4: TASKS TABLE
           ════════════════════════════════════════════════ */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">

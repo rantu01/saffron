@@ -68,7 +68,7 @@ export default function UserTasksPage() {
   const isAllComplete = completedCount >= totalTasks;
 
   const currentSetTasks = assignedTasks.filter(
-    (t) => (t.setNumber || 1) === currentSetNumber && t.position > 0 && t.status !== "cancelled"
+    (t) => (t.setNumber || 1) === currentSetNumber && t.position > 0
   );
 
   const getNextPendingTask = () => {
@@ -76,10 +76,10 @@ export default function UserTasksPage() {
       const pending = assignedTasks.find((t) => t.status === "pending");
       return pending || null;
     }
-    const nextPosition = (setProgress.currentPosition || 0) + 1;
-    return currentSetTasks.find(
-      (t) => t.position === nextPosition && t.status === "pending"
-    );
+    const currentPos = setProgress.currentPosition || 0;
+    return currentSetTasks
+      .filter((t) => t.position > currentPos && t.status === "pending")
+      .sort((a, b) => a.position - b.position)[0] || null;
   };
 
   const handleStartTask = () => {
@@ -152,6 +152,13 @@ export default function UserTasksPage() {
               : t
           )
         );
+        setSetProgress((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            currentPosition: (prev.currentPosition || 0) + 1,
+          };
+        });
       } else {
         await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not cancel task." });
       }
