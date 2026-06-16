@@ -91,13 +91,13 @@ export default function ClientLayout({ children }) {
           </div>
         </div>
 
-        <main className='px-4 py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]'>
+        <main className='px-4 mb-16 py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]'>
           <div className='mx-auto w-full max-w-7xl'>{children}</div>
         </main>
       </div>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-[#FBBF24]">
+      <div className="fixed bottom-0 left-0  right-0 z-50 lg:hidden bg-[#FBBF24]">
         <div className="flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;

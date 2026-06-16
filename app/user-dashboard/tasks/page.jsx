@@ -62,14 +62,22 @@ export default function UserTasksPage() {
     return () => { cancelled = true; };
   }, [user?.uid]);
 
-  const completedTasks = assignedTasks.filter((t) => t.status === "completed");
-  const completedCount = completedTasks.length;
-  const totalTasks = 30;
+  const currentSetNumber = setProgress?.setNumber || 1;
+  const completedCount = setProgress?.completedTasks || 0;
+  const totalTasks = setProgress?.totalTasks || 30;
   const isAllComplete = completedCount >= totalTasks;
 
+  const currentSetTasks = assignedTasks.filter(
+    (t) => (t.setNumber || 1) === currentSetNumber && t.position > 0 && t.status !== "cancelled"
+  );
+
   const getNextPendingTask = () => {
-    const nextPosition = completedCount + 1;
-    return assignedTasks.find(
+    if (!setProgress) {
+      const pending = assignedTasks.find((t) => t.status === "pending");
+      return pending || null;
+    }
+    const nextPosition = (setProgress.currentPosition || 0) + 1;
+    return currentSetTasks.find(
       (t) => t.position === nextPosition && t.status === "pending"
     );
   };
