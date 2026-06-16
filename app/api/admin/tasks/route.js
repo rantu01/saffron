@@ -29,7 +29,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { appName, appLogo, totalAmount, description, submissionConfig } = body;
+    const { appName, appLogo, totalAmount, description, submissionConfig, taskGroupId } = body;
 
     if (!appName || !totalAmount) {
       return NextResponse.json(
@@ -62,6 +62,7 @@ export async function POST(request) {
       profit,
       reward: profit,
       isTemplate: true,
+      taskGroupId: taskGroupId || null,
       submissionConfig: config,
       assigneeUid: null,
       assigneeEmail: null,
