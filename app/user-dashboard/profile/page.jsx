@@ -127,14 +127,8 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Email:</span>
             <span className="text-sm font-medium text-slate-900">{authUser.email}</span>
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${isEmailVerified ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
-              {isEmailVerified ? "Verified" : "Not verified"}
-            </span>
-            {!isEmailVerified && (
-              <button onClick={handleSendVerification} className="text-xs text-blue-600 hover:underline">
-                Send verification
-              </button>
-            )}
+            
+            
           </div>
         </div>
       </div>

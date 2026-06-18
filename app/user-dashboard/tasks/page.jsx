@@ -136,6 +136,16 @@ export default function UserTasksPage() {
       return;
     }
 
+    const MINIMUM_BALANCE = 40;
+    if (userBalance < MINIMUM_BALANCE) {
+      Swal.fire({
+        icon: "error",
+        title: "Insufficient Balance",
+        text: `Your account balance must be at least $${formatMoney(MINIMUM_BALANCE)} to start any task. Your balance: $${formatMoney(userBalance)}`,
+      });
+      return;
+    }
+
     const requiredBal = Number(nextTask.totalAmount || nextTask.requiredBalance || 0);
     if (userBalance < requiredBal) {
       Swal.fire({
