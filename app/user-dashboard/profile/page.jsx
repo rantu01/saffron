@@ -7,28 +7,38 @@ import { getAuth, updatePassword, EmailAuthProvider, reauthenticateWithCredentia
 
 export default function ProfilePage() {
   const { user: authUser, loading } = useAuth();
-  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "" });
+  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", canGenerateMultipleCodes: false });
+  const [invitations, setInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [passwordForm, setPasswordForm] = useState({ current: "", newPass: "", confirm: "" });
 
+  const loadData = async () => {
+    if (!authUser?.uid) return;
+    setIsLoading(true);
+    try {
+      const [profileRes, referralRes] = await Promise.all([
+        fetch(`/api/user/profile?uid=${encodeURIComponent(authUser.uid)}`),
+        fetch(`/api/user/referral?uid=${encodeURIComponent(authUser.uid)}`),
+      ]);
+      const profileData = await profileRes.json();
+      if (profileData?.success) {
+        setProfile({
+          displayName: profileData.user.displayName || "",
+          avatarUrl: profileData.user.avatarUrl || "",
+          phoneNumber: profileData.user.phoneNumber || "",
+          referralCode: profileData.user.referralCode || "",
+          canGenerateMultipleCodes: Boolean(profileData.user.canGenerateMultipleCodes),
+        });
+      }
+      const referralData = await referralRes.json();
+      if (referralData?.success) {
+        setInvitations(referralData.referral.invitations || []);
+      }
+    } finally { setIsLoading(false); }
+  };
+
   useEffect(() => {
-    async function load() {
-      if (!authUser?.uid) { setIsLoading(false); return; }
-      setIsLoading(true);
-      try {
-        const res = await fetch(`/api/user/profile?uid=${encodeURIComponent(authUser.uid)}`);
-        const data = await res.json();
-        if (data?.success) {
-          setProfile({
-            displayName: data.user.displayName || "",
-            avatarUrl: data.user.avatarUrl || "",
-            phoneNumber: data.user.phoneNumber || "",
-            referralCode: data.user.referralCode || "",
-          });
-        }
-      } finally { setIsLoading(false); }
-    }
-    load();
+    loadData();
   }, [authUser?.uid]);
 
   const handleSave = async (e) => {
@@ -139,19 +149,42 @@ export default function ProfilePage() {
         </div>
         <div className="p-5">
           {profile.referralCode ? (
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-4 py-3 font-mono text-lg font-bold text-[#E05305] tracking-[0.2em] text-center select-all">
-                {profile.referralCode}
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-4 py-3 font-mono text-lg font-bold text-[#E05305] tracking-[0.2em] text-center select-all">
+                  {profile.referralCode}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(profile.referralCode);
+                    Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false });
+                  }}
+                  className="bg-[#E05305] text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-[#c84a04] transition"
+                >
+                  Copy
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(profile.referralCode);
-                  Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false });
-                }}
-                className="bg-[#E05305] text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-[#c84a04] transition"
-              >
-                Copy
-              </button>
+              {profile.canGenerateMultipleCodes && (
+                <button
+                  onClick={async () => {
+                    if (!authUser?.uid) return;
+                    const res = await fetch("/api/user/referral/generate-code", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ uid: authUser.uid, email: authUser.email, displayName: authUser.displayName }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                      return Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not generate code" });
+                    }
+                    Swal.fire({ icon: "success", title: "New code generated!", text: data.invitation.code, timer: 1500, showConfirmButton: false });
+                    loadData();
+                  }}
+                  className="mt-3 bg-[#E05305] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#c84a04] transition"
+                >
+                  Generate New Code
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex items-center justify-between">
@@ -168,8 +201,8 @@ export default function ProfilePage() {
                   if (!res.ok || !data.success) {
                     return Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not generate code" });
                   }
-                  setProfile(p => ({ ...p, referralCode: data.invitation.code }));
                   Swal.fire({ icon: "success", title: "Code generated!", text: data.invitation.code, timer: 1500, showConfirmButton: false });
+                  loadData();
                 }}
                 className="bg-[#E05305] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#c84a04] transition"
               >
@@ -179,6 +212,44 @@ export default function ProfilePage() {
           )}
           <p className="text-xs text-slate-400 mt-3">Share this code with friends. They can use it to register and you earn from their activities.</p>
         </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">All Invitation Codes ({invitations.length})</h2>
+        </div>
+        {invitations.length ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/75 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200/60">
+                  <th className="py-4 px-6">Code</th>
+                  <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6">Used By</th>
+                  <th className="py-4 px-6">Created</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+                {invitations.map((inv) => (
+                  <tr key={inv._id} className="hover:bg-slate-50/40">
+                    <td className="py-4 px-6 font-mono font-bold text-slate-900 tracking-widest">{inv.code}</td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${inv.usedByEmail ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
+                        {inv.usedByEmail ? "Used" : "Available"}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 text-slate-600">{inv.usedByEmail || "-"}</td>
+                    <td className="py-4 px-6 text-slate-400 text-xs">
+                      {new Date(inv.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="p-5 text-sm text-slate-500 text-center">No invitation codes generated yet.</p>
+        )}
       </div>
 
       <form onSubmit={handleSave} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

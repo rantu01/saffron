@@ -44,7 +44,7 @@ export default function ReferralsPage() {
     if (!res.ok || !data.success) {
       return Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not generate code" });
     }
-    Swal.fire({ icon: "success", title: "Code generated!", text: data.invitation.code });
+    Swal.fire({ icon: "success", title: data.message || "Code generated!", text: data.invitation.code });
     const refRes = await fetch(`/api/user/referral?uid=${encodeURIComponent(user.uid)}`);
     const refData = await refRes.json();
     if (refData?.success) setReferral(refData.referral);

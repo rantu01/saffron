@@ -22,22 +22,26 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    const existingInvite = await db.collection("invitationCodes").findOne({
-      createdByUid: uid,
-      isActive: true,
-      usedByUid: null,
-    });
+    const user = await db.collection("users").findOne({ uid });
 
-    if (existingInvite) {
-      await db.collection("users").updateOne(
-        { uid },
-        { $set: { referralCode: existingInvite.code, updatedAt: new Date() } }
-      );
-      return NextResponse.json({
-        success: true,
-        invitation: existingInvite,
-        message: "You already have an active referral code",
+    if (!user?.canGenerateMultipleCodes) {
+      const existingInvite = await db.collection("invitationCodes").findOne({
+        createdByUid: uid,
+        isActive: true,
+        usedByUid: null,
       });
+
+      if (existingInvite) {
+        await db.collection("users").updateOne(
+          { uid },
+          { $set: { referralCode: existingInvite.code, updatedAt: new Date() } }
+        );
+        return NextResponse.json({
+          success: true,
+          invitation: existingInvite,
+          message: "You already have an active referral code",
+        });
+      }
     }
 
     let code = generateCode();

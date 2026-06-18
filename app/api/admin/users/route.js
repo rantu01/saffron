@@ -133,6 +133,7 @@ export async function PATCH(request) {
       inviterUid,
       inviterEmail,
       demoProfitSharePercent,
+      canGenerateMultipleCodes,
     } = body;
 
     if (!uid) {
@@ -209,6 +210,10 @@ export async function PATCH(request) {
         );
       }
       update.demoProfitSharePercent = numericPercent;
+    }
+
+    if (typeof canGenerateMultipleCodes === "boolean") {
+      update.canGenerateMultipleCodes = canGenerateMultipleCodes;
     }
 
     const client = await clientPromise;
