@@ -32,13 +32,16 @@ export async function GET(request) {
       (sum, u) => sum + Number(u.totalDemoProfitShared || 0), 0
     );
 
-    const referralUrl = `${request.nextUrl.origin}/login?ref=${uid}`;
+    const ownCode = user.referralCode || "";
+    const referralUrl = ownCode
+      ? `${request.nextUrl.origin}/login?ref=${ownCode}`
+      : `${request.nextUrl.origin}/login?ref=${uid}`;
 
     return NextResponse.json({
       success: true,
       referral: {
         referralUrl,
-        referralCode: user.invitationCode || "",
+        referralCode: ownCode,
         totalReferrals: referredUsers.length,
         totalReferralEarnings,
         invitations: invitations.map((inv) => ({

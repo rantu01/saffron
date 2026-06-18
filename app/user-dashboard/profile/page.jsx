@@ -7,7 +7,7 @@ import { getAuth, updatePassword, EmailAuthProvider, reauthenticateWithCredentia
 
 export default function ProfilePage() {
   const { user: authUser, loading } = useAuth();
-  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "" });
+  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [passwordForm, setPasswordForm] = useState({ current: "", newPass: "", confirm: "" });
 
@@ -23,6 +23,7 @@ export default function ProfilePage() {
             displayName: data.user.displayName || "",
             avatarUrl: data.user.avatarUrl || "",
             phoneNumber: data.user.phoneNumber || "",
+            referralCode: data.user.referralCode || "",
           });
         }
       } finally { setIsLoading(false); }
@@ -35,7 +36,7 @@ export default function ProfilePage() {
     if (!authUser?.uid) return;
     const res = await fetch('/api/user/profile', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: authUser.uid, ...profile })
+      body: JSON.stringify({ uid: authUser.uid, displayName: profile.displayName, avatarUrl: profile.avatarUrl, phoneNumber: profile.phoneNumber })
     });
     const data = await res.json();
     if (!res.ok || !data.success) return Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Could not update' });
@@ -135,6 +136,54 @@ export default function ProfilePage() {
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Your Referral Code</h2>
+        </div>
+        <div className="p-5">
+          {profile.referralCode ? (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 bg-slate-50 border border-dashed border-slate-300 rounded-lg px-4 py-3 font-mono text-lg font-bold text-[#E05305] tracking-[0.2em] text-center select-all">
+                {profile.referralCode}
+              </div>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(profile.referralCode);
+                  Swal.fire({ icon: "success", title: "Copied!", timer: 1000, showConfirmButton: false });
+                }}
+                className="bg-[#E05305] text-white rounded-lg px-4 py-3 text-sm font-medium hover:bg-[#c84a04] transition"
+              >
+                Copy
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">No referral code yet.</p>
+              <button
+                onClick={async () => {
+                  if (!authUser?.uid) return;
+                  const res = await fetch("/api/user/referral/generate-code", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ uid: authUser.uid, email: authUser.email, displayName: authUser.displayName }),
+                  });
+                  const data = await res.json();
+                  if (!res.ok || !data.success) {
+                    return Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not generate code" });
+                  }
+                  setProfile(p => ({ ...p, referralCode: data.invitation.code }));
+                  Swal.fire({ icon: "success", title: "Code generated!", text: data.invitation.code, timer: 1500, showConfirmButton: false });
+                }}
+                className="bg-[#E05305] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#c84a04] transition"
+              >
+                Generate My Code
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-slate-400 mt-3">Share this code with friends. They can use it to register and you earn from their activities.</p>
         </div>
       </div>
 

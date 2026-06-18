@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
 
@@ -9,7 +9,8 @@ export default function UserTasksPage() {
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [setProgress, setSetProgress] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentTask, setCurrentTask] = useState(null);
+  const [isAutoAssigning, setIsAutoAssigning] = useState(false);
+  const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
 
   // Task Submission Modal States
@@ -24,43 +25,84 @@ export default function UserTasksPage() {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   };
 
+  const loadData = useCallback(async () => {
+    if (!user?.uid) return [];
+    try {
+      const [tasksRes, progressRes, dashRes] = await Promise.all([
+        fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}`),
+        fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
+        fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
+      ]);
+
+      const tasksData = await tasksRes.json();
+      const progressData = await progressRes.json();
+      const dashData = await dashRes.json();
+
+      if (dashData?.success) {
+        setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
+      }
+
+      const tasks = tasksData?.success ? (tasksData.tasks || []) : [];
+      if (tasksData?.success) {
+        setAssignedTasks(tasks);
+      }
+      if (progressData?.success && progressData.taskSets?.length) {
+        setSetProgress(progressData.taskSets[0]);
+      }
+
+      return tasks;
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }, [user?.uid]);
+
+  const tryAutoAssign = useCallback(async () => {
+    if (!user?.uid) return false;
+    setIsAutoAssigning(true);
+    try {
+      const res = await fetch("/api/user/tasks/auto-assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid }),
+      });
+      const data = await res.json();
+      if (data?.success && data?.assigned) {
+        setNoGroupsAvailable(false);
+        return true;
+      }
+      if (data?.noGroups) {
+        setNoGroupsAvailable(true);
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      setIsAutoAssigning(false);
+    }
+  }, [user?.uid]);
+
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function init() {
       if (!user?.uid) { setIsLoading(false); return; }
       setIsLoading(true);
-      try {
-        const [tasksRes, progressRes, dashRes] = await Promise.all([
-          fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
-        ]);
+      setNoGroupsAvailable(false);
+      const tasks = await loadData();
+      if (cancelled) return;
 
-        const tasksData = await tasksRes.json();
-        const progressData = await progressRes.json();
-        const dashData = await dashRes.json();
-
-        if (dashData?.success) {
-          setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
+      const hasPending = tasks.some((t) => t.status === "pending");
+      if (!hasPending) {
+        await tryAutoAssign();
+        if (!cancelled) {
+          await loadData();
         }
-
-        if (cancelled) return;
-
-        if (tasksData?.success) {
-          setAssignedTasks(tasksData.tasks || []);
-        }
-        if (progressData?.success && progressData.taskSets?.length) {
-          setSetProgress(progressData.taskSets[0]);
-        }
-      } catch (err) {
-        if (!cancelled) console.error(err);
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
+      if (!cancelled) setIsLoading(false);
     }
-    load();
+    init();
     return () => { cancelled = true; };
-  }, [user?.uid]);
+  }, [user?.uid, loadData, tryAutoAssign]);
 
   const currentSetNumber = setProgress?.setNumber || 1;
   const completedCount = setProgress?.completedTasks || 0;
@@ -204,29 +246,48 @@ export default function UserTasksPage() {
         return;
       }
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Task Completed!',
-        text: `You earned $${formatMoney(result.earned)} (Total: $${formatMoney(result.totalAmount)} + Profit: $${formatMoney(result.profit)})`,
-      });
-
-      setAssignedTasks((prev) =>
-        prev.map((t) =>
-          String(t._id) === String(selectedTask._id)
-            ? { ...t, status: 'completed', earnedAmount: result.earned }
-            : t
-        )
-      );
       setUserBalance((prev) => prev + result.earned);
 
-      setSetProgress((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          currentPosition: (prev.currentPosition || 0) + 1,
-          completedTasks: (prev.completedTasks || 0) + 1,
-        };
-      });
+      if (result.setComplete) {
+        const assigned = await tryAutoAssign();
+        await loadData();
+        if (!assigned) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Set Completed!',
+            text: noGroupsAvailable
+              ? 'No tasks available now. Please try again later.'
+              : `You earned $${formatMoney(result.earned)}. New tasks loaded.`,
+          });
+        } else {
+          await Swal.fire({
+            icon: 'success',
+            title: 'Set Completed!',
+            text: `You earned $${formatMoney(result.earned)}. Next group assigned automatically.`,
+          });
+        }
+      } else {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Task Completed!',
+          text: `You earned $${formatMoney(result.earned)} (Total: $${formatMoney(result.totalAmount)} + Profit: $${formatMoney(result.profit)})`,
+        });
+        setAssignedTasks((prev) =>
+          prev.map((t) =>
+            String(t._id) === String(selectedTask._id)
+              ? { ...t, status: 'completed', earnedAmount: result.earned }
+              : t
+          )
+        );
+        setSetProgress((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            currentPosition: (prev.currentPosition || 0) + 1,
+            completedTasks: (prev.completedTasks || 0) + 1,
+          };
+        });
+      }
     } catch (error) {
       console.error(error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong!' });
@@ -300,10 +361,16 @@ export default function UserTasksPage() {
           </div>
         </div>
 
-        {isAllComplete ? (
+          {noGroupsAvailable ? (
           <div className="text-center">
-            <p className="text-lg font-bold text-emerald-600 mb-1">30/30 Completed</p>
-            <p className="text-sm text-slate-500">Congratulations! You have completed all tasks in this set.</p>
+            <div className="text-5xl mb-3">📋</div>
+            <p className="text-lg font-bold text-slate-900 mb-1">No tasks available now</p>
+            <p className="text-sm text-slate-500">Please try again later.</p>
+          </div>
+        ) : isAllComplete ? (
+          <div className="text-center">
+            <p className="text-lg font-bold text-emerald-600 mb-1">{totalTasks}/{totalTasks} Completed</p>
+            <p className="text-sm text-slate-500">{isAutoAssigning ? "Loading next group..." : "Congratulations! You have completed all tasks in this set."}</p>
           </div>
         ) : (
           <div className="text-center">
@@ -313,17 +380,30 @@ export default function UserTasksPage() {
             <p className="text-sm text-slate-500 mt-1">
               {nextTask
                 ? `Next: ${nextTask.appName}`
-                : "No pending tasks available"}
+                : isAutoAssigning
+                  ? "Loading tasks..."
+                  : "No pending tasks available"}
             </p>
             {nextTask && Number(taskStartAmount) > 0 && (
               <p className="text-xs text-slate-400 mt-0.5">
                 Required balance: ${formatMoney(taskStartAmount)}
               </p>
             )}
+            {!nextTask && !isAutoAssigning && !noGroupsAvailable && (
+              <button
+                onClick={async () => {
+                  await tryAutoAssign();
+                  await loadData();
+                }}
+                className="mt-3 text-sm text-blue-600 hover:underline"
+              >
+                Check for new tasks
+              </button>
+            )}
           </div>
         )}
 
-        {!isAllComplete && nextTask && (
+        {!isAllComplete && nextTask && !noGroupsAvailable && (
           <button
             onClick={handleStartTask}
             className="mt-6 bg-[#E05305] text-white rounded-xl px-10 py-3 font-semibold hover:bg-[#c84a04] transition shadow-lg shadow-orange-200"

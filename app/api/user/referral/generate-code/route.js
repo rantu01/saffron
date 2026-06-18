@@ -29,6 +29,10 @@ export async function POST(request) {
     });
 
     if (existingInvite) {
+      await db.collection("users").updateOne(
+        { uid },
+        { $set: { referralCode: existingInvite.code, updatedAt: new Date() } }
+      );
       return NextResponse.json({
         success: true,
         invitation: existingInvite,
@@ -61,6 +65,11 @@ export async function POST(request) {
     };
 
     await db.collection("invitationCodes").insertOne(invitation);
+
+    await db.collection("users").updateOne(
+      { uid },
+      { $set: { referralCode: code, updatedAt: now } }
+    );
 
     return NextResponse.json({ success: true, invitation });
   } catch (error) {

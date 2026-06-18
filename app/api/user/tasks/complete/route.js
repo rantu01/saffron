@@ -99,12 +99,61 @@ export async function POST(request) {
       metadata: { totalAmount, profit, appName: task.appName },
     });
 
+    // Referral profit sharing: 20% of profit goes to the inviter
+    const isDemo = user?.isDemoAccount || user?.accountType === "demo";
+    if (isDemo && user?.inviterUid && profit > 0) {
+      const sharePercent = Number(user?.demoProfitSharePercent || 20);
+      const shareAmount = roundCurrency(profit * sharePercent / 100);
+
+      if (shareAmount > 0) {
+        const inviterBefore = await getUserByUid(user.inviterUid);
+        const inviterBalBefore = Number(inviterBefore?.availableBalance || 0);
+
+        await creditUserBalance(user.inviterUid, shareAmount, { autoResolveFreeze: true });
+
+        const inviterAfter = await getUserByUid(user.inviterUid);
+        const inviterBalAfter = Number(inviterAfter?.availableBalance || 0);
+
+        await db.collection("users").updateOne(
+          { uid },
+          { $inc: { totalDemoProfitShared: shareAmount }, $set: { updatedAt: new Date() } }
+        );
+
+        await createBalanceLog({
+          uid: user.inviterUid,
+          email: inviterBefore?.email || "",
+          type: "referral_commission",
+          amount: shareAmount,
+          balanceBefore: inviterBalBefore,
+          balanceAfter: inviterBalAfter,
+          description: `Referral commission (20% of $${profit} profit from ${user.email || uid})`,
+          referenceId: String(task._id),
+          referenceType: "task",
+          metadata: { sourceUid: uid, sourceEmail: user.email, profit, sharePercent, taskApp: task.appName },
+        });
+
+        await db.collection("notifications").insertOne({
+          uid: user.inviterUid,
+          type: "referral_commission",
+          title: "Referral Commission Received!",
+          message: `You earned $${shareAmount.toFixed(2)} commission from your referral's task profit.`,
+          isRead: false,
+          metadata: { amount: shareAmount, sourceUid: uid, sourceEmail: user.email },
+          createdAt: new Date(),
+        }).catch(() => {});
+      }
+    }
+
     // Update task set progress if using set system
-    await db.collection("userTaskSets").findOneAndUpdate(
+    const updatedSet = await db.collection("userTaskSets").findOneAndUpdate(
       { uid, setNumber: task.setNumber || 1 },
       { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
       { returnDocument: "after" }
-    ).catch(() => {});
+    ).catch(() => null);
+
+    const setComplete = updatedSet?.value
+      ? (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || 30)
+      : false;
 
     return NextResponse.json({
       success: true,
@@ -112,6 +161,7 @@ export async function POST(request) {
       earned,
       totalAmount,
       profit,
+      setComplete,
     });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message || 'Failed to complete task' }, { status: 500 });
