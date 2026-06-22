@@ -2,12 +2,16 @@
 
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import NotificationBell from "@/app/Component/Common/NotificationBell";
+import { ArrowLeft } from "lucide-react";
 
 export default function UserTopbar({ onToggle }) {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isDashboard = pathname === '/user-dashboard';
   const [profile, setProfile] = useState(null);
 
   const handleLogout = async () => {
@@ -33,7 +37,12 @@ export default function UserTopbar({ onToggle }) {
       <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
         {/* Mobile topbar — ultra-minimalist dark */}
         <div className="flex w-full items-center justify-between lg:hidden">
-          <div>
+          <div className="flex items-center gap-3">
+            {!isDashboard && (
+              <Link href="/user-dashboard" className="text-white hover:text-[#FBBF24] transition-colors">
+                <ArrowLeft size={20} />
+              </Link>
+            )}
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p>
           </div>
           <button

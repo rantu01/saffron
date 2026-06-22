@@ -34,6 +34,7 @@ export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const [open, setOpen] = React.useState(false);
+  const isDashboard = pathname === '/user-dashboard';
 
   React.useEffect(() => {
     if (loading) return;
@@ -52,7 +53,8 @@ export default function ClientLayout({ children }) {
       <div className='min-h-screen lg:pl-64'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
-        {/* MOBILE APP LAUNCHER */}
+        {/* MOBILE APP LAUNCHER - only on main dashboard */}
+        {isDashboard && (
         <div className="lg:hidden bg-[#121212] px-4 pt-2 pb-6">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
@@ -90,13 +92,15 @@ export default function ClientLayout({ children }) {
             </div>
           </div>
         </div>
+        )}
 
-        <main className='px-4 mb-16 py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]'>
+        <main className={`px-4 ${isDashboard ? 'mb-16' : ''} py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]`}>
           <div className='mx-auto w-full max-w-7xl'>{children}</div>
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAV */}
+      {/* MOBILE BOTTOM NAV - only on main dashboard */}
+      {isDashboard && (
       <div className="fixed bottom-0 left-0  right-0 z-50 lg:hidden bg-[#FBBF24]">
         <div className="flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
@@ -115,6 +119,7 @@ export default function ClientLayout({ children }) {
           })}
         </div>
       </div>
+      )}
     </>
   );
 }
