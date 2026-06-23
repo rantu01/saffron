@@ -26,7 +26,7 @@ const mobileNavItems = [
 const bottomNavItems = [
   { label: 'Home', href: '/user-dashboard', icon: LayoutDashboard },
   { label: 'Starting', href: '/user-dashboard/tasks', icon: Grid3X3 },
-  { label: 'Records', href: '/user-dashboard/payments', icon: FileText },
+  { label: 'Records', href: '/user-dashboard/balance-history', icon: FileText },
 ];
 
 export default function ClientLayout({ children }) {
@@ -83,25 +83,24 @@ export default function ClientLayout({ children }) {
             })}
           </div>
 
-          <div className="mt-6 rounded-2xl bg-slate-800/80 h-44 flex items-center justify-center overflow-hidden border border-slate-700/50">
+          {/* <div className="mt-6 rounded-2xl bg-slate-800/80 h-44 flex items-center justify-center overflow-hidden border border-slate-700/50">
             <div className="text-center">
               <svg className="w-10 h-10 mx-auto text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <p className="mt-2 text-xs text-slate-500">Featured Content</p>
             </div>
-          </div>
+          </div> */}
         </div>
         )}
 
-        <main className={`px-4 ${isDashboard ? 'mb-16' : ''} py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]`}>
+        <main className="px-4 pb-20 lg:pb-0 py-6 sm:px-6 lg:px-8 lg:py-8 lg:bg-transparent bg-[#121212]">
           <div className='mx-auto w-full max-w-7xl'>{children}</div>
         </main>
       </div>
 
-      {/* MOBILE BOTTOM NAV - only on main dashboard */}
-      {isDashboard && (
-      <div className="fixed bottom-0 left-0  right-0 z-50 lg:hidden bg-[#FBBF24]">
+      {/* MOBILE BOTTOM NAV - visible on all dashboard pages */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-[#FBBF24]">
         <div className="flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
@@ -119,7 +118,6 @@ export default function ClientLayout({ children }) {
           })}
         </div>
       </div>
-      )}
     </>
   );
 }

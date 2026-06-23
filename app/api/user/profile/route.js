@@ -22,7 +22,7 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { uid, displayName, avatarUrl, phoneNumber } = body;
+    const { uid, displayName, avatarUrl, phoneNumber, username } = body;
     if (!uid) return NextResponse.json({ success: false, message: 'uid required' }, { status: 400 });
 
     const client = await clientPromise;
@@ -32,6 +32,21 @@ export async function PATCH(request) {
     if (typeof displayName === 'string') update.displayName = displayName;
     if (typeof avatarUrl === 'string') update.avatarUrl = avatarUrl;
     if (typeof phoneNumber === 'string') update.phoneNumber = phoneNumber;
+
+    if (typeof username === 'string' && username.trim()) {
+      const normalizedUsername = username.trim().toLowerCase();
+      const existing = await db.collection('users').findOne(
+        { username: normalizedUsername, uid: { $ne: uid } },
+        { projection: { _id: 1 } }
+      );
+      if (existing) {
+        return NextResponse.json(
+          { success: false, message: 'This username is already taken by another user.' },
+          { status: 409 }
+        );
+      }
+      update.username = normalizedUsername;
+    }
 
     await db.collection('users').updateOne({ uid }, { $set: update });
 

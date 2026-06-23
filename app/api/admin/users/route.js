@@ -2,14 +2,31 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { resolveFrozenBalanceState } from "@/lib/userModel";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search")?.trim();
+
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
+    let query = {};
+    if (search) {
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(escaped, "i");
+      query = {
+        $or: [
+          { email: regex },
+          { displayName: regex },
+          { username: regex },
+          { uid: regex },
+        ],
+      };
+    }
+
     const users = await db
       .collection("users")
-      .find({})
+      .find(query)
       .project({ password: 0 })
       .sort({ createdAt: -1 })
       .limit(200)

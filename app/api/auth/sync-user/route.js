@@ -4,7 +4,7 @@ import { syncAuthenticatedUser } from "@/lib/userModel";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { uid, email, displayName, phoneNumber, invitationCode } = body;
+    const { uid, email, displayName, phoneNumber, invitationCode, username } = body;
 
     if (!uid || !email) {
       return NextResponse.json(
@@ -19,6 +19,7 @@ export async function POST(request) {
       displayName,
       phoneNumber,
       invitationCode,
+      username,
     });
 
     const { isNewUser, ...user } = result;

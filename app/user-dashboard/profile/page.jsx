@@ -7,7 +7,9 @@ import { getAuth, updatePassword, EmailAuthProvider, reauthenticateWithCredentia
 
 export default function ProfilePage() {
   const { user: authUser, loading } = useAuth();
-  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", canGenerateMultipleCodes: false });
+  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", canGenerateMultipleCodes: false, username: "" });
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
   const [invitations, setInvitations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [passwordForm, setPasswordForm] = useState({ current: "", newPass: "", confirm: "" });
@@ -28,6 +30,7 @@ export default function ProfilePage() {
           phoneNumber: profileData.user.phoneNumber || "",
           referralCode: profileData.user.referralCode || "",
           canGenerateMultipleCodes: Boolean(profileData.user.canGenerateMultipleCodes),
+          username: profileData.user.username || "",
         });
       }
       const referralData = await referralRes.json();
@@ -44,13 +47,42 @@ export default function ProfilePage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!authUser?.uid) return;
+    if (usernameError) {
+      return Swal.fire({ icon: 'error', title: 'Username unavailable', text: 'Please choose a different username.' });
+    }
     const res = await fetch('/api/user/profile', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: authUser.uid, displayName: profile.displayName, avatarUrl: profile.avatarUrl, phoneNumber: profile.phoneNumber })
+      body: JSON.stringify({ uid: authUser.uid, displayName: profile.displayName, avatarUrl: profile.avatarUrl, phoneNumber: profile.phoneNumber, username: profile.username })
     });
     const data = await res.json();
     if (!res.ok || !data.success) return Swal.fire({ icon: 'error', title: 'Failed', text: data.message || 'Could not update' });
     Swal.fire({ icon: 'success', title: 'Saved', timer: 1000, showConfirmButton: false });
+    setUsernameError('');
+  };
+
+  const handleUsernameBlur = async () => {
+    const usernameValue = profile.username.trim();
+    if (!usernameValue) return;
+
+    setUsernameChecking(true);
+    setUsernameError('');
+    try {
+      const res = await fetch('/api/auth/check-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameValue }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setUsernameError(data.message || 'Could not verify username.');
+      } else if (!data.available) {
+        setUsernameError('This username is already taken.');
+      }
+    } catch {
+      setUsernameError('Could not verify username.');
+    } finally {
+      setUsernameChecking(false);
+    }
   };
 
   const handlePasswordChange = async (e) => {
@@ -137,8 +169,10 @@ export default function ProfilePage() {
           <div className="flex items-center gap-3">
             <span className="text-sm text-slate-600">Email:</span>
             <span className="text-sm font-medium text-slate-900">{authUser.email}</span>
-            
-            
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-600">Username:</span>
+            <span className="text-sm font-medium text-slate-900">{profile.username || "(not set)"}</span>
           </div>
         </div>
       </div>
@@ -257,6 +291,17 @@ export default function ProfilePage() {
           <h2 className="text-lg font-bold text-slate-900">Edit Profile</h2>
         </div>
         <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">Username</label>
+            <input
+              value={profile.username}
+              onChange={(e) => { setProfile(p => ({ ...p, username: e.target.value })); setUsernameError(''); }}
+              onBlur={handleUsernameBlur}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            {usernameChecking && <p className="text-xs text-slate-400 mt-1">Checking availability...</p>}
+            {usernameError && <p className="text-xs text-red-500 mt-1">{usernameError}</p>}
+          </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">Display name</label>
             <input

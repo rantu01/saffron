@@ -9,11 +9,12 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  const loadData = async () => {
+  const loadData = async (searchQuery) => {
     setLoading(true);
     try {
+      const params = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : "";
       const [usersRes, invitationsRes] = await Promise.all([
-        fetch("/api/admin/users"),
+        fetch(`/api/admin/users${params}`),
         fetch("/api/admin/invitations"),
       ]);
 
@@ -133,7 +134,7 @@ export default function UserManagementPage() {
   const filteredUsers = users.filter((u) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    return u.email?.toLowerCase().includes(q) || u.uid?.toLowerCase().includes(q) || u.displayName?.toLowerCase().includes(q);
+    return u.email?.toLowerCase().includes(q) || u.uid?.toLowerCase().includes(q) || u.displayName?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q);
   });
 
   return (
@@ -152,9 +153,13 @@ export default function UserManagementPage() {
         <div className="p-4 border-b border-slate-100 flex items-center gap-3">
           <input
             type="text"
-            placeholder="Search by email, name, or UID..."
+            placeholder="Search by email, username, name, or UID..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              clearTimeout(window.searchTimer);
+              window.searchTimer = setTimeout(() => loadData(e.target.value), 300);
+            }}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white flex-1 max-w-md"
           />
         </div>
@@ -175,6 +180,7 @@ export default function UserManagementPage() {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
+                  {user.username && <p className="text-xs text-slate-500">@{user.username}</p>}
                   <p className="text-xs text-slate-400 font-mono mt-0.5">UID: {user.uid.slice(0, 24)}...</p>
                   <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
                     <span>Phone: {user.phoneNumber || "—"}</span>

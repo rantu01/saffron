@@ -17,12 +17,15 @@ export default function SaffronEdgeAuth() {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
+    email: '',
     username: '',
     password: '',
     phoneNumber: '',
     invitationCode: '',
     agreeToTerms: false,
   });
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameChecking, setUsernameChecking] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -32,6 +35,31 @@ export default function SaffronEdgeAuth() {
     }));
   };
 
+  const handleUsernameBlur = async () => {
+    const usernameValue = formData.username.trim();
+    if (!usernameValue || isLoginView) return;
+
+    setUsernameChecking(true);
+    setUsernameError('');
+    try {
+      const res = await fetch('/api/auth/check-username', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: usernameValue }),
+      });
+      const data = await res.json();
+      if (data.success && !data.available) {
+        setUsernameError('This username is already taken.');
+      } else if (!data.success) {
+        setUsernameError(data.message || 'Could not verify username.');
+      }
+    } catch {
+      setUsernameError('Could not verify username.');
+    } finally {
+      setUsernameChecking(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -39,7 +67,7 @@ export default function SaffronEdgeAuth() {
     setIsSubmitting(true);
 
     try {
-      const email = formData.username.trim().toLowerCase();
+      const email = formData.email.trim().toLowerCase();
       let userCredential;
 
       if (isLoginView) {
@@ -47,6 +75,24 @@ export default function SaffronEdgeAuth() {
       } else {
         if (!formData.agreeToTerms) {
           throw new Error('You must agree to the registration agreement.');
+        }
+
+        const usernameValue = formData.username.trim();
+        if (!usernameValue) {
+          throw new Error('Username is required.');
+        }
+
+        const usernameCheckResponse = await fetch('/api/auth/check-username', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: usernameValue }),
+        });
+        const usernameCheckResult = await usernameCheckResponse.json();
+        if (!usernameCheckResponse.ok || !usernameCheckResult.success) {
+          throw new Error(usernameCheckResult.message || 'Failed to check username.');
+        }
+        if (!usernameCheckResult.available) {
+          throw new Error('This username is already taken. Please choose another one.');
         }
 
         const invitationCheckResponse = await fetch('/api/auth/validate-invitation', {
@@ -78,6 +124,7 @@ export default function SaffronEdgeAuth() {
           displayName: userCredential.user.displayName || email.split('@')[0] || '',
           phoneNumber: formData.phoneNumber,
           invitationCode: formData.invitationCode,
+          username: !isLoginView ? formData.username.trim() : undefined,
         }),
       });
 
@@ -172,14 +219,14 @@ export default function SaffronEdgeAuth() {
           </p>
 
           <div className="space-y-4">
-            {/* Input 1: Username */}
+            {/* Input 1: Email */}
             <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Username</span>
+              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</span>
               <input
                 type="email"
-                name="username"
+                name="email"
                 placeholder="your@email.com"
-                value={formData.username}
+                value={formData.email}
                 onChange={handleInputChange}
                 required
                 className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
@@ -203,7 +250,28 @@ export default function SaffronEdgeAuth() {
             {/* Registration Specific Fields */}
             {!isLoginView && (
               <>
-                {/* Input 3: Phone Number */}
+                {/* Input 3: Username */}
+                <div>
+                  <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
+                    <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Username</span>
+                    <input
+                      type="text"
+                      name="username"
+                      placeholder="Choose a username"
+                      value={formData.username}
+                      onChange={handleInputChange}
+                      onBlur={handleUsernameBlur}
+                      required
+                      className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
+                    />
+                    {usernameChecking && <span className="text-xs text-gray-400 ml-1">Checking...</span>}
+                  </div>
+                  {usernameError && (
+                    <p className="text-red-400 text-xs mt-1 ml-1">{usernameError}</p>
+                  )}
+                </div>
+
+                {/* Input 4: Phone Number */}
                 <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
                   <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Phone Number</span>
                   <input
@@ -217,7 +285,7 @@ export default function SaffronEdgeAuth() {
                   />
                 </div>
 
-                {/* Input 4: Invitation Code */}
+                {/* Input 5: Invitation Code */}
                 <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
                   <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Invitation Code</span>
                   <input

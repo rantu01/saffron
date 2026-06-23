@@ -3,6 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
+import { Crown, Star, Trophy } from "lucide-react";
+import ScreenshotCarousel from "./components/ScreenshotCarousel";
+import FloatingAppIcons from "./components/FloatingAppIcons";
 
 export default function UserTasksPage() {
   const { user, loading } = useAuth();
@@ -12,6 +15,27 @@ export default function UserTasksPage() {
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
+
+  const VIP_TIERS = [
+    { level: 1, name: "VIP 1", label: "Bronze", minDeposit: 25, dailyProfit: 0.5, unlockBalance: 0, gradient: "from-blue-600 to-blue-400", badgeBg: "bg-blue-500" },
+    { level: 2, name: "VIP 2", label: "Silver", minDeposit: 1500, dailyProfit: 2, unlockBalance: 1500, gradient: "from-purple-600 to-purple-400", badgeBg: "bg-purple-500" },
+    { level: 3, name: "VIP 3", label: "Gold", minDeposit: 5000, dailyProfit: 6, unlockBalance: 5000, gradient: "from-amber-600 to-orange-400", badgeBg: "bg-amber-500" },
+    { level: 4, name: "VIP 4", label: "Diamond", minDeposit: 10000, dailyProfit: 12, unlockBalance: 10000, gradient: "from-red-600 to-rose-500", badgeBg: "bg-red-500" },
+  ];
+
+  const currentVipLevel = (() => {
+    if (userBalance >= 10000) return 4;
+    if (userBalance >= 5000) return 3;
+    if (userBalance >= 1500) return 2;
+    return 1;
+  })();
+
+  const currentTier = VIP_TIERS[currentVipLevel - 1];
+  const nextTier = VIP_TIERS.find(t => t.level === currentVipLevel + 1) || null;
+
+  const vipProgressPercent = nextTier
+    ? Math.min(Math.max(Math.round(((userBalance - currentTier.unlockBalance) / (nextTier.unlockBalance - currentTier.unlockBalance)) * 100), 0), 100)
+    : 100;
 
   // Task Submission Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -340,6 +364,8 @@ export default function UserTasksPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
+      <ScreenshotCarousel />
+      <FloatingAppIcons />
       <div>
         <h1 className="text-2xl font-bold text-slate-900">My Tasks</h1>
         <p className="text-sm text-slate-500 mt-0.5">Complete tasks one at a time</p>
@@ -421,6 +447,65 @@ export default function UserTasksPage() {
             Start
           </button>
         )}
+      </div>
+
+      {/* VIP Status Card */}
+      <div className={`bg-gradient-to-r ${currentTier.gradient} rounded-2xl border border-white/10 shadow-sm p-6 relative overflow-hidden`}>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent_70%)] pointer-events-none" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-3">
+            <Crown className="w-4 h-4 text-white/80" />
+            <span className="text-white/80 font-bold text-xs uppercase tracking-widest">VIP Membership</span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xl font-bold text-white">{currentTier.name}</span>
+              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${currentTier.badgeBg} text-white`}>
+                <Trophy className="w-3 h-3" />
+                {currentTier.label}
+              </span>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-white/60 uppercase tracking-wider">Balance</p>
+              <p className="text-lg font-bold text-white">${formatMoney(userBalance)}</p>
+            </div>
+          </div>
+
+          {nextTier ? (
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-white/70 mb-1">
+                <span className="flex items-center gap-1">
+                  <Star className="w-3 h-3 text-yellow-300" />
+                  {currentTier.name}
+                </span>
+                <span className="flex items-center gap-1">
+                  {nextTier.name}
+                  <Crown className="w-3 h-3 text-yellow-300" />
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-black/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-200 transition-all duration-500"
+                  style={{ width: `${vipProgressPercent}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] text-white/50 mt-1">
+                <span>${formatMoney(currentTier.unlockBalance)}</span>
+                <span>${formatMoney(nextTier.unlockBalance)}</span>
+              </div>
+              <p className="text-xs text-white/70 mt-2">
+                Next unlock: <span className="text-yellow-300 font-semibold">{nextTier.name}</span> at <span className="text-white font-semibold">${formatMoney(nextTier.unlockBalance)}</span>
+                &nbsp;·&nbsp;Daily profit: <span className="text-white font-semibold">{currentTier.dailyProfit}%</span>
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-white/80 mt-3">
+              <Trophy className="w-3.5 h-3.5 text-yellow-300 inline mr-1" />
+              Maximum VIP level reached! Enjoy {currentTier.dailyProfit}% daily profit.
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Task Submission Modal */}
