@@ -8,7 +8,7 @@ import DashboardSidebar from "./components/Sidebar";
 import DashboardTopbar from "./components/Topbar";
 import {
 	LayoutGrid, CheckSquare, Users, DollarSign, Send,
-	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText
+	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText, MessageCircle
 } from "lucide-react";
 
 const mobileNavItems = [
@@ -19,6 +19,7 @@ const mobileNavItems = [
 	{ label: "Withdrawals", href: "/admin/withdrawals", icon: Send },
 	{ label: "Balance Logs", href: "/admin/balance-logs", icon: History },
 	{ label: "Referrals", href: "/admin/referrals", icon: Share2 },
+	{ label: "Live Chat", href: "/admin/chat", icon: MessageCircle },
 	{ label: "Reports", href: "/admin/reports", icon: BarChart3 },
 ];
 

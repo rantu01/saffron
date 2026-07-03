@@ -43,22 +43,48 @@ export default function UserTopbar({ onToggle }) {
                 <ArrowLeft size={20} />
               </Link>
             )}
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p>
+            {/* <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p> */}
           </div>
-          <button
-            onClick={handleLogout}
-            className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-400/60"
-          >
-            Logout
-          </button>
+          <div className="flex items-center gap-2">
+            {profile?.referralCode && (
+              <div className="flex items-center gap-1 rounded-lg border border-[#FBBF24]/30 bg-[#FBBF24]/10 px-2 py-1">
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-[#FBBF24]">Ref</span>
+                <span className="font-mono text-[11px] font-bold tracking-wider text-[#FBBF24]">{profile.referralCode}</span>
+                <button
+                  onClick={() => { navigator.clipboard.writeText(profile.referralCode); }}
+                  className="text-[#FBBF24]/70 hover:text-[#FBBF24] p-0.5"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                </button>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-400/60"
+            >
+              Logout
+            </button>
+          </div>
         </div>
 
         {/* Desktop topbar — original clean style */}
-        <div className="hidden min-w-0 items-center gap-3 lg:flex">
+        <div className="hidden min-w-0 items-center gap-4 lg:flex">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#C2410C]">Dashboard</p>
             <h1 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">Welcome{profile?.displayName ? `, ${profile.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
           </div>
+          {profile?.referralCode && (
+            <div className="flex items-center gap-2 rounded-xl border border-[#E05305]/20 bg-gradient-to-r from-[#E05305]/10 to-[#E05305]/5 px-3 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#E05305]">Ref</span>
+              <span className="font-mono text-sm font-bold tracking-wider text-[#E05305]">{profile.referralCode}</span>
+              <button
+                onClick={() => { navigator.clipboard.writeText(profile.referralCode); }}
+                className="rounded-md bg-[#E05305] px-2 py-0.5 text-[10px] font-medium text-white hover:bg-[#c84a04] transition"
+              >
+                Copy
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="hidden items-center gap-3 sm:gap-4 lg:flex">

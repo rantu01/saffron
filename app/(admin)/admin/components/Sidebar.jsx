@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3 } from "lucide-react";
+import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle } from "lucide-react";
 
 const navigation = [
     { label: "Overview", href: "/admin", icon: LayoutGrid },
@@ -13,6 +13,7 @@ const navigation = [
     { label: "Balance Logs", href: "/admin/balance-logs", icon: History },
     { label: "Referral Management", href: "/admin/referrals", icon: Share2 },
     // { label: "Ad Accounts", href: "/admin/ad-accounts", icon: Megaphone },
+    { label: "Live Chat", href: "/admin/chat", icon: MessageCircle },
     { label: "Reports", href: "/admin/reports", icon: BarChart3 },
     // { label: "Meta API", href: "/admin/meta-api", icon: RefreshCw },
     // { label: "WhatsApp", href: "/admin/whatsapp", icon: MessageSquare },

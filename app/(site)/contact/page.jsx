@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Phone, MapPin, Clock, Send, CheckCircle, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/app/Component/Auth/AuthProvider';
+import LiveChat from '@/app/Component/Common/LiveChat';
 
 const contactInfo = [
   {
@@ -32,6 +34,7 @@ const contactInfo = [
 ];
 
 export default function ContactPage() {
+  const { user } = useAuth();
   const [formData, setFormData] = useState({ name: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
 
@@ -95,13 +98,17 @@ export default function ContactPage() {
                 <p className="text-sm text-gray-600 mb-4">
                   Our support team is available during business hours. You can also check our FAQ or browse the resources section for guides and tutorials.
                 </p>
-                <Link
-                  href="/resources"
-                  className="inline-flex items-center gap-2 text-[#E05305] font-semibold text-sm hover:text-[#c84a04] transition-colors"
-                >
-                  Browse Resources
-                  <ArrowRight size={16} />
-                </Link>
+                {user ? (
+                  <LiveChat inline />
+                ) : (
+                  <Link
+                    href="/resources"
+                    className="inline-flex items-center gap-2 text-[#E05305] font-semibold text-sm hover:text-[#c84a04] transition-colors"
+                  >
+                    Browse Resources
+                    <ArrowRight size={16} />
+                  </Link>
+                )}
               </div>
             </div>
 
