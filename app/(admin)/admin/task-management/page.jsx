@@ -427,8 +427,7 @@ export default function TaskManagementPage() {
   const groupTaskList = selectedGroupTaskId
     ? tasks.filter(
         (t) =>
-          (t.taskGroupId === selectedGroupTaskId || t.parentTaskGroupId === selectedGroupTaskId) &&
-          t.isTemplate
+          t.taskGroupId === selectedGroupTaskId || t.parentTaskGroupId === selectedGroupTaskId
       )
     : [];
 

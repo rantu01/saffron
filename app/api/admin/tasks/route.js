@@ -14,7 +14,6 @@ export async function GET(request) {
       .collection("tasks")
       .find(query)
       .sort({ createdAt: -1 })
-      .limit(200)
       .toArray();
 
     return NextResponse.json({ success: true, tasks });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getActiveComboTask } from "@/lib/comboTaskModel";
 
 export async function GET(request) {
   try {
@@ -17,16 +18,32 @@ export async function GET(request) {
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     const user = await db.collection("users").findOne({ uid });
+
     const tasks = await db
       .collection("tasks")
       .find({ assigneeUid: uid })
       .sort({ createdAt: -1 })
       .toArray();
 
+    const latestSet = await db
+      .collection("userTaskSets")
+      .find({ uid })
+      .sort({ setNumber: -1 })
+      .limit(1)
+      .toArray();
+
+    const currentSetNumber = latestSet.length > 0 ? latestSet[0].setNumber : 1;
+    let activeCombo = await getActiveComboTask(uid, currentSetNumber);
+    if (activeCombo) {
+      const { _id, ...comboData } = activeCombo;
+      activeCombo = { _id: String(_id), ...comboData };
+    }
+
     return NextResponse.json({
       success: true,
       dashboard: {
-        availableBalance: user?.availableBalance || 0,
+        availableBalance: Number(user?.availableBalance || 0),
+        frozenBalance: Number(user?.frozenBalance || 0),
         totalEarned: user?.totalEarned || 0,
         usdRate: 129,
         role: user?.role || "user",
@@ -39,6 +56,7 @@ export async function GET(request) {
         freezeThreshold: Number(user?.freezeThreshold || 0),
         demoProfitSharePercent: Number(user?.demoProfitSharePercent || 20),
         tasks,
+        activeComboTask: activeCombo || null,
       },
     });
   } catch (error) {

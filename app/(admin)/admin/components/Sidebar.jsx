@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle } from "lucide-react";
+import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle } from "lucide-react";
 
 const navigation = [
     { label: "Overview", href: "/admin", icon: LayoutGrid },
     { label: "User Management", href: "/admin/user-management", icon: Users },
     { label: "Task Management", href: "/admin/task-management", icon: CheckSquare },
+    { label: "Combined Tasks", href: "/admin/combo-settings", icon: Layers },
     { label: "Deposit Verification", href: "/admin/deposits", icon: DollarSign },
     { label: "Withdrawal Requests", href: "/admin/withdrawals", icon: Send },
     { label: "Balance Logs", href: "/admin/balance-logs", icon: History },

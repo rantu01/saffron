@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { roundCurrency } from "@/lib/taskModel";
+import { getActiveComboTask, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -35,6 +36,32 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "Task was cancelled." }, { status: 400 });
     }
 
+    if (task.isComboTask && task.taskType === "combo") {
+      const activeCombo = await db.collection("comboTasks").findOne({
+        _id: new ObjectId(task.comboId),
+        uid,
+      });
+      if (activeCombo && activeCombo.status === "completed") {
+      } else if (activeCombo && activeCombo.status !== "completed") {
+        return NextResponse.json({
+          success: false,
+          message: "Complete all linked orders in the Combined Task first.",
+          comboStatus: activeCombo.status,
+        }, { status: 400 });
+      }
+    }
+
+    if (!task.isComboTask) {
+      const activeCombo = await getActiveComboTask(uid, task.setNumber || 1);
+      if (activeCombo && activeCombo.status !== "pending" && task.position > 0 && activeCombo.position <= task.position) {
+        return NextResponse.json({
+          success: false,
+          message: "A Combined Task is in progress. Complete it before continuing with other tasks.",
+          comboStatus: activeCombo.status,
+        }, { status: 400 });
+      }
+    }
+
     // Validate submission based on task's submissionConfig
     const subConfig = task.submissionConfig;
     if (subConfig) {
@@ -63,7 +90,7 @@ export async function POST(request) {
     }
 
     const totalAmount = Number(task.totalAmount || 0);
-    const profit = Number(task.profit || 0);
+    const profit = roundCurrency(totalAmount * NORMAL_COMMISSION_RATE);
     const earned = roundCurrency(totalAmount + profit);
 
     const updateFields = {

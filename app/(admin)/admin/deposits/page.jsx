@@ -16,15 +16,22 @@ export default function AdminDepositsPage() {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   };
 
+  const [error, setError] = useState("");
+
   const loadDeposits = async () => {
     setLoading(true);
+    setError("");
     try {
       const query = filter ? `?status=${filter}` : "";
       const res = await fetch(`/api/admin/deposits${query}`);
       const data = await res.json();
-      if (data.success) setDeposits(data.deposits || []);
+      if (data.success) {
+        setDeposits(data.deposits || []);
+      } else {
+        setError(data.message || "Failed to load deposits");
+      }
     } catch (err) {
-      console.error(err);
+      setError(err.message || "Network error");
     } finally {
       setLoading(false);
     }
@@ -97,6 +104,10 @@ export default function AdminDepositsPage() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
+      )}
 
       {loading ? (
         <p className="text-slate-500">Loading...</p>

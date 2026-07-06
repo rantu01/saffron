@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
+import { getComboConfig, shouldGenerateComboTask, createComboTask, getComboPosition, generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -14,6 +15,13 @@ export async function POST(request) {
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+
+    const user = await db.collection("users").findOne({ uid });
+    if (!user) {
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+    }
+
+    const userBalance = Number(user.availableBalance || 0);
 
     const assignedGroupIds = await db
       .collection("tasks")
@@ -75,20 +83,67 @@ export async function POST(request) {
       });
     }
 
+    const comboConfig = await getComboConfig();
+    const hasComboTask = shouldGenerateComboTask(comboConfig);
+    let comboTaskId = null;
+    let comboPosition = null;
+
+    if (hasComboTask) {
+      const comboResult = await createComboTask(uid, nextSetNumber, comboConfig, userBalance);
+      if (comboResult) {
+        comboTaskId = String(comboResult._id);
+        comboPosition = comboResult.position;
+      }
+    }
+
     const combinationPositions = generateCombinationPositions();
     const now = new Date();
 
     const tasksToInsert = templateTasks.map((t, index) => {
       const position = index + 1;
+      const isComboPosition = hasComboTask && position === comboPosition;
+
+      if (isComboPosition) {
+        return {
+          appName: "Combined Task",
+          appLogo: t.appLogo || "",
+          description: "Complete all linked orders sequentially",
+          totalAmount: 0,
+          profit: 0,
+          reward: 0,
+          submissionConfig: null,
+          isTemplate: false,
+          parentTaskId: t._id.toString(),
+          parentTaskGroupId: availableGroup._id,
+          assigneeUid: uid,
+          assigneeEmail: "",
+          status: "pending",
+          position,
+          setNumber: nextSetNumber,
+          taskType: "combo",
+          isCombinationTask: false,
+          isComboTask: true,
+          comboId: comboTaskId,
+          profitMultiplier: 1,
+          requiredBalance: 0,
+          combinationPositions: [],
+          combinationSlots: [],
+          createdAt: now,
+          updatedAt: now,
+        };
+      }
+
       const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
+      const generatedAmount = generateNormalTaskAmount(userBalance);
+      const generatedProfit = computeTaskProfit(generatedAmount);
 
       return {
         appName: t.appName,
         appLogo: t.appLogo || "",
         description: t.description || "",
-        totalAmount: t.totalAmount,
-        profit: t.profit,
-        reward: t.profit,
+        totalAmount: generatedAmount,
+        profit: generatedProfit,
+        reward: generatedProfit,
         submissionConfig: t.submissionConfig,
         isTemplate: false,
         parentTaskId: t._id.toString(),
@@ -100,6 +155,8 @@ export async function POST(request) {
         setNumber: taskProfile.setNumber,
         taskType: taskProfile.taskType,
         isCombinationTask: taskProfile.isCombinationTask,
+        isComboTask: false,
+        comboId: null,
         profitMultiplier: taskProfile.profitMultiplier,
         requiredBalance: taskProfile.requiredBalance,
         combinationPositions: taskProfile.combinationPositions,
@@ -118,6 +175,8 @@ export async function POST(request) {
       message: `Group "${availableGroup.name}" assigned with ${tasksToInsert.length} tasks.`,
       groupName: availableGroup.name,
       createdCount: tasksToInsert.length,
+      hasComboTask,
+      comboPosition,
     });
   } catch (error) {
     return NextResponse.json(

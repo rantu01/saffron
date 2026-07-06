@@ -3,6 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
+import { NORMAL_COMMISSION_RATE, computeTaskProfit } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -69,13 +70,16 @@ export async function POST(request) {
       const position = index + 1;
       const taskProfile = buildTaskFinancialProfile(t, position, 1, combinationPositions);
 
+      const computedAmount = Number(t.totalAmount) || 0;
+      const computedProfit = computeTaskProfit(computedAmount);
+
       return {
         appName: t.appName,
         appLogo: t.appLogo || "",
         description: t.description || "",
-        totalAmount: t.totalAmount,
-        profit: t.profit,
-        reward: t.profit,
+        totalAmount: computedAmount,
+        profit: computedProfit,
+        reward: computedProfit,
         submissionConfig: t.submissionConfig,
         isTemplate: false,
         parentTaskId: t._id.toString(),

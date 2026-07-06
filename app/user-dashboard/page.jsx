@@ -8,7 +8,7 @@ import VipMembership from "./components/VipMembership";
 export default function UserDashboardPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
-  const [dashboard, setDashboard] = useState({ availableBalance: 0, tasks: [] });
+  const [dashboard, setDashboard] = useState({ availableBalance: 0, frozenBalance: 0, tasks: [] });
   const [deposits, setDeposits] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -232,6 +232,12 @@ export default function UserDashboardPage() {
               </span>
             </div>
             <div className="text-3xl font-bold text-slate-900 mt-4">${formatMoney(dashboard.availableBalance)}</div>
+            {Number(dashboard.frozenBalance) > 0 && (
+              <div className="flex items-center gap-1 mt-1">
+                <span className="text-xs text-amber-500 font-medium">Frozen in Combo:</span>
+                <span className="text-sm font-bold text-amber-500">${formatMoney(dashboard.frozenBalance)}</span>
+              </div>
+            )}
           </div>
           <div className="mt-4 text-xs font-medium text-blue-600 bg-blue-50/50 py-1.5 px-3 rounded-md w-max">
             Available USD

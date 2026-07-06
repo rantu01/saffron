@@ -6,6 +6,7 @@ import Swal from "sweetalert2";
 import { Crown, Star, Trophy } from "lucide-react";
 import ScreenshotCarousel from "./components/ScreenshotCarousel";
 import FloatingAppIcons from "./components/FloatingAppIcons";
+import ComboTaskModal from "./components/ComboTaskModal";
 
 export default function UserTasksPage() {
   const { user, loading } = useAuth();
@@ -15,6 +16,10 @@ export default function UserTasksPage() {
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
   const [userBalance, setUserBalance] = useState(0);
+  const [frozenBalance, setFrozenBalance] = useState(0);
+
+  const [activeCombo, setActiveCombo] = useState(null);
+  const [showComboModal, setShowComboModal] = useState(false);
 
   const VIP_TIERS = [
     { level: 1, name: "VIP 1", label: "Bronze", minDeposit: 25, dailyProfit: 0.5, unlockBalance: 0, gradient: "from-blue-600 to-blue-400", badgeBg: "bg-blue-500" },
@@ -64,6 +69,12 @@ export default function UserTasksPage() {
 
       if (dashData?.success) {
         setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
+        setFrozenBalance(Number(dashData.dashboard?.frozenBalance || 0));
+        if (dashData.dashboard?.activeComboTask) {
+          setActiveCombo(dashData.dashboard.activeComboTask);
+        } else {
+          setActiveCombo(null);
+        }
       }
 
       const tasks = tasksData?.success ? (tasksData.tasks || []) : [];
@@ -128,6 +139,12 @@ export default function UserTasksPage() {
     return () => { cancelled = true; };
   }, [user?.uid, loadData, tryAutoAssign]);
 
+  useEffect(() => {
+    if (activeCombo && (activeCombo.status === "in_progress" || activeCombo.status === "waiting_balance")) {
+      setShowComboModal(true);
+    }
+  }, [activeCombo]);
+
   const currentSetNumber = setProgress?.setNumber || 1;
   const completedCount = setProgress?.completedTasks || 0;
   const totalTasks = setProgress?.totalTasks || 30;
@@ -157,6 +174,29 @@ export default function UserTasksPage() {
         title: "No task available",
         text: "No pending task found. Contact admin if you believe this is an error.",
       });
+      return;
+    }
+
+    if (nextTask.isComboTask && nextTask.taskType === "combo") {
+      const comboId = nextTask.comboId;
+      if (!comboId) {
+        Swal.fire({ icon: "error", title: "Error", text: "Combo task data not found." });
+        return;
+      }
+
+      fetch(`/api/user/tasks/combo?uid=${encodeURIComponent(user.uid)}&setNumber=${nextTask.setNumber || 1}&position=${nextTask.position}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.success && data?.combo) {
+            setActiveCombo(data.combo);
+            setShowComboModal(true);
+          } else {
+            Swal.fire({ icon: "error", title: "Error", text: "Could not load combo task data." });
+          }
+        })
+        .catch(() => {
+          Swal.fire({ icon: "error", title: "Error", text: "Failed to load combo task." });
+        });
       return;
     }
 
@@ -415,15 +455,43 @@ export default function UserTasksPage() {
             </p>
             <p className="text-sm text-slate-500 mt-1">
               {nextTask
-                ? `Next: ${nextTask.appName}`
+                ? nextTask.isComboTask ? `Next: Combined Task` : `Next: ${nextTask.appName}`
                 : isAutoAssigning
                   ? "Loading tasks..."
                   : "No pending tasks available"}
             </p>
-            {nextTask && Number(taskStartAmount) > 0 && (
+            {nextTask && !nextTask.isComboTask && Number(taskStartAmount) > 0 && (
               <p className="text-xs text-slate-400 mt-0.5">
                 Required balance: ${formatMoney(taskStartAmount)}
               </p>
+            )}
+            {nextTask && nextTask.isComboTask && activeCombo && (
+              <>
+                <p className="text-xs text-amber-500 mt-0.5 font-medium">
+                  Combined Task - Multiple Orders
+                </p>
+                <div className="flex justify-center gap-4 mt-2 text-xs">
+                  <span className="text-slate-500">
+                    Total Balance: <span className="font-semibold text-slate-700">${formatMoney(userBalance + frozenBalance)}</span>
+                  </span>
+                  <span className="text-slate-500">
+                    Total Required: <span className="font-semibold text-slate-700">${formatMoney(activeCombo.totalRequiredAmount)}</span>
+                  </span>
+                </div>
+                {(userBalance + frozenBalance) < activeCombo.totalRequiredAmount && (
+                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    <p className="text-amber-800 font-semibold text-sm">Insufficient Balance</p>
+                    <p className="text-amber-600 text-xs mt-0.5">
+                      Deposit additional ${formatMoney(activeCombo.totalRequiredAmount - (userBalance + frozenBalance))} to continue with this Combined Task.
+                    </p>
+                  </div>
+                )}
+                {frozenBalance > 0 && (
+                  <p className="text-[10px] text-amber-500 mt-1">
+                    Balance frozen for Combined Task
+                  </p>
+                )}
+              </>
             )}
             {!nextTask && !isAutoAssigning && !noGroupsAvailable && (
               <button
@@ -440,12 +508,21 @@ export default function UserTasksPage() {
         )}
 
         {!isAllComplete && nextTask && !noGroupsAvailable && (
-          <button
-            onClick={handleStartTask}
-            className="mt-6 bg-[#E05305] text-white rounded-xl px-10 py-3 font-semibold hover:bg-[#c84a04] transition shadow-lg shadow-orange-200"
-          >
-            Start
-          </button>
+          nextTask.isComboTask && activeCombo && (userBalance + frozenBalance) < activeCombo.totalRequiredAmount ? (
+            <button
+              onClick={() => window.location.href = "/user-dashboard/deposits"}
+              className="mt-6 bg-amber-500 text-white rounded-xl px-10 py-3 font-semibold hover:bg-amber-600 transition shadow-lg shadow-amber-200"
+            >
+              Deposit to Continue
+            </button>
+          ) : (
+            <button
+              onClick={handleStartTask}
+              className="mt-6 bg-[#E05305] text-white rounded-xl px-10 py-3 font-semibold hover:bg-[#c84a04] transition shadow-lg shadow-orange-200"
+            >
+              Start
+            </button>
+          )
         )}
       </div>
 
@@ -469,6 +546,11 @@ export default function UserTasksPage() {
             <div className="text-right">
               <p className="text-[10px] text-white/60 uppercase tracking-wider">Balance</p>
               <p className="text-lg font-bold text-white">${formatMoney(userBalance)}</p>
+              {frozenBalance > 0 && (
+                <p className="text-[10px] text-amber-300 mt-0.5">
+                  Frozen: ${formatMoney(frozenBalance)}
+                </p>
+              )}
             </div>
           </div>
 
@@ -507,6 +589,25 @@ export default function UserTasksPage() {
           )}
         </div>
       </div>
+
+      {/* Combo Task Modal */}
+      {showComboModal && activeCombo && (
+        <ComboTaskModal
+          combo={activeCombo}
+          uid={user.uid}
+          userBalance={userBalance}
+          frozenBalance={frozenBalance}
+          onClose={() => {
+            setShowComboModal(false);
+            loadData();
+          }}
+          onComplete={(result) => {
+            setShowComboModal(false);
+            setUserBalance(result?.creditResult?.balanceAfter || userBalance);
+            loadData();
+          }}
+        />
+      )}
 
       {/* Task Submission Modal */}
       {isModalOpen && selectedTask && (

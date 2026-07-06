@@ -3,6 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { debitUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
+import { getActiveComboTask } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -28,6 +29,22 @@ export async function POST(request) {
 
     if (task.status !== "pending") {
       return NextResponse.json({ success: false, message: "Task is not in pending status." }, { status: 400 });
+    }
+
+    if (task.isComboTask && task.taskType === "combo") {
+      return NextResponse.json({
+        success: false,
+        message: "Cannot cancel a Combined Task. Complete all linked orders instead.",
+      }, { status: 400 });
+    }
+
+    const activeCombo = await getActiveComboTask(uid, task.setNumber || 1);
+    if (activeCombo && activeCombo.status !== "pending") {
+      return NextResponse.json({
+        success: false,
+        message: "A Combined Task is in progress. Complete it before cancelling other tasks.",
+        comboStatus: activeCombo.status,
+      }, { status: 400 });
     }
 
     const totalAmount = Number(task.totalAmount || 0);
