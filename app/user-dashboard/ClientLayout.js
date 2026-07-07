@@ -34,16 +34,32 @@ export default function ClientLayout({ children }) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const [open, setOpen] = React.useState(false);
+  const [roleChecking, setRoleChecking] = React.useState(true);
   const isDashboard = pathname === '/user-dashboard';
 
   React.useEffect(() => {
     if (loading) return;
     if (!user) {
       router.replace('/');
+      return;
     }
+    async function checkRole() {
+      try {
+        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
+        const data = await res.json();
+        if (res.ok && data?.success && data?.dashboard?.role === 'admin') {
+          router.replace('/admin');
+          return;
+        }
+      } catch (err) {
+        console.error('Role check failed:', err);
+      }
+      setRoleChecking(false);
+    }
+    checkRole();
   }, [loading, router, user]);
 
-  if (loading || !user) {
+  if (loading || !user || roleChecking) {
     return <div className='min-h-screen lg:bg-[#FFF8F3] bg-[#121212]' />;
   }
 

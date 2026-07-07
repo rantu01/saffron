@@ -409,7 +409,7 @@ export default function ProfilePage() {
         </div>
       </form>
 
-      <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
+      {/* <div className="bg-white rounded-2xl border border-red-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-red-100">
           <h2 className="text-lg font-bold text-red-700">Danger Zone</h2>
         </div>
@@ -422,7 +422,7 @@ export default function ProfilePage() {
             Delete Account
           </button>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }
