@@ -3,6 +3,15 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
 
+function Spinner({ size = 16 }) {
+  return (
+    <svg className="animate-spin" width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
 export default function TaskManagementPage() {
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -190,31 +199,39 @@ export default function TaskManagementPage() {
   };
 
   // ── Create Group Handler ──
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!groupForm.name.trim()) {
       await Swal.fire({ icon: "error", title: "Required", text: "Group name is required." });
       return;
     }
+    setCreatingGroup(true);
+    try {
+      const response = await fetch("/api/admin/task-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: groupForm.name.trim(), description: groupForm.description }),
+      });
+      const result = await response.json();
 
-    const response = await fetch("/api/admin/task-groups", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: groupForm.name.trim(), description: groupForm.description }),
-    });
-    const result = await response.json();
+      if (!response.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create group." });
+        return;
+      }
 
-    if (!response.ok || !result.success) {
-      await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create group." });
-      return;
+      await Swal.fire({ icon: "success", title: "Group created", timer: 1300, showConfirmButton: false });
+      setGroupForm({ name: "", description: "" });
+      loadData();
+    } finally {
+      setCreatingGroup(false);
     }
-
-    await Swal.fire({ icon: "success", title: "Group created", timer: 1300, showConfirmButton: false });
-    setGroupForm({ name: "", description: "" });
-    loadData();
   };
 
   // ── Create Task Handler ──
+  const [creatingTask, setCreatingTask] = useState(false);
+
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!createForm.appName.trim()) {
@@ -229,54 +246,58 @@ export default function TaskManagementPage() {
       await Swal.fire({ icon: "error", title: "Required", text: "Please select a task group." });
       return;
     }
-
-    const payload = {
-      appName: createForm.appName.trim(),
-      appLogo: appLogoData || "",
-      totalAmount: Number(createForm.totalAmount),
-      taskGroupId: createForm.taskGroupId,
-      description: createForm.description,
-    };
-
-    if (createForm.submissionConfig.enabled) {
-      payload.submissionConfig = {
-        requireRating: createForm.submissionConfig.requireRating,
-        ratingOptions: createForm.submissionConfig.ratingOptions.filter((o) => o.trim()),
-        requireFeedback: createForm.submissionConfig.requireFeedback,
-        maxFeedbackLength: createForm.submissionConfig.maxFeedbackLength,
+    setCreatingTask(true);
+    try {
+      const payload = {
+        appName: createForm.appName.trim(),
+        appLogo: appLogoData || "",
+        totalAmount: Number(createForm.totalAmount),
+        taskGroupId: createForm.taskGroupId,
+        description: createForm.description,
       };
+
+      if (createForm.submissionConfig.enabled) {
+        payload.submissionConfig = {
+          requireRating: createForm.submissionConfig.requireRating,
+          ratingOptions: createForm.submissionConfig.ratingOptions.filter((o) => o.trim()),
+          requireFeedback: createForm.submissionConfig.requireFeedback,
+          maxFeedbackLength: createForm.submissionConfig.maxFeedbackLength,
+        };
+      }
+
+      const response = await fetch("/api/admin/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create task." });
+        return;
+      }
+
+      await Swal.fire({ icon: "success", title: "Task created", timer: 1300, showConfirmButton: false });
+
+      setCreateForm({
+        appName: "",
+        totalAmount: "",
+        taskGroupId: "",
+        description: "",
+        submissionConfig: {
+          enabled: true,
+          requireRating: true,
+          ratingOptions: [...DEFAULT_RATING_OPTIONS],
+          requireFeedback: true,
+          maxFeedbackLength: 500,
+        },
+      });
+      setAppLogoData(null);
+      setLogoPreview(null);
+      loadData();
+    } finally {
+      setCreatingTask(false);
     }
-
-    const response = await fetch("/api/admin/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create task." });
-      return;
-    }
-
-    await Swal.fire({ icon: "success", title: "Task created", timer: 1300, showConfirmButton: false });
-
-    setCreateForm({
-      appName: "",
-      totalAmount: "",
-      taskGroupId: "",
-      description: "",
-      submissionConfig: {
-        enabled: true,
-        requireRating: true,
-        ratingOptions: [...DEFAULT_RATING_OPTIONS],
-        requireFeedback: true,
-        maxFeedbackLength: 500,
-      },
-    });
-    setAppLogoData(null);
-    setLogoPreview(null);
-    loadData();
   };
 
   // ── Edit Task ──
@@ -308,6 +329,8 @@ export default function TaskManagementPage() {
     setEditLogoPreview(null);
   };
 
+  const [updatingTask, setUpdatingTask] = useState(false);
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editForm.appName.trim()) {
@@ -318,42 +341,48 @@ export default function TaskManagementPage() {
       await Swal.fire({ icon: "error", title: "Required", text: "Total Amount must be greater than 0." });
       return;
     }
-
-    const payload = {
-      appName: editForm.appName.trim(),
-      appLogo: editLogoData || editLogoPreview || "",
-      totalAmount: Number(editForm.totalAmount),
-      taskGroupId: editForm.taskGroupId || null,
-      description: editForm.description,
-    };
-
-    if (editForm.submissionConfig.enabled) {
-      payload.submissionConfig = {
-        requireRating: editForm.submissionConfig.requireRating,
-        ratingOptions: editForm.submissionConfig.ratingOptions.filter((o) => o.trim()),
-        requireFeedback: editForm.submissionConfig.requireFeedback,
-        maxFeedbackLength: editForm.submissionConfig.maxFeedbackLength,
+    setUpdatingTask(true);
+    try {
+      const payload = {
+        appName: editForm.appName.trim(),
+        appLogo: editLogoData || editLogoPreview || "",
+        totalAmount: Number(editForm.totalAmount),
+        taskGroupId: editForm.taskGroupId || null,
+        description: editForm.description,
       };
+
+      if (editForm.submissionConfig.enabled) {
+        payload.submissionConfig = {
+          requireRating: editForm.submissionConfig.requireRating,
+          ratingOptions: editForm.submissionConfig.ratingOptions.filter((o) => o.trim()),
+          requireFeedback: editForm.submissionConfig.requireFeedback,
+          maxFeedbackLength: editForm.submissionConfig.maxFeedbackLength,
+        };
+      }
+
+      const response = await fetch(`/api/admin/tasks/${editTask._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update task." });
+        return;
+      }
+
+      await Swal.fire({ icon: "success", title: "Task updated", timer: 1300, showConfirmButton: false });
+      closeEditModal();
+      loadData();
+    } finally {
+      setUpdatingTask(false);
     }
-
-    const response = await fetch(`/api/admin/tasks/${editTask._id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-
-    if (!response.ok || !result.success) {
-      await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update task." });
-      return;
-    }
-
-    await Swal.fire({ icon: "success", title: "Task updated", timer: 1300, showConfirmButton: false });
-    closeEditModal();
-    loadData();
   };
 
   // ── Delete Task ──
+  const [deletingTaskId, setDeletingTaskId] = useState(null);
+
   const handleDeleteTask = async (task) => {
     const confirmed = await Swal.fire({
       title: "Delete Task?",
@@ -367,57 +396,68 @@ export default function TaskManagementPage() {
 
     if (!confirmed.isConfirmed) return;
 
-    const response = await fetch(`/api/admin/tasks/${task._id}`, {
-      method: "DELETE",
-    });
-    const result = await response.json();
+    setDeletingTaskId(task._id);
+    try {
+      const response = await fetch(`/api/admin/tasks/${task._id}`, {
+        method: "DELETE",
+      });
+      const result = await response.json();
 
-    if (!response.ok || !result.success) {
-      await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not delete task." });
-      return;
+      if (!response.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not delete task." });
+        return;
+      }
+
+      await Swal.fire({ icon: "success", title: "Task deleted", text: "The task has been removed and the group slot freed.", timer: 2000, showConfirmButton: false });
+      loadData();
+    } finally {
+      setDeletingTaskId(null);
     }
-
-    await Swal.fire({ icon: "success", title: "Task deleted", text: "The task has been removed and the group slot freed.", timer: 2000, showConfirmButton: false });
-    loadData();
   };
 
   // ── Group Assign Handler ──
+  const [assigningGroup, setAssigningGroup] = useState(false);
+
   const handleGroupAssign = async (e) => {
     e.preventDefault();
     if (!groupAssign.groupId || !groupAssign.assigneeUid) {
       await Swal.fire({ icon: "error", title: "Select", text: "Please select a group and a user." });
       return;
     }
-
-    const user = users.find((u) => u.uid === groupAssign.assigneeUid);
-    const response = await fetch("/api/admin/task-groups/assign", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        groupId: groupAssign.groupId,
-        assigneeUid: user.uid,
-        assigneeEmail: user.email,
-      }),
-    });
-    const result = await response.json();
-
-    if (!response.ok) {
-      await Swal.fire({
-        icon: response.status === 409 ? "warning" : "error",
-        title: response.status === 409 ? "Already assigned" : "Assignment failed",
-        text: result.message || "Please try again.",
+    setAssigningGroup(true);
+    try {
+      const user = users.find((u) => u.uid === groupAssign.assigneeUid);
+      const response = await fetch("/api/admin/task-groups/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          groupId: groupAssign.groupId,
+          assigneeUid: user.uid,
+          assigneeEmail: user.email,
+        }),
       });
-      return;
-    }
+      const result = await response.json();
 
-    await Swal.fire({
-      icon: "success",
-      title: "Group assigned",
-      text: result.message,
-      timer: 3000,
-    });
-    setGroupAssign({ groupId: "", assigneeUid: "" });
-    loadData();
+      if (!response.ok) {
+        await Swal.fire({
+          icon: response.status === 409 ? "warning" : "error",
+          title: response.status === 409 ? "Already assigned" : "Assignment failed",
+          text: result.message || "Please try again.",
+        });
+        return;
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Group assigned",
+        text: result.message,
+        timer: 3000,
+      });
+      setGroupAssign({ groupId: "", assigneeUid: "" });
+      loadData();
+    } finally {
+      setAssigningGroup(false);
+    }
   };
 
   // ── Available groups for task creation (not full) ──
@@ -511,7 +551,8 @@ export default function TaskManagementPage() {
             onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))}
             className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
           />
-          <button type="submit" className="bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition">
+          <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {creatingGroup && <Spinner />}
             Create Group
           </button>
         </form>
@@ -745,7 +786,8 @@ export default function TaskManagementPage() {
             )}
           </div>
 
-          <button type="submit" className="md:col-span-2 bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition">
+          <button type="submit" disabled={creatingTask} className="md:col-span-2 bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {creatingTask && <Spinner />}
             Create Task
           </button>
         </form>
@@ -783,7 +825,8 @@ export default function TaskManagementPage() {
             ))}
           </select>
 
-          <button type="submit" className="bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition">
+          <button type="submit" disabled={assigningGroup} className="bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            {assigningGroup && <Spinner />}
             Assign Group
           </button>
         </form>
@@ -864,8 +907,10 @@ export default function TaskManagementPage() {
                         </button>
                         <button
                           onClick={() => handleDeleteTask(task)}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                          disabled={deletingTaskId === task._id}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                         >
+                          {deletingTaskId === task._id ? <Spinner size={12} /> : null}
                           Delete
                         </button>
                       </div>
@@ -975,8 +1020,10 @@ export default function TaskManagementPage() {
                         </button>
                         <button
                           onClick={() => handleDeleteTask(task)}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                          disabled={deletingTaskId === task._id}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
                         >
+                          {deletingTaskId === task._id ? <Spinner size={12} /> : null}
                           Delete
                         </button>
                       </div>
@@ -1202,7 +1249,8 @@ export default function TaskManagementPage() {
               </div>
 
               <div className="md:col-span-2 flex items-center gap-3 pt-2">
-                <button type="submit" className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition">
+                <button type="submit" disabled={updatingTask} className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {updatingTask && <Spinner />}
                   Update Task
                 </button>
                 <button type="button" onClick={closeEditModal} className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg">
