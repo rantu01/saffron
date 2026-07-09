@@ -17,10 +17,10 @@ export default function SaffronEdgeAuth() {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [formData, setFormData] = useState({
-    email: '',
     username: '',
     password: '',
     phoneNumber: '',
+    email: '',
     invitationCode: '',
     agreeToTerms: false,
   });
@@ -219,38 +219,10 @@ export default function SaffronEdgeAuth() {
           </p>
 
           <div className="space-y-4">
-            {/* Input 1: Email */}
-            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</span>
-              <input
-                type="email"
-                name="email"
-                placeholder="your@email.com"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
-              />
-            </div>
-
-            {/* Input 2: Password */}
-            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Password</span>
-              <input
-                type="password"
-                name="password"
-                placeholder="Type Password"
-                value={formData.password}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
-              />
-            </div>
-
             {/* Registration Specific Fields */}
             {!isLoginView && (
               <>
-                {/* Input 3: Username */}
+                {/* Input 1: Username */}
                 <div>
                   <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
                     <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Username</span>
@@ -270,8 +242,27 @@ export default function SaffronEdgeAuth() {
                     <p className="text-red-400 text-xs mt-1 ml-1">{usernameError}</p>
                   )}
                 </div>
+              </>
+            )}
 
-                {/* Input 4: Phone Number */}
+            {/* Input 2: Password */}
+            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
+              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Password</span>
+              <input
+                type="password"
+                name="password"
+                placeholder="Type Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
+              />
+            </div>
+
+            {/* Registration Specific Fields */}
+            {!isLoginView && (
+              <>
+                {/* Input 3: Phone Number */}
                 <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
                   <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Phone Number</span>
                   <input
@@ -284,7 +275,26 @@ export default function SaffronEdgeAuth() {
                     className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
                   />
                 </div>
+              </>
+            )}
 
+            {/* Input 4: Email */}
+            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
+              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</span>
+              <input
+                type="email"
+                name="email"
+                placeholder="your@email.com"
+                value={formData.email}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
+              />
+            </div>
+
+            {/* Registration Specific Fields */}
+            {!isLoginView && (
+              <>
                 {/* Input 5: Invitation Code */}
                 <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
                   <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Invitation Code</span>
