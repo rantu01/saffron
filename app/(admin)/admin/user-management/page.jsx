@@ -170,7 +170,7 @@ export default function UserManagementPage() {
               clearTimeout(window.searchTimer);
               window.searchTimer = setTimeout(() => loadData(e.target.value), 300);
             }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white flex-1 max-w-md"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 placeholder:text-slate-400 flex-1 max-w-md"
           />
         </div>
       </div>
@@ -203,7 +203,7 @@ export default function UserManagementPage() {
                   <select
                     defaultValue={user.role || "user"}
                     onChange={(e) => updateUser(user.uid, { role: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
                   >
                     <option value="user">user</option>
                     <option value="admin">admin</option>
@@ -212,14 +212,14 @@ export default function UserManagementPage() {
                   <input
                     type="number" step="0.01"
                     defaultValue={Number(user.availableBalance || 0)}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white"
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white text-slate-900"
                     onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })}
                   />
 
                   <select
                     defaultValue={user.accountType || (user.isDemoAccount ? "demo" : "main")}
                     onChange={(e) => updateUser(user.uid, { accountType: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
                   >
                     <option value="main">main</option>
                     <option value="demo">demo</option>
@@ -228,7 +228,7 @@ export default function UserManagementPage() {
                   <select
                     defaultValue={user.accountStatus || "active"}
                     onChange={(e) => updateUser(user.uid, { accountStatus: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white"
+                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
                   >
                     <option value="active">active</option>
                     <option value="frozen">frozen</option>

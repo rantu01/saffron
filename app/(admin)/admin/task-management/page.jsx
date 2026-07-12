@@ -585,7 +585,7 @@ export default function TaskManagementPage() {
                   placeholder="e.g. App Store Optimization"
                   value={groupForm.name}
                   onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                  className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
                   required
                 />
               </div>
@@ -596,7 +596,7 @@ export default function TaskManagementPage() {
                   placeholder="Brief description of the group"
                   value={groupForm.description}
                   onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                  className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
                 />
               </div>
               <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-5 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
@@ -673,7 +673,7 @@ export default function TaskManagementPage() {
                 placeholder="e.g. My Shopping App"
                 value={createForm.appName}
                 onChange={(e) => setCreateForm((p) => ({ ...p, appName: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
                 required
               />
             </div>
@@ -687,7 +687,7 @@ export default function TaskManagementPage() {
                 placeholder="e.g. 100.00"
                 value={createForm.totalAmount}
                 onChange={(e) => setCreateForm((p) => ({ ...p, totalAmount: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
                 required
               />
             </div>
@@ -697,7 +697,7 @@ export default function TaskManagementPage() {
               <select
                 value={createForm.taskGroupId}
                 onChange={(e) => setCreateForm((p) => ({ ...p, taskGroupId: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
                 required
               >
                 <option value="">— Select a group —</option>
@@ -757,7 +757,7 @@ export default function TaskManagementPage() {
                 placeholder="Task description or instructions..."
                 value={createForm.description}
                 onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm min-h-24 resize-y"
+                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 min-h-24 resize-y"
               />
             </div>
 
@@ -790,12 +790,12 @@ export default function TaskManagementPage() {
                           <p className="text-xs text-slate-400 font-medium">Rating options:</p>
                           {createForm.submissionConfig.ratingOptions.map((opt, i) => (
                             <div key={i} className="flex items-center gap-2">
-                              <input value={opt} onChange={(e) => { const updated = [...createForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                              <input value={opt} onChange={(e) => { const updated = [...createForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900" />
                               <button type="button" onClick={() => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                             </div>
                           ))}
                           <div className="flex items-center gap-2">
-                            <input value={newRatingOption} onChange={(e) => setNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                            <input value={newRatingOption} onChange={(e) => setNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400" />
                             <button type="button" onClick={() => { if (newRatingOption.trim()) { setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, newRatingOption.trim()] } })); setNewRatingOption(""); } }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">+ Add</button>
                           </div>
                         </div>
@@ -809,7 +809,7 @@ export default function TaskManagementPage() {
                       {createForm.submissionConfig.requireFeedback && (
                         <div className="pl-6">
                           <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
-                          <input type="number" min={1} max={5000} value={createForm.submissionConfig.maxFeedbackLength} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-32" />
+                          <input type="number" min={1} max={5000} value={createForm.submissionConfig.maxFeedbackLength} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 w-32" />
                         </div>
                       )}
                     </>
@@ -841,7 +841,7 @@ export default function TaskManagementPage() {
               <select
                 value={groupAssign.groupId}
                 onChange={(e) => setGroupAssign((p) => ({ ...p, groupId: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
                 required
               >
                 <option value="">Choose a group...</option>
@@ -858,7 +858,7 @@ export default function TaskManagementPage() {
               <select
                 value={groupAssign.assigneeUid}
                 onChange={(e) => setGroupAssign((p) => ({ ...p, assigneeUid: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
                 required
               >
                 <option value="">Choose a user...</option>
@@ -892,7 +892,7 @@ export default function TaskManagementPage() {
                   <select
                     value={selectedGroupTaskId}
                     onChange={(e) => { setSelectedGroupTaskId(e.target.value); setGroupTasksPage(1); }}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
                   >
                     <option value="">All groups</option>
                     {taskGroups.map((g) => (
@@ -970,15 +970,15 @@ export default function TaskManagementPage() {
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Filter Tasks</h3>
               <div className="flex flex-wrap items-center gap-3">
-                <select value={filterGroupId} onChange={(e) => { setFilterGroupId(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[140px]">
+                <select value={filterGroupId} onChange={(e) => { setFilterGroupId(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[140px]">
                   <option value="">All groups</option>
                   {taskGroups.map((g) => (<option key={g._id} value={g._id}>{g.name}</option>))}
                 </select>
-                <select value={filterUserUid} onChange={(e) => { setFilterUserUid(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[160px]">
+                <select value={filterUserUid} onChange={(e) => { setFilterUserUid(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[160px]">
                   <option value="">All users</option>
                   {users.map((user) => (<option key={user.uid} value={user.uid}>{user.email}</option>))}
                 </select>
-                <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[120px]">
+                <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[120px]">
                   <option value="all">All types</option>
                   <option value="template">Templates</option>
                   <option value="assigned">Assigned</option>

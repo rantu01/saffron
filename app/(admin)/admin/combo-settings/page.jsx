@@ -266,7 +266,7 @@ export default function ComboSettingsPage() {
               max="5"
               value={form.minOrders}
               onChange={(e) => setForm((prev) => ({ ...prev, minOrders: Math.max(2, Math.min(5, Number(e.target.value) || 2)) }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
             />
           </div>
           <div>
@@ -278,7 +278,7 @@ export default function ComboSettingsPage() {
               max="5"
               value={form.maxOrders}
               onChange={(e) => setForm((prev) => ({ ...prev, maxOrders: Math.max(2, Math.min(5, Number(e.target.value) || 2)) }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
             />
           </div>
         </div>
@@ -321,7 +321,7 @@ export default function ComboSettingsPage() {
               setForm((prev) => ({ ...prev, positions: vals }));
             }}
             placeholder="8"
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+            className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
           />
           <p className="text-[10px] text-slate-400 mt-1">Example: <code>8</code> means the combo always appears at position 8. Extra numbers are ignored; only the first is used.</p>
         </div>
@@ -340,7 +340,7 @@ export default function ComboSettingsPage() {
               setForm((prev) => ({ ...prev, demoPositions: vals }));
             }}
             placeholder="5"
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+            className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
           />
         </div>
 
@@ -358,7 +358,7 @@ export default function ComboSettingsPage() {
               setForm((prev) => ({ ...prev, mainPositions: vals }));
             }}
             placeholder="10"
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+            className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
           />
         </div>
 
@@ -391,7 +391,7 @@ export default function ComboSettingsPage() {
                       min="1"
                       value={level.minAmountPerOrder}
                       onChange={(e) => updateProgressionLevel(index, "minAmountPerOrder", e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                      className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                     />
                   </div>
                   <div>
@@ -401,7 +401,7 @@ export default function ComboSettingsPage() {
                       min="1"
                       value={level.maxAmountPerOrder}
                       onChange={(e) => updateProgressionLevel(index, "maxAmountPerOrder", e.target.value)}
-                      className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                      className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                     />
                   </div>
                 </div>
@@ -437,7 +437,7 @@ export default function ComboSettingsPage() {
               onFocus={() => searchResults.length > 0 && setShowResults(true)}
               onBlur={() => setTimeout(() => setShowResults(false), 200)}
               placeholder="Search users by email, name, or UID..."
-              className="flex-1 text-sm focus:outline-none"
+              className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
             />
             {searching && <span className="text-xs text-slate-400">Searching...</span>}
           </div>
@@ -479,7 +479,7 @@ export default function ComboSettingsPage() {
                   value={overrideInputs[uid] || ""}
                   onChange={(e) => updateOverridePositions(uid, e.target.value)}
                   placeholder="e.g. 7"
-                  className="w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                  className="w-40 border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                 />
                 <button
                   onClick={() => removeOverride(uid)}

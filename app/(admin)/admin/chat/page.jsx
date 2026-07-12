@@ -217,7 +217,7 @@ export default function AdminChatPage() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
                 placeholder="Type your reply..."
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
               />
               <button
                 onClick={handleSend}
@@ -242,7 +242,7 @@ export default function AdminChatPage() {
                   value={search}
                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   placeholder="Search conversations..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
                 />
               </div>
             </div>

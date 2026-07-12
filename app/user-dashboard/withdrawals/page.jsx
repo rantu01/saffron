@@ -144,7 +144,7 @@ export default function WithdrawalsPage() {
                                 placeholder="Enter your USDT wallet address"
                                 value={form.walletAddress}
                                 onChange={(e) => setForm((prev) => ({ ...prev, walletAddress: e.target.value }))}
-                                className="w-full rounded border border-slate-300 px-3 py-2"
+                                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400"
                                 required
                             />
                         </div>
@@ -159,7 +159,7 @@ export default function WithdrawalsPage() {
                                 placeholder="Enter amount"
                                 value={form.amount}
                                 onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                                className="w-full rounded border border-slate-300 px-3 py-2"
+                                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400"
                                 required
                             />
                             <p className="text-xs text-slate-500 mt-1">Max available: ${formatMoney(balance)}</p>

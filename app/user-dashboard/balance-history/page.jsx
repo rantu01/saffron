@@ -153,7 +153,7 @@ export default function BalanceHistoryPage() {
           <select
             value={typeFilter}
             onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
           >
             {TYPE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -164,14 +164,14 @@ export default function BalanceHistoryPage() {
             type="date"
             value={startDate}
             onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
           />
           <span className="text-xs text-slate-400">to</span>
           <input
             type="date"
             value={endDate}
             onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
           />
 
           {(startDate || endDate || typeFilter !== "all") && (

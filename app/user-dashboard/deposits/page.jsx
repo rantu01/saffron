@@ -103,7 +103,7 @@ export default function DepositsPage() {
                 placeholder="Enter deposit amount"
                 value={form.amount}
                 onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm focus:border-[#E05305] focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-[#E05305] focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                 required
                 disabled={submitting}
               />

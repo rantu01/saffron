@@ -695,7 +695,7 @@ export default function UserTasksPage() {
                   <textarea
                     value={customComment}
                     onChange={(e) => setCustomComment(e.target.value.slice(0, maxFeedbackLength))}
-                    className="w-full border border-slate-200 rounded-lg p-1.5 text-[10px] text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#E05305] resize-none h-14"
+                    className="w-full border border-slate-200 rounded-lg p-1.5 text-[10px] text-slate-700 bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305] resize-none h-14"
                     placeholder="Write your feedback..."
                   />
                   <div className="text-right text-[9px] text-slate-400 mt-0.5">

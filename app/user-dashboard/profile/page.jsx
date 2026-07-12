@@ -297,7 +297,7 @@ export default function ProfilePage() {
               value={profile.username}
               onChange={(e) => { setProfile(p => ({ ...p, username: e.target.value })); setUsernameError(''); }}
               onBlur={handleUsernameBlur}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
             {usernameChecking && <p className="text-xs text-slate-400 mt-1">Checking availability...</p>}
             {usernameError && <p className="text-xs text-red-500 mt-1">{usernameError}</p>}
@@ -307,7 +307,7 @@ export default function ProfilePage() {
             <input
               value={profile.displayName}
               onChange={(e) => setProfile(p => ({ ...p, displayName: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
           <div>
@@ -315,7 +315,7 @@ export default function ProfilePage() {
             <input
               value={profile.phoneNumber}
               onChange={(e) => setProfile(p => ({ ...p, phoneNumber: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               placeholder="+1234567890"
             />
           </div>
@@ -378,7 +378,7 @@ export default function ProfilePage() {
               type="password"
               value={passwordForm.current}
               onChange={(e) => setPasswordForm(p => ({ ...p, current: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               required
             />
           </div>
@@ -388,7 +388,7 @@ export default function ProfilePage() {
               type="password"
               value={passwordForm.newPass}
               onChange={(e) => setPasswordForm(p => ({ ...p, newPass: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               required
               minLength={6}
             />
@@ -399,7 +399,7 @@ export default function ProfilePage() {
               type="password"
               value={passwordForm.confirm}
               onChange={(e) => setPasswordForm(p => ({ ...p, confirm: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               required
             />
           </div>

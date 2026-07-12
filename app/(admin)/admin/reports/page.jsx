@@ -169,14 +169,14 @@ export default function ReportsPage() {
               type="date"
               value={dateRange.start || range.start}
               onChange={(e) => setDateRange((p) => ({ ...p, start: e.target.value }))}
-              className="border-0 bg-transparent text-sm w-[130px] focus:outline-none"
+              className="border-0 bg-transparent text-sm text-slate-900 w-[130px] focus:outline-none"
             />
             <span className="text-slate-300">—</span>
             <input
               type="date"
               value={dateRange.end || range.end}
               onChange={(e) => setDateRange((p) => ({ ...p, end: e.target.value }))}
-              className="border-0 bg-transparent text-sm w-[130px] focus:outline-none"
+              className="border-0 bg-transparent text-sm text-slate-900 w-[130px] focus:outline-none"
             />
           </div>
           <button
