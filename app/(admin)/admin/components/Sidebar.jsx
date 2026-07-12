@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle } from "lucide-react";
+import { useAdminNotificationCounts } from "./AdminNotificationContext";
 
 const navigation = [
     { label: "Overview", href: "/admin", icon: LayoutGrid },
@@ -22,6 +23,13 @@ const navigation = [
 
 export default function DashboardSidebar({ open, onClose }) {
     const pathname = usePathname();
+    const { pendingDeposits, unreadMessages } = useAdminNotificationCounts();
+
+    function getBadgeCount(href) {
+        if (href === "/admin/deposits") return pendingDeposits;
+        if (href === "/admin/chat") return unreadMessages;
+        return 0;
+    }
 
     return (
         <div className="hidden lg:block">
@@ -50,11 +58,12 @@ export default function DashboardSidebar({ open, onClose }) {
                             const active = pathname === item.href;
                             const Icon = item.icon;
 
+                            const count = getBadgeCount(item.href);
                             return (
                                 <Link
                                     key={item.href}
                                     href={item.href}
-                                    className={`group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${active
+                                    className={`group relative flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition-colors ${active
                                             ? "bg-[#F59E0B] text-slate-950 shadow-lg shadow-[#F59E0B]/20"
                                             : "text-white/70 hover:bg-white/8 hover:text-white"
                                         }`}
@@ -62,8 +71,13 @@ export default function DashboardSidebar({ open, onClose }) {
                                         if (window.innerWidth < 1024) onClose();
                                     }}
                                 >
-                                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-white/20" : "bg-white/10 group-hover:bg-white/15"}`}>
+                                    <span className={`relative flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-white/20" : "bg-white/10 group-hover:bg-white/15"}`}>
                                         <Icon size={18} />
+                                        {count > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+                                                {count > 99 ? "99+" : count}
+                                            </span>
+                                        )}
                                     </span>
                                     <span>{item.label}</span>
                                 </Link>

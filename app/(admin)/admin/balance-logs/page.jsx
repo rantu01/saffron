@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Pagination from "../components/Pagination";
+import { TableSkeleton } from "../components/TableSkeleton";
+
+const ITEMS_PER_PAGE = 10;
 
 function daysAgo(date) {
   const diff = Date.now() - new Date(date).getTime();
@@ -33,34 +37,30 @@ export default function AdminBalanceLogsPage() {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ uid: "all", page, limit: "50" });
-        if (typeFilter !== "all") params.set("type", typeFilter);
-        if (dateFilter) {
-          params.set("startDate", dateFilter);
-          params.set("endDate", dateFilter);
-        }
-        const res = await fetch(`/api/user/balance-logs?${params}`);
-        const data = await res.json();
-        if (cancelled) return;
-        if (data.success) {
-          setLogs(data.logs || []);
-          setTotalPages(data.totalPages || 1);
-          setTotal(data.total || 0);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoading(false);
+  const loadLogs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ uid: "all", page, limit: String(ITEMS_PER_PAGE) });
+      if (typeFilter !== "all") params.set("type", typeFilter);
+      if (dateFilter) {
+        params.set("startDate", dateFilter);
+        params.set("endDate", dateFilter);
       }
+      const res = await fetch(`/api/user/balance-logs?${params}`);
+      const data = await res.json();
+      if (data.success) {
+        setLogs(data.logs || []);
+        setTotalPages(data.totalPages || 1);
+        setTotal(data.total || 0);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => { cancelled = true; };
   }, [typeFilter, page, dateFilter]);
+
+  useEffect(() => { loadLogs(); }, [loadLogs]);
 
   const handleExport = async () => {
     const params = new URLSearchParams({ uid: "all" });
@@ -129,7 +129,7 @@ export default function AdminBalanceLogsPage() {
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading...</div>
+            <TableSkeleton rows={5} cols={6} />
           ) : logs.length === 0 ? (
             <div className="p-8 text-center text-slate-500">No records found.</div>
           ) : (
@@ -178,25 +178,7 @@ export default function AdminBalanceLogsPage() {
           )}
         </div>
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
+        <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
       </div>
     </div>
   );

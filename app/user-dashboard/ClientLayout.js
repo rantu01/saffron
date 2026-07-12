@@ -9,11 +9,13 @@ import UserTopbar from './components/Topbar';
 import {
   AppWindowMac, ListChecks, Share2, User, DollarSign,
   CreditCard, Send, Wallet, History, LayoutDashboard, Grid3X3, FileText,
-  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, X
+  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, X, MessageCircle
 } from 'lucide-react';
+import LiveChat from '@/app/Component/Common/LiveChat';
 
 const mobileNavItems = [
-  { label: 'Dashboard', href: '/user-dashboard', icon: AppWindowMac },
+  // { label: 'Dashboard', href: '/user-dashboard', icon: AppWindowMac },
+  { label: 'Live Chat', href: '/user-dashboard/chat', icon: MessageCircle },
   { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
   { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
   { label: 'Profile', href: '/user-dashboard/profile', icon: User },
@@ -22,6 +24,7 @@ const mobileNavItems = [
   { label: 'Withdrawals', href: '/user-dashboard/withdrawals', icon: Send },
   // { label: 'Balance', href: '/user-dashboard/balance', icon: Wallet },
   { label: 'Balance History', href: '/user-dashboard/balance-history', icon: History },
+  
 ];
 
 const bottomNavItems = [
@@ -32,10 +35,15 @@ const bottomNavItems = [
 
 const drawerMenuItems = [
   { label: 'Deposit', href: '/user-dashboard/deposits', icon: ArrowDownToLine },
+  { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
+  { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
   { label: 'Withdraw', href: '/user-dashboard/withdrawals', icon: ArrowUpFromLine },
   { label: 'Personal Info', href: '/user-dashboard/profile', icon: User },
+  { label: 'Payments', href: '/user-dashboard/payments', icon: CreditCard },
   { label: 'Transaction', href: '/user-dashboard/records', icon: CreditCard },
   { label: 'Wallet Bind', href: '/user-dashboard/balance', icon: Wallet },
+  { label: 'Live Chat', href: '/user-dashboard/chat', icon: MessageCircle },
+  { label: 'Balance History', href: '/user-dashboard/balance-history', icon: History },
   // { label: 'Language', href: '#', icon: Globe },
   // { label: 'Customer Service', href: '#', icon: Headphones },
   { label: 'Log out', href: '#', icon: LogOut },
@@ -277,6 +285,8 @@ export default function ClientLayout({ children }) {
           </div>
         </div>
       )}
+
+      {/* <LiveChat /> */}
 
       {/* MOBILE BOTTOM NAV - visible on all dashboard pages */}
       <div className="fixed bottom-0 left-0 right-0 z-50 xl:hidden bg-[#FBBF24]">

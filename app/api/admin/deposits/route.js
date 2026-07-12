@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getAllDeposits, updateDepositStatus, getDepositById } from "@/lib/depositModel";
+import { updateDepositStatus, getDepositById } from "@/lib/depositModel";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
@@ -10,12 +10,34 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
 
-    const deposits = await getAllDeposits();
-    
-    const filtered = status ? deposits.filter(d => d.status === status) : deposits;
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    return NextResponse.json({ success: true, deposits: filtered });
+    const query = status ? { status } : {};
+
+    const [deposits, total] = await Promise.all([
+      db
+        .collection("deposits")
+        .find(query)
+        .project({})
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection("deposits").countDocuments(query),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      deposits,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to fetch deposits" },

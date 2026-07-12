@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import Swal from "sweetalert2";
+import Pagination from "../components/Pagination";
+import { TableSkeleton, CardSkeleton } from "../components/TableSkeleton";
 
 function Spinner({ size = 16 }) {
   return (
@@ -12,13 +14,21 @@ function Spinner({ size = 16 }) {
   );
 }
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
+
+const DEFAULT_RATING_OPTIONS = [
+  "Peace of mind and security, very good app.",
+  "Convenient, easy, and simple.",
+  "Update too often.",
+  "This is very good software.",
+  "Free is quite good, but from time to time it shows that the server is busy, I hope to get improved.",
+];
 
 export default function TaskManagementPage() {
   const [users, setUsers] = useState([]);
-  const [tasks, setTasks] = useState([]);
   const [taskGroups, setTaskGroups] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [filterUserUid, setFilterUserUid] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterGroupId, setFilterGroupId] = useState("");
@@ -27,18 +37,16 @@ export default function TaskManagementPage() {
   const [tasksPage, setTasksPage] = useState(1);
   const [activeTab, setActiveTab] = useState("groups");
 
-  const DEFAULT_RATING_OPTIONS = [
-    "Peace of mind and security, very good app.",
-    "Convenient, easy, and simple.",
-    "Update too often.",
-    "This is very good software.",
-    "Free is quite good, but from time to time it shows that the server is busy, I hope to get improved."
-  ];
+  const [tasks, setTasks] = useState([]);
+  const [tasksTotal, setTasksTotal] = useState(0);
+  const [tasksTotalPages, setTasksTotalPages] = useState(1);
 
-  // ── Group Creation Form ──
+  const [groupTaskList, setGroupTaskList] = useState([]);
+  const [groupTaskTotal, setGroupTaskTotal] = useState(0);
+  const [groupTaskTotalPages, setGroupTaskTotalPages] = useState(1);
+
   const [groupForm, setGroupForm] = useState({ name: "", description: "" });
 
-  // ── Task Creation Form ──
   const [createForm, setCreateForm] = useState({
     appName: "",
     totalAmount: "",
@@ -59,7 +67,6 @@ export default function TaskManagementPage() {
   const [newRatingOption, setNewRatingOption] = useState("");
   const fileInputRef = useRef(null);
 
-  // ── Edit Task ──
   const [editTask, setEditTask] = useState(null);
   const [editForm, setEditForm] = useState({
     appName: "",
@@ -81,10 +88,7 @@ export default function TaskManagementPage() {
   const [editNewRatingOption, setEditNewRatingOption] = useState("");
   const editFileInputRef = useRef(null);
 
-  // ─️ Group Assignment Form ──
   const [groupAssign, setGroupAssign] = useState({ groupId: "", assigneeUid: "" });
-
-  // ── Group Task List ──
   const [selectedGroupTaskId, setSelectedGroupTaskId] = useState("");
 
   const formatMoney = (val) => {
@@ -101,28 +105,72 @@ export default function TaskManagementPage() {
   const createdProfit = calcProfit(createForm.totalAmount);
   const editProfit = calcProfit(editForm.totalAmount);
 
-  const loadData = async () => {
-    setLoading(true);
+  const loadTasks = useCallback(async () => {
+    setTasksLoading(true);
     try {
-      const [usersRes, tasksRes, groupsRes] = await Promise.all([
-        fetch("/api/admin/users"),
-        fetch("/api/admin/tasks"),
+      const params = new URLSearchParams({ page: tasksPage, limit: String(ITEMS_PER_PAGE) });
+      if (filterUserUid) params.set("assigneeUid", filterUserUid);
+      if (filterType !== "all") params.set("filterType", filterType);
+      if (filterGroupId) params.set("filterGroupId", filterGroupId);
+      const res = await fetch(`/api/admin/tasks?${params}`);
+      const data = await res.json();
+      if (data.success) {
+        setTasks(data.tasks || []);
+        setTasksTotal(data.total || 0);
+        setTasksTotalPages(data.totalPages || 1);
+      }
+    } finally {
+      setTasksLoading(false);
+    }
+  }, [tasksPage, filterUserUid, filterType, filterGroupId]);
+
+  const loadGroupTasks = useCallback(async () => {
+    if (!selectedGroupTaskId) {
+      setGroupTaskList([]);
+      setGroupTaskTotal(0);
+      setGroupTaskTotalPages(1);
+      return;
+    }
+    try {
+      const params = new URLSearchParams({
+        page: groupTasksPage,
+        limit: String(ITEMS_PER_PAGE),
+        filterGroupId: selectedGroupTaskId,
+      });
+      const res = await fetch(`/api/admin/tasks?${params}`);
+      const data = await res.json();
+      if (data.success) {
+        setGroupTaskList(data.tasks || []);
+        setGroupTaskTotal(data.total || 0);
+        setGroupTaskTotalPages(data.totalPages || 1);
+      }
+    } catch {}
+  }, [selectedGroupTaskId, groupTasksPage]);
+
+  const loadReferenceData = async () => {
+    try {
+      const [usersRes, groupsRes] = await Promise.all([
+        fetch("/api/admin/users?limit=500"),
         fetch("/api/admin/task-groups"),
       ]);
       const usersData = await usersRes.json();
-      const tasksData = await tasksRes.json();
       const groupsData = await groupsRes.json();
       setUsers(usersData.users || []);
-      setTasks(tasksData.tasks || []);
       setTaskGroups(groupsData.groups || []);
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([loadReferenceData(), loadTasks()]);
+    setLoading(false);
   };
 
   useEffect(() => { loadData(); }, []);
 
-  // ── Logo Upload Handlers (Create) ──
+  useEffect(() => { if (activeTab === "tasks") loadTasks(); }, [loadTasks]);
+  useEffect(() => { loadGroupTasks(); }, [loadGroupTasks]);
+
   const handleLogoFile = useCallback((file) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -148,22 +196,10 @@ export default function TaskManagementPage() {
     handleLogoFile(file);
   }, [handleLogoFile]);
 
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    setDragOver(true);
-  }, []);
+  const handleDragOver = useCallback((e) => { e.preventDefault(); setDragOver(true); }, []);
+  const handleDragLeave = useCallback(() => { setDragOver(false); }, []);
+  const removeLogo = () => { setAppLogoData(null); setLogoPreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; };
 
-  const handleDragLeave = useCallback(() => {
-    setDragOver(false);
-  }, []);
-
-  const removeLogo = () => {
-    setAppLogoData(null);
-    setLogoPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // ── Logo Upload Handlers (Edit) ──
   const handleEditLogoFile = useCallback((file) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
@@ -182,31 +218,12 @@ export default function TaskManagementPage() {
     reader.readAsDataURL(file);
   }, []);
 
-  const handleEditDrop = useCallback((e) => {
-    e.preventDefault();
-    setEditDragOver(false);
-    const file = e.dataTransfer?.files?.[0];
-    handleEditLogoFile(file);
-  }, [handleEditLogoFile]);
+  const handleEditDrop = useCallback((e) => { e.preventDefault(); setEditDragOver(false); const file = e.dataTransfer?.files?.[0]; handleEditLogoFile(file); }, [handleEditLogoFile]);
+  const handleEditDragOver = useCallback((e) => { e.preventDefault(); setEditDragOver(true); }, []);
+  const handleEditDragLeave = useCallback(() => { setEditDragOver(false); }, []);
+  const removeEditLogo = () => { setEditLogoData(null); setEditLogoPreview(null); if (editFileInputRef.current) editFileInputRef.current.value = ""; };
 
-  const handleEditDragOver = useCallback((e) => {
-    e.preventDefault();
-    setEditDragOver(true);
-  }, []);
-
-  const handleEditDragLeave = useCallback(() => {
-    setEditDragOver(false);
-  }, []);
-
-  const removeEditLogo = () => {
-    setEditLogoData(null);
-    setEditLogoPreview(null);
-    if (editFileInputRef.current) editFileInputRef.current.value = "";
-  };
-
-  // ── Create Group Handler ──
   const [creatingGroup, setCreatingGroup] = useState(false);
-
   const handleCreateGroup = async (e) => {
     e.preventDefault();
     if (!groupForm.name.trim()) {
@@ -221,37 +238,24 @@ export default function TaskManagementPage() {
         body: JSON.stringify({ name: groupForm.name.trim(), description: groupForm.description }),
       });
       const result = await response.json();
-
       if (!response.ok || !result.success) {
         await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create group." });
         return;
       }
-
       await Swal.fire({ icon: "success", title: "Group created", timer: 1300, showConfirmButton: false });
       setGroupForm({ name: "", description: "" });
-      loadData();
-    } finally {
-      setCreatingGroup(false);
-    }
+      setLoading(true);
+      await loadReferenceData();
+      setLoading(false);
+    } finally { setCreatingGroup(false); }
   };
 
-  // ── Create Task Handler ──
   const [creatingTask, setCreatingTask] = useState(false);
-
   const handleCreateTask = async (e) => {
     e.preventDefault();
-    if (!createForm.appName.trim()) {
-      await Swal.fire({ icon: "error", title: "Required", text: "App Name is required." });
-      return;
-    }
-    if (!createForm.totalAmount || Number(createForm.totalAmount) <= 0) {
-      await Swal.fire({ icon: "error", title: "Required", text: "Total Amount must be greater than 0." });
-      return;
-    }
-    if (!createForm.taskGroupId) {
-      await Swal.fire({ icon: "error", title: "Required", text: "Please select a task group." });
-      return;
-    }
+    if (!createForm.appName.trim()) { await Swal.fire({ icon: "error", title: "Required", text: "App Name is required." }); return; }
+    if (!createForm.totalAmount || Number(createForm.totalAmount) <= 0) { await Swal.fire({ icon: "error", title: "Required", text: "Total Amount must be greater than 0." }); return; }
+    if (!createForm.taskGroupId) { await Swal.fire({ icon: "error", title: "Required", text: "Please select a task group." }); return; }
     setCreatingTask(true);
     try {
       const payload = {
@@ -261,7 +265,6 @@ export default function TaskManagementPage() {
         taskGroupId: createForm.taskGroupId,
         description: createForm.description,
       };
-
       if (createForm.submissionConfig.enabled) {
         payload.submissionConfig = {
           requireRating: createForm.submissionConfig.requireRating,
@@ -270,43 +273,22 @@ export default function TaskManagementPage() {
           maxFeedbackLength: createForm.submissionConfig.maxFeedbackLength,
         };
       }
-
       const response = await fetch("/api/admin/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create task." });
-        return;
-      }
-
+      if (!response.ok || !result.success) { await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create task." }); return; }
       await Swal.fire({ icon: "success", title: "Task created", timer: 1300, showConfirmButton: false });
-
-      setCreateForm({
-        appName: "",
-        totalAmount: "",
-        taskGroupId: "",
-        description: "",
-        submissionConfig: {
-          enabled: true,
-          requireRating: true,
-          ratingOptions: [...DEFAULT_RATING_OPTIONS],
-          requireFeedback: true,
-          maxFeedbackLength: 500,
-        },
-      });
+      setCreateForm({ appName: "", totalAmount: "", taskGroupId: "", description: "", submissionConfig: { enabled: true, requireRating: true, ratingOptions: [...DEFAULT_RATING_OPTIONS], requireFeedback: true, maxFeedbackLength: 500 } });
       setAppLogoData(null);
       setLogoPreview(null);
-      loadData();
-    } finally {
-      setCreatingTask(false);
-    }
+      await loadReferenceData();
+      if (activeTab === "tasks") loadTasks();
+    } finally { setCreatingTask(false); }
   };
 
-  // ── Edit Task ──
   const openEditModal = (task) => {
     setEditTask(task);
     setEditForm({
@@ -314,13 +296,7 @@ export default function TaskManagementPage() {
       totalAmount: String(task.totalAmount || ""),
       taskGroupId: task.taskGroupId || "",
       description: task.description || "",
-      submissionConfig: task.submissionConfig || {
-        enabled: true,
-        requireRating: true,
-        ratingOptions: [...DEFAULT_RATING_OPTIONS],
-        requireFeedback: true,
-        maxFeedbackLength: 500,
-      },
+      submissionConfig: task.submissionConfig || { enabled: true, requireRating: true, ratingOptions: [...DEFAULT_RATING_OPTIONS], requireFeedback: true, maxFeedbackLength: 500 },
     });
     setEditLogoPreview(task.appLogo || null);
     setEditLogoData(null);
@@ -328,205 +304,64 @@ export default function TaskManagementPage() {
     setShowEditSubmissionConfig(true);
     setEditNewRatingOption("");
   };
-
-  const closeEditModal = () => {
-    setEditTask(null);
-    setEditLogoData(null);
-    setEditLogoPreview(null);
-  };
+  const closeEditModal = () => { setEditTask(null); setEditLogoData(null); setEditLogoPreview(null); };
 
   const [updatingTask, setUpdatingTask] = useState(false);
-
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-    if (!editForm.appName.trim()) {
-      await Swal.fire({ icon: "error", title: "Required", text: "App Name is required." });
-      return;
-    }
-    if (!editForm.totalAmount || Number(editForm.totalAmount) <= 0) {
-      await Swal.fire({ icon: "error", title: "Required", text: "Total Amount must be greater than 0." });
-      return;
-    }
+    if (!editForm.appName.trim()) { await Swal.fire({ icon: "error", title: "Required", text: "App Name is required." }); return; }
+    if (!editForm.totalAmount || Number(editForm.totalAmount) <= 0) { await Swal.fire({ icon: "error", title: "Required", text: "Total Amount must be greater than 0." }); return; }
     setUpdatingTask(true);
     try {
-      const payload = {
-        appName: editForm.appName.trim(),
-        appLogo: editLogoData || editLogoPreview || "",
-        totalAmount: Number(editForm.totalAmount),
-        taskGroupId: editForm.taskGroupId || null,
-        description: editForm.description,
-      };
-
+      const payload = { appName: editForm.appName.trim(), appLogo: editLogoData || editLogoPreview || "", totalAmount: Number(editForm.totalAmount), taskGroupId: editForm.taskGroupId || null, description: editForm.description };
       if (editForm.submissionConfig.enabled) {
-        payload.submissionConfig = {
-          requireRating: editForm.submissionConfig.requireRating,
-          ratingOptions: editForm.submissionConfig.ratingOptions.filter((o) => o.trim()),
-          requireFeedback: editForm.submissionConfig.requireFeedback,
-          maxFeedbackLength: editForm.submissionConfig.maxFeedbackLength,
-        };
+        payload.submissionConfig = { requireRating: editForm.submissionConfig.requireRating, ratingOptions: editForm.submissionConfig.ratingOptions.filter((o) => o.trim()), requireFeedback: editForm.submissionConfig.requireFeedback, maxFeedbackLength: editForm.submissionConfig.maxFeedbackLength };
       }
-
-      const response = await fetch(`/api/admin/tasks/${editTask._id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(`/api/admin/tasks/${editTask._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update task." });
-        return;
-      }
-
+      if (!response.ok || !result.success) { await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update task." }); return; }
       await Swal.fire({ icon: "success", title: "Task updated", timer: 1300, showConfirmButton: false });
       closeEditModal();
-      loadData();
-    } finally {
-      setUpdatingTask(false);
-    }
+      loadTasks();
+    } finally { setUpdatingTask(false); }
   };
 
-  // ── Delete Task ──
   const [deletingTaskId, setDeletingTaskId] = useState(null);
-
   const handleDeleteTask = async (task) => {
-    const confirmed = await Swal.fire({
-      title: "Delete Task?",
-      text: `Are you sure you want to delete "${task.appName}"? This action cannot be undone.`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, delete it",
-    });
-
+    const confirmed = await Swal.fire({ title: "Delete Task?", text: `Are you sure you want to delete "${task.appName}"? This action cannot be undone.`, icon: "warning", showCancelButton: true, confirmButtonColor: "#d33", cancelButtonColor: "#3085d6", confirmButtonText: "Yes, delete it" });
     if (!confirmed.isConfirmed) return;
-
     setDeletingTaskId(task._id);
     try {
-      const response = await fetch(`/api/admin/tasks/${task._id}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(`/api/admin/tasks/${task._id}`, { method: "DELETE" });
       const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not delete task." });
-        return;
-      }
-
+      if (!response.ok || !result.success) { await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not delete task." }); return; }
       await Swal.fire({ icon: "success", title: "Task deleted", text: "The task has been removed and the group slot freed.", timer: 2000, showConfirmButton: false });
-      loadData();
-    } finally {
-      setDeletingTaskId(null);
-    }
+      loadTasks();
+    } finally { setDeletingTaskId(null); }
   };
 
-  // ── Group Assign Handler ──
   const [assigningGroup, setAssigningGroup] = useState(false);
-
   const handleGroupAssign = async (e) => {
     e.preventDefault();
-    if (!groupAssign.groupId || !groupAssign.assigneeUid) {
-      await Swal.fire({ icon: "error", title: "Select", text: "Please select a group and a user." });
-      return;
-    }
+    if (!groupAssign.groupId || !groupAssign.assigneeUid) { await Swal.fire({ icon: "error", title: "Select", text: "Please select a group and a user." }); return; }
     setAssigningGroup(true);
     try {
       const user = users.find((u) => u.uid === groupAssign.assigneeUid);
-      const response = await fetch("/api/admin/task-groups/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groupId: groupAssign.groupId,
-          assigneeUid: user.uid,
-          assigneeEmail: user.email,
-        }),
-      });
+      const response = await fetch("/api/admin/task-groups/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId: groupAssign.groupId, assigneeUid: user.uid, assigneeEmail: user.email }) });
       const result = await response.json();
-
-      if (!response.ok) {
-        await Swal.fire({
-          icon: response.status === 409 ? "warning" : "error",
-          title: response.status === 409 ? "Already assigned" : "Assignment failed",
-          text: result.message || "Please try again.",
-        });
-        return;
-      }
-
-      await Swal.fire({
-        icon: "success",
-        title: "Group assigned",
-        text: result.message,
-        timer: 3000,
-      });
+      if (!response.ok) { await Swal.fire({ icon: response.status === 409 ? "warning" : "error", title: response.status === 409 ? "Already assigned" : "Assignment failed", text: result.message || "Please try again." }); return; }
+      await Swal.fire({ icon: "success", title: "Group assigned", text: result.message, timer: 3000 });
       setGroupAssign({ groupId: "", assigneeUid: "" });
-      loadData();
-    } finally {
-      setAssigningGroup(false);
-    }
+    } finally { setAssigningGroup(false); }
   };
 
-  // ── Available groups for task creation (not full) ──
   const availableGroups = taskGroups.filter((g) => g.taskCount < 30);
-
-  // ── Group Tasks ──
-  const groupTaskList = selectedGroupTaskId
-    ? tasks.filter(
-        (t) =>
-          t.taskGroupId === selectedGroupTaskId || t.parentTaskGroupId === selectedGroupTaskId
-      )
-    : [];
-
-  // ── Filters ──
-  const filteredTasks = tasks.filter((task) => {
-    if (!filterUserUid) return false;
-    if (task.assigneeUid !== filterUserUid) return false;
-    if (filterType === "template" && !task.isTemplate) return false;
-    if (filterType === "assigned" && task.isTemplate) return false;
-    if (filterType === "completed" && task.status !== "completed") return false;
-    if (filterType === "pending" && task.status !== "pending") return false;
-    if (filterGroupId) {
-      const matches = task.taskGroupId === filterGroupId || task.parentTaskGroupId === filterGroupId;
-      if (!matches) return false;
-    }
-    return true;
-  });
 
   if (loading) {
     return (
-      <div className="animate-pulse">
-        <div className="h-7 w-48 bg-slate-200 rounded mb-6" />
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
-          <div className="h-5 w-36 bg-slate-200 rounded mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-10 bg-slate-200 rounded-lg" />
-            <div className="h-10 bg-slate-200 rounded-lg" />
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
-          <div className="h-5 w-36 bg-slate-200 rounded mb-4" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="h-10 bg-slate-200 rounded-lg" />
-            <div className="h-10 bg-slate-200 rounded-lg" />
-            <div className="md:col-span-2 h-10 bg-slate-200 rounded-lg" />
-            <div className="md:col-span-2 h-10 bg-slate-200 rounded-lg" />
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
-            <div className="h-9 w-48 bg-slate-200 rounded-lg" />
-          </div>
-          <div className="p-6 space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="h-4 w-32 bg-slate-200 rounded" />
-                <div className="h-8 w-8 bg-slate-200 rounded" />
-                <div className="h-4 w-24 bg-slate-200 rounded" />
-                <div className="h-4 w-20 bg-slate-200 rounded ml-auto" />
-              </div>
-            ))}
-          </div>
-        </div>
+      <div>
+        <div className="h-7 w-48 bg-slate-200 rounded animate-pulse mb-6" />
+        <TableSkeleton rows={4} cols={5} />
       </div>
     );
   }
@@ -537,28 +372,19 @@ export default function TaskManagementPage() {
         <div>
           <h1 className="text-2xl font-semibold">Task Management</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {tasks.length} total tasks &middot; {taskGroups.length} groups &middot; {users.length} users
+            {tasksTotal} total tasks &middot; {taskGroups.length} groups &middot; {users.length} users
           </p>
         </div>
       </div>
 
-      {/* ── Tab Bar ── */}
       <div className="flex gap-1 mb-6 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
         {[
           { id: "groups", label: "Task Groups", desc: `${taskGroups.length} groups` },
           { id: "create", label: "New Task", desc: "Create a task" },
           { id: "assign", label: "Assign Group", desc: "Link group to user" },
-          { id: "tasks", label: "All Tasks", desc: `${tasks.length} total` },
+          { id: "tasks", label: "All Tasks", desc: `${tasksTotal} total` },
         ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition flex-1 sm:flex-none ${
-              activeTab === t.id
-                ? "bg-[#E05305] text-white shadow"
-                : "text-slate-600 hover:bg-slate-50"
-            }`}
-          >
+          <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition flex-1 sm:flex-none ${activeTab === t.id ? "bg-[#E05305] text-white shadow" : "text-slate-600 hover:bg-slate-50"}`}>
             <span className="hidden sm:inline text-left">
               <div className="font-medium leading-tight">{t.label}</div>
               <div className={`text-[11px] ${activeTab === t.id ? "text-white/70" : "text-slate-400"}`}>{t.desc}</div>
@@ -568,9 +394,6 @@ export default function TaskManagementPage() {
         ))}
       </div>
 
-      {/* ════════════════════════════════════════════════
-          TAB: GROUPS
-          ════════════════════════════════════════════════ */}
       {activeTab === "groups" && (
         <div>
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
@@ -580,33 +403,19 @@ export default function TaskManagementPage() {
             <form onSubmit={handleCreateGroup} className="flex flex-wrap items-end gap-3">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-xs font-medium text-slate-500 block mb-1">Group Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. App Store Optimization"
-                  value={groupForm.name}
-                  onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
-                  required
-                />
+                <input type="text" placeholder="e.g. App Store Optimization" value={groupForm.name} onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" required />
               </div>
               <div className="flex-1 min-w-[200px]">
                 <label className="text-xs font-medium text-slate-500 block mb-1">Description (optional)</label>
-                <input
-                  type="text"
-                  placeholder="Brief description of the group"
-                  value={groupForm.description}
-                  onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
-                />
+                <input type="text" placeholder="Brief description of the group" value={groupForm.description} onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" />
               </div>
               <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-5 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
-                {creatingGroup && <Spinner />}
-                Create Group
+                {creatingGroup && <Spinner />} Create Group
               </button>
             </form>
           </div>
 
-          {taskGroups.length > 0 && (
+          {taskGroups.length > 0 ? (
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-slate-700">All Task Groups ({taskGroups.length})</h3>
@@ -620,9 +429,7 @@ export default function TaskManagementPage() {
                     <div key={g._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-2">
                         <p className="font-semibold text-slate-900">{g.name}</p>
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                          {available} left
-                        </span>
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{available} left</span>
                       </div>
                       {g.description && <p className="text-xs text-slate-400 mb-3">{g.description}</p>}
                       <div className="flex items-center gap-2">
@@ -635,17 +442,9 @@ export default function TaskManagementPage() {
                   );
                 })}
               </div>
-              {taskGroups.length > ITEMS_PER_PAGE && (
-                <div className="flex items-center justify-between px-1 py-3 mt-3">
-                  <button onClick={() => setGroupsPage((p) => Math.max(1, p - 1))} disabled={groupsPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
-                  <span className="text-sm text-slate-500">Page {groupsPage} of {Math.ceil(taskGroups.length / ITEMS_PER_PAGE)}</span>
-                  <button onClick={() => setGroupsPage((p) => Math.min(Math.ceil(taskGroups.length / ITEMS_PER_PAGE), p + 1))} disabled={groupsPage >= Math.ceil(taskGroups.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
-                </div>
-              )}
+              <Pagination page={groupsPage} totalPages={Math.ceil(taskGroups.length / ITEMS_PER_PAGE)} total={taskGroups.length} onPageChange={setGroupsPage} />
             </div>
-          )}
-
-          {taskGroups.length === 0 && (
+          ) : (
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
               <p className="text-sm font-medium">No task groups yet</p>
               <p className="text-xs mt-1">Create your first group above to get started.</p>
@@ -654,9 +453,6 @@ export default function TaskManagementPage() {
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          TAB: NEW TASK
-          ════════════════════════════════════════════════ */}
       {activeTab === "create" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
           <div className="flex items-center justify-between mb-6">
@@ -668,65 +464,27 @@ export default function TaskManagementPage() {
           <form onSubmit={handleCreateTask} className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1.5">App Name</label>
-              <input
-                type="text"
-                placeholder="e.g. My Shopping App"
-                value={createForm.appName}
-                onChange={(e) => setCreateForm((p) => ({ ...p, appName: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
-                required
-              />
+              <input type="text" placeholder="e.g. My Shopping App" value={createForm.appName} onChange={(e) => setCreateForm((p) => ({ ...p, appName: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" required />
             </div>
-
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1.5">Total Amount ($)</label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="e.g. 100.00"
-                value={createForm.totalAmount}
-                onChange={(e) => setCreateForm((p) => ({ ...p, totalAmount: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
-                required
-              />
+              <input type="number" step="0.01" min="0.01" placeholder="e.g. 100.00" value={createForm.totalAmount} onChange={(e) => setCreateForm((p) => ({ ...p, totalAmount: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" required />
             </div>
-
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-slate-500 block mb-1.5">Task Group</label>
-              <select
-                value={createForm.taskGroupId}
-                onChange={(e) => setCreateForm((p) => ({ ...p, taskGroupId: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
-                required
-              >
+              <select value={createForm.taskGroupId} onChange={(e) => setCreateForm((p) => ({ ...p, taskGroupId: e.target.value }))} className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900" required>
                 <option value="">— Select a group —</option>
                 {availableGroups.map((g) => {
                   const used = g.taskCount || 0;
                   const slotAvail = 30 - used;
-                  return (
-                    <option key={g._id} value={g._id}>
-                      {g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)
-                    </option>
-                  );
+                  return <option key={g._id} value={g._id}>{g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)</option>;
                 })}
               </select>
-              {availableGroups.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">All groups are full. Create a new group first.</p>
-              )}
+              {availableGroups.length === 0 && <p className="text-xs text-red-500 mt-1">All groups are full. Create a new group first.</p>}
             </div>
-
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-slate-500 block mb-1.5">App Logo</label>
-              <div
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                  dragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"
-                }`}
-              >
+              <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${dragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"}`}>
                 {logoPreview ? (
                   <div className="flex flex-col items-center gap-2">
                     <img src={logoPreview} alt="Logo preview" className="h-20 w-20 object-contain rounded-lg" />
@@ -742,93 +500,57 @@ export default function TaskManagementPage() {
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoFile(e.target.files?.[0])} />
               </div>
             </div>
-
             <div className="md:col-span-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg px-5 py-4 flex items-center justify-between border border-amber-200/60">
-              <div>
-                <p className="text-sm font-medium text-slate-700">Calculated Profit</p>
-                <p className="text-xs text-slate-400">0.5% of total amount</p>
-              </div>
+              <div><p className="text-sm font-medium text-slate-700">Calculated Profit</p><p className="text-xs text-slate-400">0.5% of total amount</p></div>
               <span className="text-xl font-bold text-[#E05305]">${formatMoney(createdProfit)}</span>
             </div>
-
             <div className="md:col-span-2">
               <label className="text-xs font-medium text-slate-500 block mb-1.5">Description (optional)</label>
-              <textarea
-                placeholder="Task description or instructions..."
-                value={createForm.description}
-                onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 min-h-24 resize-y"
-              />
+              <textarea placeholder="Task description or instructions..." value={createForm.description} onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 min-h-24 resize-y" />
             </div>
-
             <div className="md:col-span-2 border-t border-slate-100 pt-5">
-              <button
-                type="button"
-                onClick={() => setShowSubmissionConfig(!showSubmissionConfig)}
-                className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-              >
+              <button type="button" onClick={() => setShowSubmissionConfig(!showSubmissionConfig)} className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
                 <svg className={`w-4 h-4 transition-transform ${showSubmissionConfig ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 Submission Requirements
               </button>
-
               {showSubmissionConfig && (
                 <div className="mt-4 space-y-4 pl-5 border-l-2 border-slate-100">
-                  <label className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={createForm.submissionConfig.enabled} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))} className="accent-[#E05305]" />
-                    Enable custom submission requirements for this task
-                  </label>
-
-                  {createForm.submissionConfig.enabled && (
-                    <>
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={createForm.submissionConfig.requireRating} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))} className="accent-[#E05305]" />
-                        Require rating selection
-                      </label>
-
-                      {createForm.submissionConfig.requireRating && (
-                        <div className="space-y-2 pl-6">
-                          <p className="text-xs text-slate-400 font-medium">Rating options:</p>
-                          {createForm.submissionConfig.ratingOptions.map((opt, i) => (
-                            <div key={i} className="flex items-center gap-2">
-                              <input value={opt} onChange={(e) => { const updated = [...createForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900" />
-                              <button type="button" onClick={() => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600 text-xs">✕</button>
-                            </div>
-                          ))}
-                          <div className="flex items-center gap-2">
-                            <input value={newRatingOption} onChange={(e) => setNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400" />
-                            <button type="button" onClick={() => { if (newRatingOption.trim()) { setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, newRatingOption.trim()] } })); setNewRatingOption(""); } }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">+ Add</button>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={createForm.submissionConfig.enabled} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))} className="accent-[#E05305]" /> Enable custom submission requirements for this task</label>
+                  {createForm.submissionConfig.enabled && (<>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={createForm.submissionConfig.requireRating} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))} className="accent-[#E05305]" /> Require rating selection</label>
+                    {createForm.submissionConfig.requireRating && (
+                      <div className="space-y-2 pl-6">
+                        <p className="text-xs text-slate-400 font-medium">Rating options:</p>
+                        {createForm.submissionConfig.ratingOptions.map((opt, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input value={opt} onChange={(e) => { const updated = [...createForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900" />
+                            <button type="button" onClick={() => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                           </div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          <input value={newRatingOption} onChange={(e) => setNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400" />
+                          <button type="button" onClick={() => { if (newRatingOption.trim()) { setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, newRatingOption.trim()] } })); setNewRatingOption(""); } }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">+ Add</button>
                         </div>
-                      )}
-
-                      <label className="flex items-center gap-2 text-sm">
-                        <input type="checkbox" checked={createForm.submissionConfig.requireFeedback} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))} className="accent-[#E05305]" />
-                        Require feedback / comment
-                      </label>
-
-                      {createForm.submissionConfig.requireFeedback && (
-                        <div className="pl-6">
-                          <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
-                          <input type="number" min={1} max={5000} value={createForm.submissionConfig.maxFeedbackLength} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 w-32" />
-                        </div>
-                      )}
-                    </>
-                  )}
+                      </div>
+                    )}
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={createForm.submissionConfig.requireFeedback} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))} className="accent-[#E05305]" /> Require feedback / comment</label>
+                    {createForm.submissionConfig.requireFeedback && (
+                      <div className="pl-6">
+                        <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
+                        <input type="number" min={1} max={5000} value={createForm.submissionConfig.maxFeedbackLength} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 w-32" />
+                      </div>
+                    )}
+                  </>)}
                 </div>
               )}
             </div>
-
             <button type="submit" disabled={creatingTask} className="md:col-span-2 bg-[#E05305] text-white rounded-lg px-4 py-3 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-              {creatingTask && <Spinner />}
-              Create Task
+              {creatingTask && <Spinner />} Create Task
             </button>
           </form>
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          TAB: ASSIGN GROUP
-          ════════════════════════════════════════════════ */}
       {activeTab === "assign" && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
           <div className="mb-6">
@@ -838,75 +560,40 @@ export default function TaskManagementPage() {
           <form onSubmit={handleGroupAssign} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1.5">Select Task Group</label>
-              <select
-                value={groupAssign.groupId}
-                onChange={(e) => setGroupAssign((p) => ({ ...p, groupId: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
-                required
-              >
+              <select value={groupAssign.groupId} onChange={(e) => setGroupAssign((p) => ({ ...p, groupId: e.target.value }))} className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900" required>
                 <option value="">Choose a group...</option>
-                {taskGroups.map((g) => (
-                  <option key={g._id} value={g._id}>
-                    {g.name} ({g.taskCount || 0} tasks)
-                  </option>
-                ))}
+                {taskGroups.map((g) => <option key={g._id} value={g._id}>{g.name} ({g.taskCount || 0} tasks)</option>)}
               </select>
             </div>
-
             <div>
               <label className="text-xs font-medium text-slate-500 block mb-1.5">Select User</label>
-              <select
-                value={groupAssign.assigneeUid}
-                onChange={(e) => setGroupAssign((p) => ({ ...p, assigneeUid: e.target.value }))}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900"
-                required
-              >
+              <select value={groupAssign.assigneeUid} onChange={(e) => setGroupAssign((p) => ({ ...p, assigneeUid: e.target.value }))} className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900" required>
                 <option value="">Choose a user...</option>
-                {users.map((u) => (
-                  <option key={u.uid} value={u.uid}>{u.email}</option>
-                ))}
+                {users.map((u) => <option key={u.uid} value={u.uid}>{u.email}</option>)}
               </select>
             </div>
-
             <div className="flex items-end">
               <button type="submit" disabled={assigningGroup} className="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                {assigningGroup && <Spinner />}
-                Assign Group
+                {assigningGroup && <Spinner />} Assign Group
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          TAB: ALL TASKS
-          ════════════════════════════════════════════════ */}
       {activeTab === "tasks" && (
         <div className="space-y-6">
-          {/* ── Group Task List ── */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="flex-1 min-w-[200px]">
                   <label className="text-xs font-medium text-slate-500 block mb-1">View tasks by group</label>
-                  <select
-                    value={selectedGroupTaskId}
-                    onChange={(e) => { setSelectedGroupTaskId(e.target.value); setGroupTasksPage(1); }}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900"
-                  >
+                  <select value={selectedGroupTaskId} onChange={(e) => { setSelectedGroupTaskId(e.target.value); setGroupTasksPage(1); }} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900">
                     <option value="">All groups</option>
-                    {taskGroups.map((g) => (
-                      <option key={g._id} value={g._id}>
-                        {g.name} ({g.taskCount || 0} tasks)
-                      </option>
-                    ))}
+                    {taskGroups.map((g) => <option key={g._id} value={g._id}>{g.name} ({g.taskCount || 0} tasks)</option>)}
                   </select>
                 </div>
-                {selectedGroupTaskId && (
-                  <span className="text-xs text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                    {groupTaskList.length} task{groupTaskList.length !== 1 ? "s" : ""} in this group
-                  </span>
-                )}
+                {selectedGroupTaskId && <span className="text-xs text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-200">{groupTaskTotal} task{groupTaskTotal !== 1 ? "s" : ""} in this group</span>}
               </div>
             </div>
 
@@ -922,7 +609,6 @@ export default function TaskManagementPage() {
                   <thead>
                     <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                       <th className="py-3 px-4">App Name</th>
-                      <th className="py-3 px-4">Logo</th>
                       <th className="py-3 px-4">Total Amount</th>
                       <th className="py-3 px-4">Profit</th>
                       <th className="py-3 px-4">Status</th>
@@ -931,10 +617,9 @@ export default function TaskManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
-                    {groupTaskList.slice((groupTasksPage - 1) * ITEMS_PER_PAGE, groupTasksPage * ITEMS_PER_PAGE).map((task) => (
+                    {groupTaskList.map((task) => (
                       <tr key={task._id} className="hover:bg-slate-50/40">
                         <td className="py-3 px-4 font-medium text-slate-900">{task.appName || task.title || "—"}</td>
-                        <td className="py-3 px-4">{task.appLogo ? <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" /> : <span className="text-slate-300">—</span>}</td>
                         <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
                         <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
                         <td className="py-3 px-4">
@@ -955,28 +640,20 @@ export default function TaskManagementPage() {
             ) : (
               <p className="p-6 text-center text-slate-500">No tasks in this group.</p>
             )}
-
-            {groupTaskList.length > ITEMS_PER_PAGE && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-                <button onClick={() => setGroupTasksPage((p) => Math.max(1, p - 1))} disabled={groupTasksPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
-                <span className="text-sm text-slate-500">Page {groupTasksPage} of {Math.ceil(groupTaskList.length / ITEMS_PER_PAGE)}</span>
-                <button onClick={() => setGroupTasksPage((p) => Math.min(Math.ceil(groupTaskList.length / ITEMS_PER_PAGE), p + 1))} disabled={groupTasksPage >= Math.ceil(groupTaskList.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
-              </div>
-            )}
+            <Pagination page={groupTasksPage} totalPages={groupTaskTotalPages} total={groupTaskTotal} onPageChange={setGroupTasksPage} />
           </div>
 
-          {/* ── All Tasks with Filters ── */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Filter Tasks</h3>
               <div className="flex flex-wrap items-center gap-3">
                 <select value={filterGroupId} onChange={(e) => { setFilterGroupId(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[140px]">
                   <option value="">All groups</option>
-                  {taskGroups.map((g) => (<option key={g._id} value={g._id}>{g.name}</option>))}
+                  {taskGroups.map((g) => <option key={g._id} value={g._id}>{g.name}</option>)}
                 </select>
                 <select value={filterUserUid} onChange={(e) => { setFilterUserUid(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[160px]">
                   <option value="">All users</option>
-                  {users.map((user) => (<option key={user.uid} value={user.uid}>{user.email}</option>))}
+                  {users.map((user) => <option key={user.uid} value={user.uid}>{user.email}</option>)}
                 </select>
                 <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 min-w-[120px]">
                   <option value="all">All types</option>
@@ -985,24 +662,25 @@ export default function TaskManagementPage() {
                   <option value="pending">Pending</option>
                   <option value="completed">Completed</option>
                 </select>
-                <span className="text-xs text-slate-400 ml-auto">{filteredTasks.length} task{(filteredTasks.length !== 1) && "s"}</span>
+                <span className="text-xs text-slate-400 ml-auto">{tasksTotal} task{(tasksTotal !== 1) && "s"}</span>
               </div>
             </div>
 
-            {!filterUserUid ? (
+            {tasksLoading ? (
+              <TableSkeleton rows={5} cols={6} />
+            ) : !filterUserUid ? (
               <div className="flex flex-col items-center justify-center py-16 text-slate-400">
                 <svg className="h-12 w-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 <p className="text-sm font-medium">Select a user to view tasks</p>
                 <p className="text-xs mt-1">Choose a user from the filter above to see their tasks.</p>
               </div>
-            ) : filteredTasks.length ? (
+            ) : tasks.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                       <th className="py-3 px-4">App Name</th>
                       <th className="py-3 px-4">Group</th>
-                      <th className="py-3 px-4">Logo</th>
                       <th className="py-3 px-4">User</th>
                       <th className="py-3 px-4">Total Amount</th>
                       <th className="py-3 px-4">Profit</th>
@@ -1013,11 +691,10 @@ export default function TaskManagementPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-sm">
-                    {filteredTasks.slice((tasksPage - 1) * ITEMS_PER_PAGE, tasksPage * ITEMS_PER_PAGE).map((task) => (
+                    {tasks.map((task) => (
                       <tr key={task._id} className="hover:bg-slate-50/40">
                         <td className="py-3 px-4 font-medium text-slate-900 max-w-xs truncate">{task.appName || task.title || "—"}</td>
                         <td className="py-3 px-4 text-xs text-slate-500">{(() => { const gid = task.taskGroupId || task.parentTaskGroupId; const g = taskGroups.find((gr) => gr._id === gid); return g ? g.name : "—"; })()}</td>
-                        <td className="py-3 px-4">{task.appLogo ? <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" /> : <span className="text-slate-300">—</span>}</td>
                         <td className="py-3 px-4 text-slate-600 text-xs">{task.assigneeEmail || (task.isTemplate ? <span className="text-slate-400 italic">Template</span> : task.assigneeUid?.slice(0, 12))}</td>
                         <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
                         <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
@@ -1040,21 +717,11 @@ export default function TaskManagementPage() {
             ) : (
               <p className="p-6 text-center text-slate-500">No tasks match the selected filters.</p>
             )}
-
-            {filteredTasks.length > ITEMS_PER_PAGE && (
-              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-                <button onClick={() => setTasksPage((p) => Math.max(1, p - 1))} disabled={tasksPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
-                <span className="text-sm text-slate-500">Page {tasksPage} of {Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)}</span>
-                <button onClick={() => setTasksPage((p) => Math.min(Math.ceil(filteredTasks.length / ITEMS_PER_PAGE), p + 1))} disabled={tasksPage >= Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
-              </div>
-            )}
+            <Pagination page={tasksPage} totalPages={tasksTotalPages} total={tasksTotal} onPageChange={setTasksPage} />
           </div>
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════
-          EDIT TASK MODAL
-          ════════════════════════════════════════════════ */}
       {editTask && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl mt-10 mb-10">
@@ -1062,62 +729,24 @@ export default function TaskManagementPage() {
               <h2 className="text-lg font-semibold">Edit Task</h2>
               <button onClick={closeEditModal} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
             </div>
-
             <form onSubmit={handleEditSubmit} className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="App Name"
-                value={editForm.appName}
-                onChange={(e) => setEditForm((p) => ({ ...p, appName: e.target.value }))}
-                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-                required
-              />
-
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="Total Amount"
-                value={editForm.totalAmount}
-                onChange={(e) => setEditForm((p) => ({ ...p, totalAmount: e.target.value }))}
-                className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-                required
-              />
-
-              {/* Group Selection in Edit */}
+              <input type="text" placeholder="App Name" value={editForm.appName} onChange={(e) => setEditForm((p) => ({ ...p, appName: e.target.value }))} className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm" required />
+              <input type="number" step="0.01" min="0.01" placeholder="Total Amount" value={editForm.totalAmount} onChange={(e) => setEditForm((p) => ({ ...p, totalAmount: e.target.value }))} className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm" required />
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-slate-700 block mb-1">Task Group</label>
-                <select
-                  value={editForm.taskGroupId}
-                  onChange={(e) => setEditForm((p) => ({ ...p, taskGroupId: e.target.value }))}
-                  className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white w-full"
-                >
+                <select value={editForm.taskGroupId} onChange={(e) => setEditForm((p) => ({ ...p, taskGroupId: e.target.value }))} className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white w-full">
                   <option value="">— No group —</option>
                   {taskGroups.map((g) => {
                     const used = g.taskCount || 0;
                     const slotAvail = 30 - used;
                     const isCurrentGroup = g._id === editTask.taskGroupId;
-                    return (
-                      <option key={g._id} value={g._id} disabled={!isCurrentGroup && slotAvail <= 0}>
-                        {g.name} ({used}/30{isCurrentGroup ? "" : `, ${slotAvail} slots available`})
-                      </option>
-                    );
+                    return <option key={g._id} value={g._id} disabled={!isCurrentGroup && slotAvail <= 0}>{g.name} ({used}/30{isCurrentGroup ? "" : `, ${slotAvail} slots available`})</option>;
                   })}
                 </select>
               </div>
-
-              {/* Logo Upload for Edit */}
               <div className="md:col-span-2">
                 <label className="text-sm font-medium text-slate-700 block mb-1">App Logo</label>
-                <div
-                  onDrop={handleEditDrop}
-                  onDragOver={handleEditDragOver}
-                  onDragLeave={handleEditDragLeave}
-                  onClick={() => editFileInputRef.current?.click()}
-                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                    editDragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"
-                  }`}
-                >
+                <div onDrop={handleEditDrop} onDragOver={handleEditDragOver} onDragLeave={handleEditDragLeave} onClick={() => editFileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${editDragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"}`}>
                   {editLogoPreview ? (
                     <div className="flex flex-col items-center gap-2">
                       <img src={editLogoPreview} alt="Logo preview" className="h-20 w-20 object-contain rounded-lg" />
@@ -1130,146 +759,54 @@ export default function TaskManagementPage() {
                       <p className="text-xs mt-1">PNG, JPG, WEBP (max 2MB)</p>
                     </div>
                   )}
-                  <input
-                    ref={editFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleEditLogoFile(e.target.files?.[0])}
-                  />
+                  <input ref={editFileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleEditLogoFile(e.target.files?.[0])} />
                 </div>
               </div>
-
-              {/* Auto Profit Display */}
               <div className="md:col-span-2 bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-slate-700">Calculated Profit (0.5%)</p>
-                  <p className="text-xs text-slate-400">0.5% of total amount</p>
-                </div>
+                <div><p className="text-sm font-medium text-slate-700">Calculated Profit (0.5%)</p><p className="text-xs text-slate-400">0.5% of total amount</p></div>
                 <span className="text-lg font-bold text-[#E05305]">${formatMoney(editProfit)}</span>
               </div>
-
-              <textarea
-                placeholder="Description (optional)"
-                value={editForm.description}
-                onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                className="md:col-span-2 border border-slate-200 rounded-lg px-3 py-2.5 text-sm min-h-20"
-              />
-
-              {/* ── Edit Submission Requirements ── */}
+              <textarea placeholder="Description (optional)" value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))} className="md:col-span-2 border border-slate-200 rounded-lg px-3 py-2.5 text-sm min-h-20" />
               <div className="md:col-span-2 border-t border-slate-100 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowEditSubmissionConfig(!showEditSubmissionConfig)}
-                  className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-                >
-                  <span className={`transition-transform ${showEditSubmissionConfig ? "rotate-90" : ""}`}>▸</span>
-                  Submission Requirements
+                <button type="button" onClick={() => setShowEditSubmissionConfig(!showEditSubmissionConfig)} className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900">
+                  <span className={`transition-transform ${showEditSubmissionConfig ? "rotate-90" : ""}`}>▸</span> Submission Requirements
                 </button>
-
                 {showEditSubmissionConfig && (
                   <div className="mt-3 space-y-4 pl-4 border-l-2 border-slate-100">
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={editForm.submissionConfig.enabled}
-                        onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))}
-                        className="accent-[#E05305]"
-                      />
-                      Enable custom submission requirements
-                    </label>
-
-                    {editForm.submissionConfig.enabled && (
-                      <>
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={editForm.submissionConfig.requireRating}
-                            onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))}
-                            className="accent-[#E05305]"
-                          />
-                          Require rating selection
-                        </label>
-
-                        {editForm.submissionConfig.requireRating && (
-                          <div className="space-y-2 pl-6">
-                            <p className="text-xs text-slate-400 font-medium">Rating options:</p>
-                            {editForm.submissionConfig.ratingOptions.map((opt, i) => (
-                              <div key={i} className="flex items-center gap-2">
-                                <input
-                                  value={opt}
-                                  onChange={(e) => {
-                                    const updated = [...editForm.submissionConfig.ratingOptions];
-                                    updated[i] = e.target.value;
-                                    setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } }));
-                                  }}
-                                  className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))}
-                                  className="text-red-400 hover:text-red-600 text-xs"
-                                >✕</button>
-                              </div>
-                            ))}
-                            <div className="flex items-center gap-2">
-                              <input
-                                value={editNewRatingOption}
-                                onChange={(e) => setEditNewRatingOption(e.target.value)}
-                                placeholder="New option..."
-                                className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (editNewRatingOption.trim()) {
-                                    setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, editNewRatingOption.trim()] } }));
-                                    setEditNewRatingOption("");
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                              >+ Add</button>
+                    <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.submissionConfig.enabled} onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))} className="accent-[#E05305]" /> Enable custom submission requirements</label>
+                    {editForm.submissionConfig.enabled && (<>
+                      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.submissionConfig.requireRating} onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))} className="accent-[#E05305]" /> Require rating selection</label>
+                      {editForm.submissionConfig.requireRating && (
+                        <div className="space-y-2 pl-6">
+                          <p className="text-xs text-slate-400 font-medium">Rating options:</p>
+                          {editForm.submissionConfig.ratingOptions.map((opt, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input value={opt} onChange={(e) => { const updated = [...editForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                              <button type="button" onClick={() => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                             </div>
+                          ))}
+                          <div className="flex items-center gap-2">
+                            <input value={editNewRatingOption} onChange={(e) => setEditNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                            <button type="button" onClick={() => { if (editNewRatingOption.trim()) { setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, editNewRatingOption.trim()] } })); setEditNewRatingOption(""); } }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">+ Add</button>
                           </div>
-                        )}
-
-                        <label className="flex items-center gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={editForm.submissionConfig.requireFeedback}
-                            onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))}
-                            className="accent-[#E05305]"
-                          />
-                          Require feedback / comment
-                        </label>
-
-                        {editForm.submissionConfig.requireFeedback && (
-                          <div className="pl-6">
-                            <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
-                            <input
-                              type="number"
-                              min={1}
-                              max={5000}
-                              value={editForm.submissionConfig.maxFeedbackLength}
-                              onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))}
-                              className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-32"
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
+                        </div>
+                      )}
+                      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={editForm.submissionConfig.requireFeedback} onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))} className="accent-[#E05305]" /> Require feedback / comment</label>
+                      {editForm.submissionConfig.requireFeedback && (
+                        <div className="pl-6">
+                          <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
+                          <input type="number" min={1} max={5000} value={editForm.submissionConfig.maxFeedbackLength} onChange={(e) => setEditForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-32" />
+                        </div>
+                      )}
+                    </>)}
                   </div>
                 )}
               </div>
-
               <div className="md:col-span-2 flex items-center gap-3 pt-2">
                 <button type="submit" disabled={updatingTask} className="flex-1 bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-                  {updatingTask && <Spinner />}
-                  Update Task
+                  {updatingTask && <Spinner />} Update Task
                 </button>
-                <button type="button" onClick={closeEditModal} className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg">
-                  Cancel
-                </button>
+                <button type="button" onClick={closeEditModal} className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg">Cancel</button>
               </div>
             </form>
           </div>

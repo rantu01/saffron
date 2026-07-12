@@ -1,13 +1,16 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { ChevronDown, ArrowLeft } from "lucide-react";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import NotificationBell from "@/app/Component/Common/NotificationBell";
+import Link from "next/link";
 
 export default function DashboardTopbar({ onToggle }) {
     const router = useRouter();
+    const pathname = usePathname();
     const { user, logout } = useAuth();
+    const isDashboard = pathname === '/admin';
 
     const handleLogout = async () => {
         await logout();
@@ -20,7 +23,12 @@ export default function DashboardTopbar({ onToggle }) {
             <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
                 {/* Mobile topbar — ultra-minimalist dark */}
                 <div className="flex w-full items-center justify-between lg:hidden">
-                    <div>
+                    <div className="flex items-center gap-3">
+                        {!isDashboard && (
+                            <Link href="/admin" className="text-white hover:text-[#FBBF24] transition-colors">
+                                <ArrowLeft size={20} />
+                            </Link>
+                        )}
                         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p>
                     </div>
                     <button

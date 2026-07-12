@@ -6,6 +6,8 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
@@ -24,15 +26,26 @@ export async function GET(request) {
       };
     }
 
-    const users = await db
-      .collection("users")
-      .find(query)
-      .project({ password: 0 })
-      .sort({ createdAt: -1 })
-      .limit(200)
-      .toArray();
+    const [users, total] = await Promise.all([
+      db
+        .collection("users")
+        .find(query)
+        .project({ password: 0 })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection("users").countDocuments(query),
+    ]);
 
-    return NextResponse.json({ success: true, users });
+    return NextResponse.json({
+      success: true,
+      users,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to fetch users." },

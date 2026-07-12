@@ -179,7 +179,7 @@ export default function DepositsPage() {
                             <tr className="bg-slate-50/75 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
                                 <th className="py-4 px-5 font-semibold text-slate-600">Date</th>
                                 <th className="py-4 px-5 font-semibold text-slate-600">Account</th>
-                                <th className="py-4 px-5 font-semibold text-slate-600">Amount (BDT)</th>
+                                {/* <th className="py-4 px-5 font-semibold text-slate-600">Amount (BDT)</th> */}
                                 <th className="py-4 px-5 font-semibold text-slate-600">Credited (USD)</th>
                                 <th className="py-4 px-5 font-semibold text-slate-600">Transaction Ref</th>
                                 <th className="py-4 px-5 font-semibold text-slate-600">Payment Method</th>
@@ -206,9 +206,9 @@ export default function DepositsPage() {
                                             </td>
 
                                             {/* Amount BDT (Dynamic simulation based on USD) */}
-                                            <td className="py-4 px-5 font-medium text-slate-900 whitespace-nowrap">
+                                            {/* <td className="py-4 px-5 font-medium text-slate-900 whitespace-nowrap">
                                                 {formatMoney(bdtAmount, 2)} BDT
-                                            </td>
+                                            </td> */}
 
                                             {/* Credited USD */}
                                             <td className="py-4 px-5 font-bold text-slate-900 whitespace-nowrap">

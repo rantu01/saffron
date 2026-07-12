@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
+import Pagination from "../components/Pagination";
+import { CardSkeleton } from "../components/TableSkeleton";
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 10;
 
 export default function AdminDepositsPage() {
   const [deposits, setDeposits] = useState([]);
@@ -12,6 +14,9 @@ export default function AdminDepositsPage() {
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [error, setError] = useState("");
 
   const formatMoney = (val) => {
     const n = Number(val || 0);
@@ -19,17 +24,18 @@ export default function AdminDepositsPage() {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   };
 
-  const [error, setError] = useState("");
-
-  const loadDeposits = async () => {
+  const loadDeposits = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const query = filter ? `?status=${filter}` : "";
-      const res = await fetch(`/api/admin/deposits${query}`);
+      const params = new URLSearchParams({ page, limit: String(ITEMS_PER_PAGE) });
+      if (filter) params.set("status", filter);
+      const res = await fetch(`/api/admin/deposits?${params}`);
       const data = await res.json();
       if (data.success) {
         setDeposits(data.deposits || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
       } else {
         setError(data.message || "Failed to load deposits");
       }
@@ -38,9 +44,9 @@ export default function AdminDepositsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter, page]);
 
-  useEffect(() => { loadDeposits(); }, [filter]);
+  useEffect(() => { loadDeposits(); }, [loadDeposits]);
 
   const handleApprove = async (depositId) => {
     const confirmed = await Swal.fire({
@@ -48,7 +54,6 @@ export default function AdminDepositsPage() {
       showCancelButton: true, confirmButtonText: "Yes, approve",
     });
     if (!confirmed.isConfirmed) return;
-
     const res = await fetch("/api/admin/deposits", {
       method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ depositId, status: "approved", approverUid: "admin" }),
@@ -113,10 +118,10 @@ export default function AdminDepositsPage() {
       )}
 
       {loading ? (
-        <p className="text-slate-500">Loading...</p>
+        <CardSkeleton rows={3} />
       ) : deposits.length ? (
         <div className="space-y-3">
-          {deposits.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((deposit) => (
+          {deposits.map((deposit) => (
             <div key={deposit._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -157,25 +162,7 @@ export default function AdminDepositsPage() {
         </div>
       )}
 
-      {deposits.length > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm mt-3">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-slate-500">Page {page} of {Math.ceil(deposits.length / ITEMS_PER_PAGE)}</span>
-          <button
-            onClick={() => setPage((p) => Math.min(Math.ceil(deposits.length / ITEMS_PER_PAGE), p + 1))}
-            disabled={page >= Math.ceil(deposits.length / ITEMS_PER_PAGE)}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       {previewOpen && selectedDeposit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setPreviewOpen(false)}>

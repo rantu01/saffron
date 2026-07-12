@@ -9,6 +9,7 @@ import { useAuth } from '@/app/Component/Auth/AuthProvider';
 import { Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import Navbar from './Component/Common/Navbar';
 import Footer from './Component/Home/Footer';
+import SignUpForm from '@/app/Component/Auth/SignUpForm';
 
 export default function RootPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function RootPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [role, setRole] = useState(null);
+  const [showSignUp, setShowSignUp] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -210,15 +212,24 @@ export default function RootPage() {
             <div className="mt-6 pt-6 border-t border-gray-100 text-center">
               <p className="text-sm text-gray-500">
                 Don&apos;t have an account?{' '}
-                <Link href="/login" className="text-[#E05305] hover:text-[#c84a04] font-semibold transition-colors">
+                <button
+                  onClick={() => setShowSignUp(true)}
+                  className="text-[#E05305] hover:text-[#c84a04] font-semibold transition-colors inline"
+                >
                   Sign Up
-                </Link>
+                </button>
               </p>
             </div>
           </div>
         </div>
       </div>
       <Footer />
+      {showSignUp && (
+        <SignUpForm
+          onClose={() => setShowSignUp(false)}
+          onLoginClick={() => { setShowSignUp(false); }}
+        />
+      )}
     </div>
 
   );

@@ -5,18 +5,47 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const assigneeUid = searchParams.get("assigneeUid");
+    const filterType = searchParams.get("filterType") || "all";
+    const filterGroupId = searchParams.get("filterGroupId");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    const query = assigneeUid ? { assigneeUid } : {};
-    const tasks = await db
-      .collection("tasks")
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
+    const query = {};
+    if (assigneeUid) query.assigneeUid = assigneeUid;
+    if (filterType === "template") query.isTemplate = true;
+    if (filterType === "assigned") query.isTemplate = { $ne: true };
+    if (filterType === "completed") query.status = "completed";
+    if (filterType === "pending") query.status = "pending";
+    if (filterGroupId) {
+      query.$or = [
+        { taskGroupId: filterGroupId },
+        { parentTaskGroupId: filterGroupId },
+      ];
+    }
 
-    return NextResponse.json({ success: true, tasks });
+    const [tasks, total] = await Promise.all([
+      db
+        .collection("tasks")
+        .find(query)
+        .project({ appLogo: 0, submissionConfig: 0 })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .toArray(),
+      db.collection("tasks").countDocuments(query),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      tasks,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to fetch tasks." },

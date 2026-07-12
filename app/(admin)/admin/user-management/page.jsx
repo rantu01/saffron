@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Swal from "sweetalert2";
+import Pagination from "../components/Pagination";
+import { CardSkeleton, TableSkeleton } from "../components/TableSkeleton";
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 10;
 
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
@@ -11,49 +13,54 @@ export default function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [invPage, setInvPage] = useState(1);
+  const searchTimerRef = useRef(null);
 
-  const loadData = async (searchQuery) => {
+  const loadUsers = useCallback(async (searchQuery, pageNum) => {
     setLoading(true);
     try {
-      const params = searchQuery ? `?search=${encodeURIComponent(searchQuery)}` : "";
-      const [usersRes, invitationsRes] = await Promise.all([
-        fetch(`/api/admin/users${params}`),
-        fetch("/api/admin/invitations"),
-      ]);
-
-      const usersData = await usersRes.json();
-      const invitationsData = await invitationsRes.json();
-
-      setUsers(usersData.users || []);
-      setInvitations(invitationsData.invitations || []);
+      const params = new URLSearchParams({ page: pageNum, limit: String(ITEMS_PER_PAGE) });
+      if (searchQuery) params.set("search", searchQuery);
+      const res = await fetch(`/api/admin/users?${params}`);
+      const data = await res.json();
+      if (data.success) {
+        setUsers(data.users || []);
+        setTotal(data.total || 0);
+        setTotalPages(data.totalPages || 1);
+      }
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const loadInvitations = async () => {
+    try {
+      const res = await fetch("/api/admin/invitations");
+      const data = await res.json();
+      setInvitations(data.invitations || []);
+    } catch {}
   };
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const [usersRes, invitationsRes] = await Promise.all([
-          fetch("/api/admin/users"),
-          fetch("/api/admin/invitations"),
-        ]);
-        const usersData = await usersRes.json();
-        const invitationsData = await invitationsRes.json();
-        if (!cancelled) {
-          setUsers(usersData.users || []);
-          setInvitations(invitationsData.invitations || []);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
+    loadUsers("", 1);
+    loadInvitations();
   }, []);
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    setPage(1);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      loadUsers(value, 1);
+    }, 300);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    loadUsers(search, newPage);
+  };
 
   const updateUser = async (uid, updateFields) => {
     const response = await fetch("/api/admin/users", {
@@ -61,14 +68,13 @@ export default function UserManagementPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ uid, ...updateFields }),
     });
-
     const result = await response.json();
     if (!response.ok || !result.success) {
       await Swal.fire({ icon: "error", title: "Update failed", text: result.message || "Please try again." });
       return;
     }
     await Swal.fire({ icon: "success", title: "User updated", timer: 1200, showConfirmButton: false });
-    loadData();
+    loadUsers(search, page);
   };
 
   const createInvitationCode = async () => {
@@ -79,7 +85,7 @@ export default function UserManagementPage() {
       return;
     }
     await Swal.fire({ icon: "success", title: "Invitation code created", text: `New code: ${result.invitation.code}` });
-    loadData();
+    loadInvitations();
   };
 
   const createReferralCodeForUser = async (user) => {
@@ -94,7 +100,6 @@ export default function UserManagementPage() {
       return;
     }
     await Swal.fire({ icon: "success", title: "Referral code created", text: `${user.email || user.uid}: ${result.invitation.code}` });
-    loadData();
   };
 
   const createDemoAccount = async (user) => {
@@ -126,23 +131,8 @@ export default function UserManagementPage() {
       return;
     }
     await Swal.fire({ icon: "success", title: "Demo account created", text: `Email: ${result.user.email}` });
-    loadData();
   };
 
-  const formatMoney = (val) => {
-    const n = Number(val || 0);
-    if (!Number.isFinite(n)) return "0.00";
-    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const filteredUsers = users.filter((u) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return u.email?.toLowerCase().includes(q) || u.uid?.toLowerCase().includes(q) || u.displayName?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q);
-  });
-
-  const totalUsersPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE) || 1;
-  const paginatedUsers = filteredUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
   const totalInvPages = Math.ceil(invitations.length / ITEMS_PER_PAGE) || 1;
   const paginatedInvitations = invitations.slice((invPage - 1) * ITEMS_PER_PAGE, invPage * ITEMS_PER_PAGE);
 
@@ -151,7 +141,7 @@ export default function UserManagementPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h1 className="text-2xl font-semibold">User Management</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{users.length} total users</p>
+          <p className="text-sm text-slate-500 mt-0.5">{total} total users</p>
         </div>
         <button onClick={createInvitationCode} className="bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition">
           Generate Invitation Code
@@ -164,12 +154,7 @@ export default function UserManagementPage() {
             type="text"
             placeholder="Search by email, username, name, or UID..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              clearTimeout(window.searchTimer);
-              window.searchTimer = setTimeout(() => loadData(e.target.value), 300);
-            }}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white text-slate-900 placeholder:text-slate-400 flex-1 max-w-md"
           />
         </div>
@@ -177,9 +162,9 @@ export default function UserManagementPage() {
 
       <div className="space-y-3">
         {loading ? (
-          <p className="text-slate-500">Loading...</p>
-        ) : paginatedUsers.length ? (
-          paginatedUsers.map((user) => (
+          <CardSkeleton rows={3} />
+        ) : users.length ? (
+          users.map((user) => (
             <div key={user.uid} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -200,59 +185,27 @@ export default function UserManagementPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
-                    defaultValue={user.role || "user"}
-                    onChange={(e) => updateUser(user.uid, { role: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
-                  >
+                  <select defaultValue={user.role || "user"} onChange={(e) => updateUser(user.uid, { role: e.target.value })} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900">
                     <option value="user">user</option>
                     <option value="admin">admin</option>
                   </select>
-
-                  <input
-                    type="number" step="0.01"
-                    defaultValue={Number(user.availableBalance || 0)}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white text-slate-900"
-                    onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })}
-                  />
-
-                  <select
-                    defaultValue={user.accountType || (user.isDemoAccount ? "demo" : "main")}
-                    onChange={(e) => updateUser(user.uid, { accountType: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
-                  >
+                  <input type="number" step="0.01" defaultValue={Number(user.availableBalance || 0)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white text-slate-900" onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })} />
+                  <select defaultValue={user.accountType || (user.isDemoAccount ? "demo" : "main")} onChange={(e) => updateUser(user.uid, { accountType: e.target.value })} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900">
                     <option value="main">main</option>
                     <option value="demo">demo</option>
                   </select>
-
-                  <select
-                    defaultValue={user.accountStatus || "active"}
-                    onChange={(e) => updateUser(user.uid, { accountStatus: e.target.value })}
-                    className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900"
-                  >
+                  <select defaultValue={user.accountStatus || "active"} onChange={(e) => updateUser(user.uid, { accountStatus: e.target.value })} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900">
                     <option value="active">active</option>
                     <option value="frozen">frozen</option>
                   </select>
-
                   <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      defaultChecked={user.canGenerateMultipleCodes}
-                      onChange={(e) => updateUser(user.uid, { canGenerateMultipleCodes: e.target.checked })}
-                      className="w-4 h-4 accent-[#E05305]"
-                    />
+                    <input type="checkbox" defaultChecked={user.canGenerateMultipleCodes} onChange={(e) => updateUser(user.uid, { canGenerateMultipleCodes: e.target.checked })} className="w-4 h-4 accent-[#E05305]" />
                     <span className="text-slate-600">Multiple Codes</span>
                   </label>
-
                   {user.accountType !== "demo" && !user.isDemoAccount && (
-                    <button onClick={() => createDemoAccount(user)} className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-emerald-700 transition">
-                      Create Demo
-                    </button>
+                    <button onClick={() => createDemoAccount(user)} className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-emerald-700 transition">Create Demo</button>
                   )}
-
-                  <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">
-                    Referral Code
-                  </button>
+                  <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">Referral Code</button>
                 </div>
               </div>
             </div>
@@ -262,25 +215,7 @@ export default function UserManagementPage() {
         )}
       </div>
 
-      {totalUsersPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm mt-3">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-slate-500">Page {page} of {totalUsersPages}</span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalUsersPages, p + 1))}
-            disabled={page >= totalUsersPages}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-          >
-            Next
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} total={total} onPageChange={handlePageChange} />
 
       <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100">
@@ -301,7 +236,7 @@ export default function UserManagementPage() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {paginatedInvitations.map((inv) => (
                   <tr key={inv._id} className="hover:bg-slate-50/40">
-                    <td className="py-3 px-4 font-mono font-bold tracking-widest">{inv.code}</td>
+                    <td className="py-3 px-4 text-slate-600 font-mono font-bold tracking-widest">{inv.code}</td>
                     <td className="py-3 px-4 text-slate-600">{inv.createdByEmail || inv.createdByUid?.slice(0, 16) || "Global"}</td>
                     <td className="py-3 px-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${inv.usedByUid ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>
@@ -318,26 +253,7 @@ export default function UserManagementPage() {
         ) : (
           <p className="p-6 text-center text-slate-500">No invitation codes generated yet.</p>
         )}
-
-        {totalInvPages > 1 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
-            <button
-              onClick={() => setInvPage((p) => Math.max(1, p - 1))}
-              disabled={invPage <= 1}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-slate-500">Page {invPage} of {totalInvPages}</span>
-            <button
-              onClick={() => setInvPage((p) => Math.min(totalInvPages, p + 1))}
-              disabled={invPage >= totalInvPages}
-              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
+        <Pagination page={invPage} totalPages={totalInvPages} total={invitations.length} onPageChange={setInvPage} />
       </div>
     </div>
   );
