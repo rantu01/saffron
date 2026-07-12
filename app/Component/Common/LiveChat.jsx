@@ -153,11 +153,10 @@ export default function LiveChat({ inline = false }) {
               className={`flex ${msg.senderRole === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                  msg.senderRole === 'user'
+                className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.senderRole === 'user'
                     ? 'bg-[#E05305] text-white rounded-br-md'
                     : 'bg-white text-gray-700 border border-gray-100 shadow-sm rounded-bl-md'
-                }`}
+                  }`}
               >
                 {msg.senderRole !== 'user' && (
                   <p className="text-xs font-semibold text-[#E05305] mb-1">
@@ -179,7 +178,11 @@ export default function LiveChat({ inline = false }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
           placeholder="Type your message..."
-          className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
+          className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-white appearance-none"
+          style={{
+            color: "#111827",
+            WebkitTextFillColor: "#111827",
+          }}
         />
         <button
           onClick={() => handleSend()}
