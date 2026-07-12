@@ -60,6 +60,23 @@ export default function ClientLayout({ children }) {
   const [profileData, setProfileData] = React.useState(null);
   const [refCode, setRefCode] = React.useState('');
   const [dashData, setDashData] = React.useState(null);
+  const [unreadChat, setUnreadChat] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!user?.uid) return;
+    async function fetchUnread() {
+      try {
+        const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
+        const data = await res.json();
+        if (data.success) setUnreadChat(data.unreadCount || 0);
+      } catch {
+        // silent
+      }
+    }
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 5000);
+    return () => clearInterval(interval);
+  }, [user?.uid]);
 
   React.useEffect(() => {
     if (!mobileMenuOpen || !user?.uid) return;
@@ -130,16 +147,22 @@ export default function ClientLayout({ children }) {
           <div className="grid grid-cols-4 gap-2">
             {mobileNavItems.map((item) => {
               const Icon = item.icon;
+              const showBadge = item.label === 'Live Chat' && unreadChat > 0;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#FBBF24] p-1.5 aspect-square"
+                  className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#FBBF24] p-1.5 aspect-square"
                 >
                   <Icon size={16} className="text-slate-900" />
                   <span className="text-[9px] font-bold text-slate-900 text-center leading-tight">
                     {item.label}
                   </span>
+                  {showBadge && (
+                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full leading-none shadow">
+                      {unreadChat > 99 ? "99+" : unreadChat}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -273,6 +296,11 @@ export default function ClientLayout({ children }) {
                           <div className="flex items-center gap-3">
                             <item.icon size={18} className="text-[#FBBF24]" />
                             <span className="text-sm font-medium text-white">{item.label}</span>
+                            {item.label === 'Live Chat' && unreadChat > 0 && (
+                              <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+                                {unreadChat > 99 ? "99+" : unreadChat}
+                              </span>
+                            )}
                           </div>
                           <ChevronRight size={14} className="text-slate-600" />
                         </Link>

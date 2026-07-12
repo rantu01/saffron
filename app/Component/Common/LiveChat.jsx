@@ -11,9 +11,31 @@ export default function LiveChat({ inline = false }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const messagesEndRef = useRef(null);
   const lastMessageIdRef = useRef(null);
   const pollRef = useRef(null);
+  const unreadPollRef = useRef(null);
+
+  const fetchUnread = useCallback(async () => {
+    if (!user?.uid) return;
+    try {
+      const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
+      const data = await res.json();
+      if (data.success) setUnreadCount(data.unreadCount || 0);
+    } catch {
+      // silent
+    }
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    fetchUnread();
+    unreadPollRef.current = setInterval(fetchUnread, 5000);
+    return () => {
+      if (unreadPollRef.current) clearInterval(unreadPollRef.current);
+    };
+  }, [user?.uid, fetchUnread]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,6 +76,15 @@ export default function LiveChat({ inline = false }) {
     lastMessageIdRef.current = null;
     fetchMessages();
     pollRef.current = setInterval(fetchMessages, 3000);
+
+    fetch('/api/chat/read', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: user.uid, byUid: user.uid }),
+    }).catch(() => {});
+
+    setUnreadCount(0);
+
     return () => {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -223,6 +254,11 @@ export default function LiveChat({ inline = false }) {
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#E05305] hover:bg-[#c84a04] text-white rounded-full shadow-lg shadow-orange-200 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
         {open ? <X size={24} /> : <MessageCircle size={24} />}
+        {!open && unreadCount > 0 && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[22px] h-[22px] px-1 text-[11px] font-bold text-white bg-red-500 rounded-full leading-none shadow-md">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
     </>
   );
