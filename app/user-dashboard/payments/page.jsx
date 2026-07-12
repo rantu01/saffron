@@ -14,6 +14,8 @@ export default function DepositsPage() {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ amount: "", screenshot: null });
     const [page, setPage] = useState(1);
+    const [uploading, setUploading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
     const formatMoney = (val, maxDigits = 2) => {
         const n = Number(val || 0);
@@ -42,14 +44,48 @@ export default function DepositsPage() {
         loadDeposits();
     }, [user?.uid]);
 
-    const handleFileChange = (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
+    const compressImage = (file) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
+            reader.onerror = () => reject(new Error("Could not read file"));
             reader.onload = (event) => {
-                setForm((prev) => ({ ...prev, screenshot: event.target.result }));
+                const img = new Image();
+                img.onerror = () => reject(new Error("Could not load image"));
+                img.onload = () => {
+                    const maxWidth = 1280;
+                    const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+                    const canvas = document.createElement("canvas");
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL("image/jpeg", 0.7));
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
+        });
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 5 * 1024 * 1024) {
+            await Swal.fire({ icon: "error", title: "File Too Large", text: "Screenshot must be under 5MB" });
+            e.target.value = "";
+            return;
+        }
+
+        try {
+            setUploading(true);
+            const compressed = await compressImage(file);
+            setForm((prev) => ({ ...prev, screenshot: compressed }));
+        } catch (err) {
+            await Swal.fire({ icon: "error", title: "Invalid Image", text: "Please upload a valid image file" });
+            e.target.value = "";
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -61,27 +97,32 @@ export default function DepositsPage() {
             return;
         }
 
-        const res = await fetch("/api/user/deposit", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                uid: user.uid,
-                email: user.email,
-                amount: form.amount,
-                screenshot: form.screenshot,
-            }),
-        });
+        setSubmitting(true);
+        try {
+            const res = await fetch("/api/user/deposit", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    uid: user.uid,
+                    email: user.email,
+                    amount: form.amount,
+                    screenshot: form.screenshot,
+                }),
+            });
 
-        const result = await res.json();
-        if (!res.ok || !result.success) {
-            await Swal.fire({ icon: "error", title: "Failed", text: result.message });
-            return;
+            const result = await res.json();
+            if (!res.ok || !result.success) {
+                await Swal.fire({ icon: "error", title: "Failed", text: result.message });
+                return;
+            }
+
+            await Swal.fire({ icon: "success", title: "Submitted", text: "Deposit request submitted for verification" });
+            setForm({ amount: "", screenshot: null });
+            setShowForm(false);
+            setDeposits([result.deposit, ...deposits]);
+        } finally {
+            setSubmitting(false);
         }
-
-        await Swal.fire({ icon: "success", title: "Submitted", text: "Deposit request submitted for verification" });
-        setForm({ amount: "", screenshot: null });
-        setShowForm(false);
-        setDeposits([result.deposit, ...deposits]);
     };
 
     if (loading || isLoading) return <div className="p-6 text-slate-600 font-medium">Loading...</div>;
@@ -157,15 +198,23 @@ export default function DepositsPage() {
                                 onChange={handleFileChange}
                                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm file:mr-4 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 text-slate-500"
                                 required
+                                disabled={uploading}
                             />
-                            {form.screenshot && <p className="mt-2 text-xs font-medium text-emerald-600 flex items-center gap-1">✓ Screenshot loaded successfully</p>}
+                            {uploading && (
+                                <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-[#E05305]" />
+                                    Processing image...
+                                </p>
+                            )}
+                            {form.screenshot && !uploading && <p className="mt-2 text-xs font-medium text-emerald-600 flex items-center gap-1">✓ Screenshot loaded successfully</p>}
                         </div>
 
                         <button
                             type="submit"
-                            className="w-full rounded-xl bg-[#E05305] px-4 py-2.5 text-white hover:bg-[#c84a04] font-bold text-sm transition shadow-sm"
+                            disabled={submitting || uploading}
+                            className="w-full rounded-xl bg-[#E05305] px-4 py-2.5 text-white hover:bg-[#c84a04] font-bold text-sm transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Submit Deposit
+                            {submitting ? "Submitting..." : uploading ? "Processing Image..." : "Submit Deposit"}
                         </button>
                     </form>
                 </div>

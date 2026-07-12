@@ -11,19 +11,50 @@ export default function DepositsPage() {
   const [showForm, setShowForm] = useState(true);
   const [form, setForm] = useState({ amount: "", screenshot: null });
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        Swal.fire({ icon: "error", title: "File Too Large", text: "Screenshot must be under 5MB" });
-        return;
-      }
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read file"));
       reader.onload = (event) => {
-        setForm((prev) => ({ ...prev, screenshot: event.target.result }));
+        const img = new Image();
+        img.onerror = () => reject(new Error("Could not load image"));
+        img.onload = () => {
+          const maxWidth = 1280;
+          const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      await Swal.fire({ icon: "error", title: "File Too Large", text: "Screenshot must be under 5MB" });
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const compressed = await compressImage(file);
+      setForm((prev) => ({ ...prev, screenshot: compressed }));
+    } catch (err) {
+      await Swal.fire({ icon: "error", title: "Invalid Image", text: "Please upload a valid image file" });
+      e.target.value = "";
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -117,8 +148,14 @@ export default function DepositsPage() {
                 onChange={handleFileChange}
                 className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm file:mr-3 file:rounded file:border-0 file:bg-[#E05305] file:px-3 file:py-1.5 file:text-xs file:text-white"
                 required
-                disabled={submitting}
+                disabled={submitting || uploading}
               />
+              {uploading && (
+                <p className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-[#E05305]" />
+                  Processing image...
+                </p>
+              )}
               {form.screenshot && (
                 <div className="mt-2 flex items-center gap-2">
                   <span className="text-xs text-emerald-600">✓ Screenshot uploaded</span>
@@ -136,10 +173,10 @@ export default function DepositsPage() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || uploading}
               className="w-full rounded-lg bg-[#E05305] px-4 py-2.5 text-white font-medium hover:bg-[#c84a04] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? "Submitting..." : "Submit Deposit"}
+              {submitting ? "Submitting..." : uploading ? "Processing Image..." : "Submit Deposit"}
             </button>
           </form>
         </div>
