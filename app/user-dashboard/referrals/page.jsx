@@ -60,8 +60,8 @@ export default function ReferralsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-slate-900">Referral Program</h1>
-      <p className="text-sm text-slate-500 mt-1">Invite friends and earn from their activities</p>
+      <h1 className="text-2xl font-bold ">Referral Program</h1>
+      <p className="text-sm  mt-1">Invite friends and earn from their activities</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">

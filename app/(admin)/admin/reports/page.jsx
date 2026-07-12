@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 import { BarChart3, TrendingUp, DollarSign, Users, Download, Calendar, FileText, RefreshCw, Target, Wallet } from "lucide-react";
 
+const ITEMS_PER_PAGE = 20;
+
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
@@ -11,6 +13,9 @@ export default function ReportsPage() {
   const [financial, setFinancial] = useState({ rows: [], summary: null });
   const [userActivity, setUserActivity] = useState({ rows: [], total: 0 });
   const [adSpend, setAdSpend] = useState({ rows: [], summary: null });
+  const [finPage, setFinPage] = useState(1);
+  const [userPage, setUserPage] = useState(1);
+  const [adPage, setAdPage] = useState(1);
 
   const [financialPeriod, setFinancialPeriod] = useState("daily");
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
@@ -229,7 +234,7 @@ export default function ReportsPage() {
               {["daily", "weekly", "monthly"].map((p) => (
                 <button
                   key={p}
-                  onClick={() => setFinancialPeriod(p)}
+                  onClick={() => { setFinancialPeriod(p); setFinPage(1); }}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition ${
                     financialPeriod === p ? "bg-[#E05305] text-white" : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
@@ -289,7 +294,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {financial.rows.length > 0 ? financial.rows.map((r, i) => (
+                  {financial.rows.length > 0 ? financial.rows.slice((finPage - 1) * ITEMS_PER_PAGE, finPage * ITEMS_PER_PAGE).map((r, i) => (
                     <tr key={r.date || i} className="hover:bg-slate-50/40">
                       <td className="py-3 px-4 font-medium">{r.date}</td>
                       <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(r.deposits)}</td>
@@ -307,6 +312,26 @@ export default function ReportsPage() {
               </table>
             </div>
           </div>
+
+          {financial.rows.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => setFinPage((p) => Math.max(1, p - 1))}
+                disabled={finPage <= 1}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-500">Page {finPage} of {Math.ceil(financial.rows.length / ITEMS_PER_PAGE)}</span>
+              <button
+                onClick={() => setFinPage((p) => Math.min(Math.ceil(financial.rows.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={finPage >= Math.ceil(financial.rows.length / ITEMS_PER_PAGE)}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -348,7 +373,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {userActivity.rows.length > 0 ? userActivity.rows.map((u, i) => (
+                  {userActivity.rows.length > 0 ? userActivity.rows.slice((userPage - 1) * ITEMS_PER_PAGE, userPage * ITEMS_PER_PAGE).map((u, i) => (
                     <tr key={u.uid || i} className="hover:bg-slate-50/40">
                       <td className="py-3 px-4 max-w-[200px]">
                         <p className="font-medium text-slate-900 truncate">{u.displayName || u.email || u.uid?.slice(0, 16)}</p>
@@ -381,6 +406,26 @@ export default function ReportsPage() {
               </table>
             </div>
           </div>
+
+          {userActivity.rows.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => setUserPage((p) => Math.max(1, p - 1))}
+                disabled={userPage <= 1}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-500">Page {userPage} of {Math.ceil(userActivity.rows.length / ITEMS_PER_PAGE)}</span>
+              <button
+                onClick={() => setUserPage((p) => Math.min(Math.ceil(userActivity.rows.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={userPage >= Math.ceil(userActivity.rows.length / ITEMS_PER_PAGE)}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -431,7 +476,7 @@ export default function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {adSpend.rows.length > 0 ? adSpend.rows.map((a, i) => {
+                  {adSpend.rows.length > 0 ? adSpend.rows.slice((adPage - 1) * ITEMS_PER_PAGE, adPage * ITEMS_PER_PAGE).map((a, i) => {
                     const util = a.budget > 0 ? (a.spent / a.budget) * 100 : 0;
                     return (
                       <tr key={a._id || i} className="hover:bg-slate-50/40">
@@ -470,6 +515,26 @@ export default function ReportsPage() {
               </table>
             </div>
           </div>
+
+          {adSpend.rows.length > ITEMS_PER_PAGE && (
+            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+              <button
+                onClick={() => setAdPage((p) => Math.max(1, p - 1))}
+                disabled={adPage <= 1}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-slate-500">Page {adPage} of {Math.ceil(adSpend.rows.length / ITEMS_PER_PAGE)}</span>
+              <button
+                onClick={() => setAdPage((p) => Math.min(Math.ceil(adSpend.rows.length / ITEMS_PER_PAGE), p + 1))}
+                disabled={adPage >= Math.ceil(adSpend.rows.length / ITEMS_PER_PAGE)}
+                className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

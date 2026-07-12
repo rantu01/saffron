@@ -42,6 +42,13 @@ export async function POST(request) {
       );
     }
 
+    if (Number(resolvedUser.comboDebt || 0) > 0) {
+      return NextResponse.json(
+        { success: false, message: "Cannot withdraw while you have outstanding debt. Please deposit to clear your debt first." },
+        { status: 400 }
+      );
+    }
+
     if (Number(resolvedUser.availableBalance || 0) < numAmount) {
       return NextResponse.json(
         { success: false, message: "Insufficient balance" },

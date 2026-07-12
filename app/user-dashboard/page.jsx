@@ -208,7 +208,7 @@ export default function UserDashboardPage() {
       )}
 
       {/* Header section from image */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 hidden md:flex">
+      <div className="mb-8 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 hidden xl:flex">
         <div>
           <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Welcome back</p>
           <h1 className="text-3xl font-bold text-slate-900 mt-0.5">
@@ -220,7 +220,7 @@ export default function UserDashboardPage() {
       </div>
 
       {/* Top 4 Stats Cards (Matching the image layout structure but white background) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10 hidden md:grid">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10 hidden xl:grid">
         
         {/* Card 1: Wallet Balance */}
         <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
@@ -287,7 +287,7 @@ export default function UserDashboardPage() {
 
       {/* Account Freeze / Alert Notice */}
       {dashboard.accountStatus === 'frozen' && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-sm text-red-700 hidden md:flex">
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-sm text-red-700 hidden xl:flex">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
           <div>
             <span className="font-semibold">Account Frozen:</span> {dashboard.freezeReason || 'Balance requirement not met.'}
@@ -297,7 +297,7 @@ export default function UserDashboardPage() {
       )}
 
       {/* Main Section: Data Table Area (Exactly like the image structure but clean white) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10 hidden md:block">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10 hidden xl:block">
         
         {/* Table Header Controls */}
         <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -399,7 +399,7 @@ export default function UserDashboardPage() {
       </div>
 
       {/* Bottom Grid for History Logs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 hidden md:grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 hidden xl:grid">
         
         {/* Recent Deposits log box */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">

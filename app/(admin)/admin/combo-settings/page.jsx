@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
-import { Layers, Plus, X, Save } from "lucide-react";
+import { Layers, Plus, X, Save, Search, Trash2 } from "lucide-react";
 
 export default function ComboSettingsPage() {
   const [config, setConfig] = useState(null);
@@ -16,10 +16,19 @@ export default function ComboSettingsPage() {
     maxOrders: 5,
     commissionPercent: 5,
     positions: [8, 18, 27],
+    demoPositions: [],
+    mainPositions: [],
+    userPositionOverrides: {},
     progressionLevels: [
       { level: 1, minAmountPerOrder: 20, maxAmountPerOrder: 100 },
     ],
   });
+
+  const [userSearch, setUserSearch] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [showResults, setShowResults] = useState(false);
+  const [overrideInputs, setOverrideInputs] = useState({});
 
   const loadConfig = async () => {
     setLoading(true);
@@ -35,10 +44,18 @@ export default function ComboSettingsPage() {
           maxOrders: data.config.maxOrders ?? 5,
           commissionPercent: data.config.commissionPercent ?? 5,
           positions: data.config.positions || [8, 18, 27],
+          demoPositions: data.config.demoPositions || [],
+          mainPositions: data.config.mainPositions || [],
+          userPositionOverrides: data.config.userPositionOverrides || {},
           progressionLevels: data.config.progressionLevels || [
             { level: 1, minAmountPerOrder: 20, maxAmountPerOrder: 100 },
           ],
         });
+        const inputs = {};
+        for (const uid of Object.keys(data.config.userPositionOverrides || {})) {
+          inputs[uid] = (data.config.userPositionOverrides[uid] || []).join(", ");
+        }
+        setOverrideInputs(inputs);
       }
     } catch (err) {
       console.error(err);
@@ -50,6 +67,65 @@ export default function ComboSettingsPage() {
   useEffect(() => {
     loadConfig();
   }, []);
+
+  const searchUsers = useCallback(async (query) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/admin/users?search=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.users || []);
+        setShowResults(true);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearch) searchUsers(userSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearch, searchUsers]);
+
+  const addOverride = (user) => {
+    if (form.userPositionOverrides[user.uid]) {
+      Swal.fire({ icon: "info", title: "Already Exists", text: `${user.email} already has a position override.` });
+      return;
+    }
+    setForm((prev) => ({
+      ...prev,
+      userPositionOverrides: { ...prev.userPositionOverrides, [user.uid]: [] },
+    }));
+    setOverrideInputs((prev) => ({ ...prev, [user.uid]: "" }));
+    setUserSearch("");
+    setSearchResults([]);
+    setShowResults(false);
+  };
+
+  const removeOverride = (uid) => {
+    const { [uid]: _, ...rest } = form.userPositionOverrides;
+    const { [uid]: __, ...restInputs } = overrideInputs;
+    setForm((prev) => ({ ...prev, userPositionOverrides: rest }));
+    setOverrideInputs(restInputs);
+  };
+
+  const updateOverridePositions = (uid, value) => {
+    const vals = value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+    setOverrideInputs((prev) => ({ ...prev, [uid]: value }));
+    setForm((prev) => ({
+      ...prev,
+      userPositionOverrides: { ...prev.userPositionOverrides, [uid]: vals },
+    }));
+  };
 
   const addProgressionLevel = () => {
     const nextLevel = (form.progressionLevels.length || 0) + 1;
@@ -233,10 +309,10 @@ export default function ComboSettingsPage() {
 
         <hr className="border-slate-100" />
 
-        {/* Positions */}
+        {/* Default Positions */}
         <div>
-          <label className="text-sm font-semibold text-slate-900 block mb-1">Combo Positions in Round</label>
-          <p className="text-xs text-slate-500 mb-2">Task positions (1-30) where combo tasks may appear. Comma-separated.</p>
+          <label className="text-sm font-semibold text-slate-900 block mb-1">Default Combo Position (Fallback)</label>
+          <p className="text-xs text-slate-500 mb-2">The exact task position (1-30) where combo tasks appear when no account-type or per-user override is set. The first number is used as the fixed position.</p>
           <input
             type="text"
             value={(form.positions || []).join(", ")}
@@ -244,10 +320,46 @@ export default function ComboSettingsPage() {
               const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
               setForm((prev) => ({ ...prev, positions: vals }));
             }}
-            placeholder="8, 19, 27"
+            placeholder="8"
             className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
           />
-          <p className="text-[10px] text-slate-400 mt-1">Example: <code>8, 19, 27</code> means a combo could appear at position 8, 19, or 27.</p>
+          <p className="text-[10px] text-slate-400 mt-1">Example: <code>8</code> means the combo always appears at position 8. Extra numbers are ignored; only the first is used.</p>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Demo Account Position */}
+        <div>
+          <label className="text-sm font-semibold text-slate-900 block mb-1">Demo Account Position</label>
+          <p className="text-xs text-slate-500 mb-2">Fixed task position (1-30) where combo tasks appear for demo accounts. Overrides the default. Leave empty to use the default position. Only the first number is used.</p>
+          <input
+            type="text"
+            value={(form.demoPositions || []).join(", ")}
+            onChange={(e) => {
+              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+              setForm((prev) => ({ ...prev, demoPositions: vals }));
+            }}
+            placeholder="5"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+          />
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Main Account Position */}
+        <div>
+          <label className="text-sm font-semibold text-slate-900 block mb-1">Main Account Position</label>
+          <p className="text-xs text-slate-500 mb-2">Fixed task position (1-30) where combo tasks appear for main accounts. Overrides the default. Leave empty to use the default position. Only the first number is used.</p>
+          <input
+            type="text"
+            value={(form.mainPositions || []).join(", ")}
+            onChange={(e) => {
+              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+              setForm((prev) => ({ ...prev, mainPositions: vals }));
+            }}
+            placeholder="10"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+          />
         </div>
 
         <hr className="border-slate-100" />
@@ -305,6 +417,81 @@ export default function ComboSettingsPage() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Per-User Override Section */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Per-User Position Override</h3>
+          <p className="text-xs text-slate-500">Set a fixed combo position for a specific user. This takes highest priority over all other settings. Only the first number is used.</p>
+        </div>
+
+        {/* User Search */}
+        <div className="relative">
+          <div className="flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-[#E05305]">
+            <Search className="w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              onFocus={() => searchResults.length > 0 && setShowResults(true)}
+              onBlur={() => setTimeout(() => setShowResults(false), 200)}
+              placeholder="Search users by email, name, or UID..."
+              className="flex-1 text-sm focus:outline-none"
+            />
+            {searching && <span className="text-xs text-slate-400">Searching...</span>}
+          </div>
+          {showResults && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 max-h-48 overflow-y-auto">
+              {searchResults.map((user) => (
+                <button
+                  key={user.uid}
+                  onClick={() => addOverride(user)}
+                  className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 flex items-center justify-between border-b border-slate-100 last:border-0"
+                >
+                  <div>
+                    <span className="font-medium text-slate-800">{user.displayName || "N/A"}</span>
+                    <span className="text-slate-400 ml-2">{user.email}</span>
+                  </div>
+                  <span className="text-xs text-slate-400">{user.accountType}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showResults && searchResults.length === 0 && userSearch && !searching && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 p-4 text-sm text-slate-400 text-center">
+              No users found.
+            </div>
+          )}
+        </div>
+
+        {/* Current Overrides */}
+        {Object.keys(form.userPositionOverrides).length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-slate-600">Current Overrides ({Object.keys(form.userPositionOverrides).length})</p>
+            {Object.entries(form.userPositionOverrides).map(([uid, positions]) => (
+              <div key={uid} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-slate-700 truncate">{uid}</p>
+                </div>
+                <input
+                  type="text"
+                  value={overrideInputs[uid] || ""}
+                  onChange={(e) => updateOverridePositions(uid, e.target.value)}
+                  placeholder="e.g. 7"
+                  className="w-40 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                />
+                <button
+                  onClick={() => removeOverride(uid)}
+                  className="text-slate-400 hover:text-red-500"
+                  title="Remove override"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end">

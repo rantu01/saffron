@@ -3,7 +3,6 @@ import clientPromise from "@/lib/mongodb";
 import { getAllDeposits, updateDepositStatus, getDepositById } from "@/lib/depositModel";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
-import { autoUnfreezeForCombo } from "@/lib/comboTaskModel";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendDepositApproved, sendDepositRejected } from "@/lib/whatsappService";
 
@@ -66,21 +65,45 @@ export async function PATCH(request) {
       const client = await clientPromise;
       const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
       const balanceBefore = Number(user.availableBalance || 0);
-      const frozenBefore = Number(user.frozenBalance || 0);
+      const comboDebt = Number(user.comboDebt || 0);
 
-      const activeCombo = await db.collection("comboTasks").findOne({
-        uid: deposit.uid,
-        status: { $in: ["in_progress", "waiting_balance"] },
-      });
+      if (comboDebt > 0) {
+        const debtCleared = Math.min(comboDebt, deposit.amount);
+        const remaining = roundCurrency(deposit.amount - debtCleared);
+        const newDebt = roundCurrency(comboDebt - debtCleared);
 
-      if (activeCombo) {
         await db.collection("users").updateOne(
           { uid: deposit.uid },
           {
-            $inc: { frozenBalance: deposit.amount, totalEarned: deposit.amount },
-            $set: { updatedAt: new Date() },
+            $inc: { availableBalance: remaining, totalEarned: deposit.amount },
+            $set: { comboDebt: newDebt, updatedAt: new Date() },
           }
         );
+
+        if (newDebt === 0) {
+          const userAfter = await getUserByUid(deposit.uid);
+          const frozenBalance = Number(userAfter?.frozenBalance || 0);
+          if (frozenBalance > 0) {
+            await db.collection("users").updateOne(
+              { uid: deposit.uid },
+              {
+                $inc: { availableBalance: frozenBalance },
+                $set: { frozenBalance: 0, updatedAt: new Date() },
+              }
+            );
+          }
+
+          const waitingCombo = await db.collection("comboTasks").findOne({
+            uid: deposit.uid,
+            status: "waiting_balance",
+          });
+          if (waitingCombo) {
+            await db.collection("comboTasks").updateOne(
+              { _id: waitingCombo._id },
+              { $set: { status: "pending", updatedAt: new Date() } }
+            );
+          }
+        }
       } else {
         await creditUserBalance(deposit.uid, deposit.amount, { autoResolveFreeze: true });
       }
@@ -92,17 +115,13 @@ export async function PATCH(request) {
         email: deposit.email || user.email,
         type: "deposit",
         amount: deposit.amount,
-        balanceBefore: activeCombo ? frozenBefore : balanceBefore,
-        balanceAfter: Number(activeCombo ? (updatedUser?.frozenBalance || 0) : (updatedUser?.availableBalance || 0)),
-        description: `Deposit approved: $${deposit.amount}${activeCombo ? " (added to frozen balance for active combo)" : ""}`,
+        balanceBefore,
+        balanceAfter: Number(updatedUser?.availableBalance || 0),
+        description: `Deposit approved: $${deposit.amount}${comboDebt > 0 ? ` ($${Math.min(comboDebt, deposit.amount)} applied to debt)"` : ""}`,
         referenceId: depositId,
         referenceType: "deposit",
-        metadata: { approverUid, addedToFrozen: !!activeCombo },
+        metadata: { approverUid, comboDebtBefore: comboDebt },
       });
-
-      if (!activeCombo) {
-        await autoUnfreezeForCombo(deposit.uid);
-      }
     }
 
     const result = await updateDepositStatus(depositId, status, approverUid, rejectionReason);

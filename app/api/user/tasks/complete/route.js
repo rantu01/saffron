@@ -89,6 +89,15 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
+    const userDebt = Number(user.comboDebt || 0);
+    if (userDebt > 0) {
+      return NextResponse.json({
+        success: false,
+        message: `You have an outstanding debt of $${userDebt.toFixed(2)}. Please deposit to clear it before continuing.`,
+        comboDebt: userDebt,
+      }, { status: 400 });
+    }
+
     const totalAmount = Number(task.totalAmount || 0);
     const profit = roundCurrency(totalAmount * NORMAL_COMMISSION_RATE);
     const earned = roundCurrency(totalAmount + profit);
@@ -126,17 +135,18 @@ export async function POST(request) {
       metadata: { totalAmount, profit, appName: task.appName },
     });
 
-    // Referral profit sharing: 20% of profit goes to the inviter
-    const isDemo = user?.isDemoAccount || user?.accountType === "demo";
-    if (isDemo && user?.inviterUid && profit > 0) {
+    // Referral profit sharing: 20% of profit goes to the inviter or parent (for training accounts)
+    const isDemo = user?.isDemoAccount || user?.accountType === "demo" || user?.accountType === "training";
+    const targetUid = user.accountType === "training" ? (user.parentUid || user.inviterUid) : user.inviterUid;
+    if (isDemo && targetUid && profit > 0) {
       const sharePercent = Number(user?.demoProfitSharePercent || 20);
       const shareAmount = roundCurrency(profit * sharePercent / 100);
 
       if (shareAmount > 0) {
-        const inviterBefore = await getUserByUid(user.inviterUid);
+        const inviterBefore = await getUserByUid(targetUid);
         const inviterBalBefore = Number(inviterBefore?.availableBalance || 0);
 
-        await creditUserBalance(user.inviterUid, shareAmount, { autoResolveFreeze: true });
+        await creditUserBalance(targetUid, shareAmount, { autoResolveFreeze: true });
 
         const inviterAfter = await getUserByUid(user.inviterUid);
         const inviterBalAfter = Number(inviterAfter?.availableBalance || 0);
@@ -147,7 +157,7 @@ export async function POST(request) {
         );
 
         await createBalanceLog({
-          uid: user.inviterUid,
+          uid: targetUid,
           email: inviterBefore?.email || "",
           type: "referral_commission",
           amount: shareAmount,
@@ -160,7 +170,7 @@ export async function POST(request) {
         });
 
         await db.collection("notifications").insertOne({
-          uid: user.inviterUid,
+          uid: targetUid,
           type: "referral_commission",
           title: "Referral Commission Received!",
           message: `You earned $${shareAmount.toFixed(2)} commission from your referral's task profit.`,

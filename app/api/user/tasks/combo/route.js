@@ -37,6 +37,8 @@ export async function GET(request) {
       additionalRequired = Math.max(0, currentOrder.requiredAmount - frozenBalance);
     }
 
+    const comboDebt = Number(user?.comboDebt || 0);
+
     return NextResponse.json({
       success: true,
       combo: {
@@ -52,6 +54,7 @@ export async function GET(request) {
         orders: combo.orders,
         totalBalance,
         frozenBalance,
+        comboDebt,
         additionalRequired,
         createdAt: combo.createdAt,
         updatedAt: combo.updatedAt,

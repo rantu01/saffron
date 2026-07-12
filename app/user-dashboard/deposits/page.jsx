@@ -80,8 +80,8 @@ export default function DepositsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">New Deposit</h1>
-          <p className="text-sm text-slate-500 mt-1">Submit a deposit request for verification</p>
+          <h1 className="text-2xl font-bold ">New Deposit</h1>
+          <p className="text-sm  mt-1">Submit a deposit request for verification</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}

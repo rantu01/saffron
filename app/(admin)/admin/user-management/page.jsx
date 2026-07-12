@@ -3,11 +3,15 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 
+const ITEMS_PER_PAGE = 15;
+
 export default function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [invPage, setInvPage] = useState(1);
 
   const loadData = async (searchQuery) => {
     setLoading(true);
@@ -137,6 +141,11 @@ export default function UserManagementPage() {
     return u.email?.toLowerCase().includes(q) || u.uid?.toLowerCase().includes(q) || u.displayName?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q);
   });
 
+  const totalUsersPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE) || 1;
+  const paginatedUsers = filteredUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const totalInvPages = Math.ceil(invitations.length / ITEMS_PER_PAGE) || 1;
+  const paginatedInvitations = invitations.slice((invPage - 1) * ITEMS_PER_PAGE, invPage * ITEMS_PER_PAGE);
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -157,6 +166,7 @@ export default function UserManagementPage() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
+              setPage(1);
               clearTimeout(window.searchTimer);
               window.searchTimer = setTimeout(() => loadData(e.target.value), 300);
             }}
@@ -168,8 +178,8 @@ export default function UserManagementPage() {
       <div className="space-y-3">
         {loading ? (
           <p className="text-slate-500">Loading...</p>
-        ) : filteredUsers.length ? (
-          filteredUsers.map((user) => (
+        ) : paginatedUsers.length ? (
+          paginatedUsers.map((user) => (
             <div key={user.uid} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -252,6 +262,26 @@ export default function UserManagementPage() {
         )}
       </div>
 
+      {totalUsersPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm mt-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-slate-500">Page {page} of {totalUsersPages}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalUsersPages, p + 1))}
+            disabled={page >= totalUsersPages}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
+
       <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold">Invitation Codes ({invitations.length})</h2>
@@ -269,7 +299,7 @@ export default function UserManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {invitations.map((inv) => (
+                {paginatedInvitations.map((inv) => (
                   <tr key={inv._id} className="hover:bg-slate-50/40">
                     <td className="py-3 px-4 font-mono font-bold tracking-widest">{inv.code}</td>
                     <td className="py-3 px-4 text-slate-600">{inv.createdByEmail || inv.createdByUid?.slice(0, 16) || "Global"}</td>
@@ -287,6 +317,26 @@ export default function UserManagementPage() {
           </div>
         ) : (
           <p className="p-6 text-center text-slate-500">No invitation codes generated yet.</p>
+        )}
+
+        {totalInvPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <button
+              onClick={() => setInvPage((p) => Math.max(1, p - 1))}
+              disabled={invPage <= 1}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-500">Page {invPage} of {totalInvPages}</span>
+            <button
+              onClick={() => setInvPage((p) => Math.min(totalInvPages, p + 1))}
+              disabled={invPage >= totalInvPages}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+            >
+              Next
+            </button>
+          </div>
         )}
       </div>
     </div>

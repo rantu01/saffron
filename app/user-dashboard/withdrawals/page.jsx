@@ -122,8 +122,8 @@ export default function WithdrawalsPage() {
         <div>
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Withdrawals</h1>
-                    <p className="text-sm text-slate-600 mt-1">Available Balance: ${formatMoney(balance)}</p>
+                    <h1 className="text-2xl font-bold ">Withdrawals</h1>
+                    <p className="text-sm  mt-1">Available Balance: ${formatMoney(balance)}</p>
                 </div>
                 <button
                     onClick={() => setShowForm(!showForm)}

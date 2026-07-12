@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+const ITEMS_PER_PAGE = 15;
+
 export default function AdminReferralsPage() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   const formatMoney = (val) => {
     const n = Number(val || 0);
@@ -61,7 +64,7 @@ export default function AdminReferralsPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {usersWithReferrals.map((inviter) => (
+          {usersWithReferrals.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((inviter) => (
             <div key={inviter.uid} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                 <div className="flex items-center justify-between">
@@ -114,6 +117,26 @@ export default function AdminReferralsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {usersWithReferrals.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm mt-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-slate-500">Page {page} of {Math.ceil(usersWithReferrals.length / ITEMS_PER_PAGE)}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(Math.ceil(usersWithReferrals.length / ITEMS_PER_PAGE), p + 1))}
+            disabled={page >= Math.ceil(usersWithReferrals.length / ITEMS_PER_PAGE)}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Next
+          </button>
         </div>
       )}
     </div>

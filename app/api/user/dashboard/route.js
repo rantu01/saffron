@@ -44,7 +44,9 @@ export async function GET(request) {
       dashboard: {
         availableBalance: Number(user?.availableBalance || 0),
         frozenBalance: Number(user?.frozenBalance || 0),
+        comboDebt: Number(user?.comboDebt || 0),
         totalEarned: user?.totalEarned || 0,
+        totalEarnedNet: Math.max(0, Number(user?.totalEarned || 0) - Number(user?.comboDebt || 0)),
         usdRate: 129,
         role: user?.role || "user",
         accountStatus: user?.accountStatus || "active",
@@ -55,6 +57,7 @@ export async function GET(request) {
         freezeReason: user?.freezeReason || null,
         freezeThreshold: Number(user?.freezeThreshold || 0),
         demoProfitSharePercent: Number(user?.demoProfitSharePercent || 20),
+        comboStage: user?.comboStage || 0,
         tasks,
         activeComboTask: activeCombo || null,
       },

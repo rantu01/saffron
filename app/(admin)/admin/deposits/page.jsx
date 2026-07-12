@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 
+const ITEMS_PER_PAGE = 15;
+
 export default function AdminDepositsPage() {
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("pending");
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const formatMoney = (val) => {
     const n = Number(val || 0);
@@ -93,7 +96,7 @@ export default function AdminDepositsPage() {
         {["pending", "approved", "rejected"].map((status) => (
           <button
             key={status}
-            onClick={() => setFilter(status)}
+            onClick={() => { setFilter(status); setPage(1); }}
             className={`px-4 py-2 rounded-lg font-medium capitalize transition-colors text-sm ${
               filter === status
                 ? "bg-[#F59E0B] text-slate-950"
@@ -113,7 +116,7 @@ export default function AdminDepositsPage() {
         <p className="text-slate-500">Loading...</p>
       ) : deposits.length ? (
         <div className="space-y-3">
-          {deposits.map((deposit) => (
+          {deposits.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((deposit) => (
             <div key={deposit._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -151,6 +154,26 @@ export default function AdminDepositsPage() {
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-500">
           No {filter} deposits found.
+        </div>
+      )}
+
+      {deposits.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm mt-3">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-slate-500">Page {page} of {Math.ceil(deposits.length / ITEMS_PER_PAGE)}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(Math.ceil(deposits.length / ITEMS_PER_PAGE), p + 1))}
+            disabled={page >= Math.ceil(deposits.length / ITEMS_PER_PAGE)}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+          >
+            Next
+          </button>
         </div>
       )}
 

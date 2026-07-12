@@ -213,8 +213,8 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
     : true;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl w-full max-w-[420px] shadow-2xl relative overflow-hidden flex flex-col font-sans text-[#333]">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
+      <div className="bg-white rounded-2xl w-full max-w-[420px] shadow-2xl relative overflow-hidden flex flex-col font-sans text-[#333] max-h-[95dvh]">
         <button
           onClick={onClose}
           className="absolute top-3 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold z-10"
@@ -223,22 +223,22 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
         </button>
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-5 text-white">
-          <div className="flex items-center gap-2 mb-1">
-            <Layers className="w-5 h-5" />
-            <h2 className="text-lg font-bold">Combined Task</h2>
+        <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-3 text-white shrink-0">
+          <div className="flex items-center gap-2 mb-0.5">
+            <Layers className="w-4 h-4" />
+            <h2 className="text-base font-bold">Combined Task</h2>
           </div>
-          <p className="text-white/80 text-xs">Complete all linked orders sequentially</p>
+          <p className="text-white/80 text-[10px]">Complete all linked orders sequentially</p>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-3 space-y-2 overflow-y-auto flex-1">
           {/* Status Banner */}
           {isWaitingBalance && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start gap-1.5">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
               <div>
-                <p className="text-amber-800 font-semibold text-sm">Waiting for Balance</p>
-                <p className="text-amber-600 text-xs mt-0.5">
+                <p className="text-amber-800 font-semibold text-xs">Waiting for Balance</p>
+                <p className="text-amber-600 text-[10px] mt-0.5">
                   Add funds to continue with the next order.
                 </p>
               </div>
@@ -246,31 +246,31 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
           )}
 
           {/* Balance Info */}
-          <div className="bg-slate-50 rounded-xl p-3 space-y-1">
+          <div className="bg-slate-50 rounded-lg p-2 space-y-0.5">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <DollarSign className="w-4 h-4 text-slate-400" />
-                <span className="text-sm text-slate-600">Total Balance</span>
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-xs text-slate-600">Total Balance</span>
               </div>
-              <span className="text-sm font-bold text-slate-900">${formatMoney(userBalance)}</span>
+              <span className="text-xs font-bold text-slate-900">${formatMoney(userBalance)}</span>
             </div>
-            <div className="flex items-center justify-between pl-6">
-              <span className="text-xs text-amber-500">Frozen for Combo</span>
-              <span className="text-xs font-bold text-amber-500">- ${formatMoney(frozenBalance || 0)}</span>
+            <div className="flex items-center justify-between pl-5">
+              <span className="text-[10px] text-amber-500">Frozen for Combo</span>
+              <span className="text-[10px] font-bold text-amber-500">- ${formatMoney(frozenBalance || 0)}</span>
             </div>
           </div>
 
           {/* Commission Info */}
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3">
-            <div className="flex justify-between text-sm">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2">
+            <div className="flex justify-between text-xs">
               <span className="text-emerald-700">Commission Rate</span>
               <span className="text-emerald-700 font-bold">{comboData?.commissionPercent}%</span>
             </div>
-            <div className="flex justify-between text-sm mt-1">
+            <div className="flex justify-between text-xs mt-0.5">
               <span className="text-emerald-700">Estimated Commission</span>
               <span className="text-emerald-700 font-bold">${formatMoney(comboData?.totalCommission)}</span>
             </div>
-            <div className="flex justify-between text-sm mt-1">
+            <div className="flex justify-between text-xs mt-0.5">
               <span className="text-emerald-700">Total Required</span>
               <span className="text-emerald-700 font-bold">${formatMoney(comboData?.totalRequiredAmount)}</span>
             </div>
@@ -278,10 +278,10 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
 
           {/* Orders List */}
           <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-3">
+            <h3 className="text-xs font-semibold text-slate-700 mb-2">
               Linked Orders ({completedOrders}/{totalOrders})
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {comboData?.orders?.map((order, index) => {
                 const isCurrent = index === currentOrderIndex;
                 const isCompleted = order.status === "completed";
@@ -294,7 +294,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
                 return (
                   <div
                     key={order.orderNumber}
-                    className={`border rounded-xl p-3 transition-all ${
+                    className={`border rounded-lg p-2 transition-all ${
                       isCurrent && !isCompleted
                         ? "border-orange-300 bg-orange-50"
                         : isCompleted
@@ -302,34 +302,34 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
                         : "border-slate-200 bg-white"
                     } ${isLocked ? "opacity-50" : ""}`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <StatusIcon className={`w-4 h-4 ${STATUS_COLORS[order.status]} ${order.status === "in_progress" ? "animate-spin" : ""}`} />
-                        <span className="text-sm font-medium text-slate-700">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <StatusIcon className={`w-3.5 h-3.5 ${STATUS_COLORS[order.status]} ${order.status === "in_progress" ? "animate-spin" : ""}`} />
+                        <span className="text-xs font-medium text-slate-700">
                           Order {order.orderNumber}
                         </span>
                       </div>
-                      <span className="text-sm font-bold text-slate-900">
+                      <span className="text-xs font-bold text-slate-900">
                         ${formatMoney(order.requiredAmount)}
                       </span>
                     </div>
 
                     {isCurrent && !isCompleted && (
-                      <div className="mt-2">
+                      <div className="mt-1">
                         {isPending && (
                           <button
                             onClick={() => handleStartOrder(index)}
                             disabled={loading || totalEffectiveBalance < (comboData?.totalRequiredAmount || 0)}
-                            className={`w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg transition ${
+                            className={`w-full flex items-center justify-center gap-1 text-[10px] font-semibold py-1.5 rounded-lg transition ${
                               totalEffectiveBalance >= (comboData?.totalRequiredAmount || 0)
                                 ? "bg-blue-500 text-white hover:bg-blue-600"
                                 : "bg-slate-300 text-slate-500 cursor-not-allowed"
                             } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                           >
                             {loading && orderLoadingIndex === index ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
-                              <Play className="w-3.5 h-3.5" />
+                              <Play className="w-3 h-3" />
                             )}
                             {totalEffectiveBalance >= (comboData?.totalRequiredAmount || 0)
                               ? "Start Order"
@@ -340,14 +340,14 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
                           <button
                             onClick={() => handleCompleteOrder(index)}
                             disabled={loading}
-                            className={`w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition ${
+                            className={`w-full flex items-center justify-center gap-1 text-[10px] font-semibold py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition ${
                               loading ? "opacity-50 cursor-not-allowed" : ""
                             }`}
                           >
                             {loading && orderLoadingIndex === index ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2 className="w-3 h-3 animate-spin" />
                             ) : (
-                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <CheckCircle2 className="w-3 h-3" />
                             )}
                             Complete Order
                           </button>
@@ -356,7 +356,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
                     )}
 
                     {isCurrent && isCompleted && (
-                      <p className="text-[10px] text-emerald-600 font-medium mt-1">Completed</p>
+                      <p className="text-[10px] text-emerald-600 font-medium mt-0.5">Completed</p>
                     )}
                   </div>
                 );
@@ -366,11 +366,11 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
 
           {/* Progress Bar */}
           <div>
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
+            <div className="flex justify-between text-[10px] text-slate-500 mb-0.5">
               <span>Progress</span>
               <span>{completedOrders}/{totalOrders} orders</span>
             </div>
-            <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-orange-400 to-emerald-400 transition-all duration-500"
                 style={{ width: `${totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0}%` }}
@@ -379,17 +379,17 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
           </div>
 
           {isWaitingBalance && (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <button
                 onClick={() => window.location.href = "/user-dashboard/deposits"}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold py-3 rounded-xl transition"
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-lg transition shrink-0"
               >
                 Deposit to Continue
               </button>
               <button
                 onClick={handleCancel}
                 disabled={loading}
-                className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold py-2.5 rounded-xl border border-red-200 transition"
+                className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-semibold py-1.5 rounded-lg border border-red-200 transition shrink-0"
               >
                 Cancel Combined Task
               </button>

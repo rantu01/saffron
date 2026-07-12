@@ -132,8 +132,8 @@ export default function BalanceHistoryPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Balance History</h1>
-          <p className="text-sm text-slate-500 mt-1">View your account balance transaction history</p>
+          <h1 className="text-3xl font-bold  tracking-tight">Balance History</h1>
+          <p className="text-sm  mt-1">View your account balance transaction history</p>
         </div>
         <button
           onClick={handleExport}
@@ -148,7 +148,7 @@ export default function BalanceHistoryPage() {
         <div className="mb-4 bg-red-50 text-red-600 px-4 py-2 rounded-xl border border-red-200 text-sm w-max">{error}</div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+      <div className="bg-white text-black rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
         <div className="p-4 bg-slate-50/60 border-b border-slate-100 flex flex-wrap items-center gap-3">
           <select
             value={typeFilter}
@@ -194,11 +194,11 @@ export default function BalanceHistoryPage() {
 
         <div className="overflow-x-auto">
           {logs.length === 0 ? (
-            <div className="p-8 text-center text-slate-500 text-sm">No transactions yet.</div>
+            <div className="p-8 text-center  text-sm">No transactions yet.</div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/75 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200/60 select-none">
+                <tr className="bg-slate-50/75  text-xs font-bold uppercase tracking-wider border-b border-slate-200/60 select-none">
                   <th className="py-4 px-6">Date</th>
                   <th className="py-4 px-6">Type</th>
                   <th className="py-4 px-6">Amount</th>
@@ -206,7 +206,7 @@ export default function BalanceHistoryPage() {
                   <th className="py-4 px-6">Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-sm ">
                 {logs.map((log) => {
                   const badge = badgeForType(log.type);
                   const isPositive = Number(log.amount) >= 0;

@@ -5,12 +5,15 @@ import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
 import Link from "next/link";
 
+const ITEMS_PER_PAGE = 15;
+
 export default function DepositsPage() {
     const { user, loading } = useAuth();
     const [deposits, setDeposits] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ amount: "", screenshot: null });
+    const [page, setPage] = useState(1);
 
     const formatMoney = (val, maxDigits = 2) => {
         const n = Number(val || 0);
@@ -104,8 +107,8 @@ export default function DepositsPage() {
             {/* Top Header Section */}
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Payment History</h1>
-                    <p className="text-sm text-slate-500 mt-1">View your account top-up history and transaction status</p>
+                    <h1 className="text-2xl font-bold  tracking-tight">Payment History</h1>
+                    <p className="text-sm  mt-1">View your account top-up history and transaction status</p>
                 </div>
 
                 <Link href="/user-dashboard/deposits" className="rounded-xl bg-[#E05305] hover:bg-[#c84a04] px-5 py-2.5 text-white font-semibold text-sm transition shadow-sm self-start sm:self-center flex items-center gap-1.5">
@@ -186,7 +189,7 @@ export default function DepositsPage() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
                             {deposits.length ? (
-                                deposits.map((deposit) => {
+                                deposits.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((deposit) => {
                                     // রিয়েলটাইম BDT কনভার্সন রেট (যেমনটি ছবিতে ১২৯ টাকা রেট দেখানো ছিল)
                                     const bdtAmount = Number(deposit.amount || 0) * 129;
 
@@ -256,6 +259,26 @@ export default function DepositsPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {deposits.length > ITEMS_PER_PAGE && (
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/30">
+                        <button
+                            onClick={() => setPage((p) => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                        >
+                            Previous
+                        </button>
+                        <span className="text-sm text-slate-500">Page {page} of {Math.ceil(deposits.length / ITEMS_PER_PAGE)}</span>
+                        <button
+                            onClick={() => setPage((p) => Math.min(Math.ceil(deposits.length / ITEMS_PER_PAGE), p + 1))}
+                            disabled={page >= Math.ceil(deposits.length / ITEMS_PER_PAGE)}
+                            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50"
+                        >
+                            Next
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

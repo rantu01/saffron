@@ -117,10 +117,10 @@ export default function VipMembership({ balance = 0 }) {
   return (
     <section className="mb-10">
       {/* VIP Header / Status Bar */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-6 md:p-8 mb-6 shadow-xl border border-slate-700/50 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 shadow-xl border border-slate-700/50 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.08),transparent_70%)] pointer-events-none" />
         <div className="relative z-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="w-5 h-5 text-amber-400 animate-glow-pulse" />
@@ -204,7 +204,7 @@ export default function VipMembership({ balance = 0 }) {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+        className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5"
       >
         {VIP_TIERS.map((tier) => {
           const isUnlocked = tier.unlockBalance <= balance;
@@ -225,7 +225,7 @@ export default function VipMembership({ balance = 0 }) {
             >
               <div className="relative rounded-2xl overflow-hidden">
                 {/* Card Gradient Background */}
-                <div className={`bg-gradient-to-br ${tier.gradient} p-5 pb-5 min-h-[300px] flex flex-col justify-between relative`}>
+                <div className={`bg-gradient-to-br ${tier.gradient} p-2 sm:p-3 min-h-[55px] sm:min-h-[140px] flex flex-row sm:flex-col items-center sm:items-stretch justify-between relative`}>
                   {/* Hover Glow Overlay */}
                   <div
                     className="absolute inset-0 opacity-0 transition-opacity duration-500 pointer-events-none rounded-2xl"
@@ -234,15 +234,40 @@ export default function VipMembership({ balance = 0 }) {
                     }}
                   />
 
-                  {/* Top Section */}
-                  <div className="relative z-10">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Crown className={`w-5 h-5 ${tier.accent}`} />
-                        <span className="text-white font-bold text-lg tracking-tight">{tier.name}</span>
+                  {/* Mobile Layout */}
+                  <div className="flex xl:hidden items-center gap-2 w-full relative z-10">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <Crown className="w-3.5 h-3.5 flex-shrink-0 text-white/90" />
+                      <span className="text-white font-bold text-[10px] leading-tight truncate">{tier.name}</span>
+                      <span className="text-[7px] text-white/70 font-medium px-1 py-0.5 rounded bg-white/10 whitespace-nowrap">{tier.label}</span>
+                    </div>
+                    <div className="ml-auto flex items-center gap-1.5 flex-shrink-0">
+                      <div className="flex items-center gap-1 text-[8px] text-white/70">
+                        <span>${formatMoney(tier.minDeposit)}</span>
+                        <span className="text-white/40">|</span>
+                        <span>{tier.dailyProfit}%</span>
+                      </div>
+                      {isUnlocked ? (
+                        <span className={`text-[7px] font-bold px-1 py-0.5 rounded-full ${tier.badgeBg} text-white`}>
+                          {isCurrentLevel ? 'Active' : 'Join'}
+                        </span>
+                      ) : (
+                        <Lock className="w-2.5 h-2.5 text-white/40" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Desktop Layout */}
+                  <div className="hidden xl:block">
+                    {/* Top Section */}
+                    <div className="relative z-10">
+                    <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Crown className={`w-4 h-4 sm:w-4 sm:h-4 ${tier.accent}`} />
+                        <span className="text-white font-bold text-sm sm:text-sm tracking-tight">{tier.name}</span>
                       </div>
                       {isUnlocked && (
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${tier.badgeBg} text-white shadow-lg`}>
+                        <span className={`inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider px-1.5 sm:px-2 py-0.5 rounded-full ${tier.badgeBg} text-white shadow-lg`}>
                           <ShieldCheck className="w-3 h-3" />
                           {isCurrentLevel ? 'Active' : 'Unlocked'}
                         </span>
@@ -250,46 +275,46 @@ export default function VipMembership({ balance = 0 }) {
                     </div>
 
                     {/* Label + Rating */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <p className={`text-sm font-semibold ${tier.accent}`}>{tier.label} Tier</p>
+                    <div className="flex items-center gap-2 mb-1 sm:mb-1.5">
+                      <p className={`text-[11px] sm:text-xs font-semibold ${tier.accent}`}>{tier.label} Tier</p>
                       <div className="flex items-center gap-0.5">
                         {[...Array(4)].map((_, i) => (
                           <Star
                             key={i}
-                            className={`w-3 h-3 ${i < tier.level ? 'text-white fill-white' : tier.accent}`}
+                            className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${i < tier.level ? 'text-white fill-white' : tier.accent}`}
                           />
                         ))}
                       </div>
                     </div>
 
                     {/* VIP Level Badge */}
-                    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 backdrop-blur-sm ${tier.borderAccent} border`}>
-                      <Trophy className={`w-3.5 h-3.5 ${tier.accent}`} />
-                      <span className="text-white/90 text-xs font-semibold">Level {tier.level}</span>
+                    <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 sm:px-2 sm:py-0.5 rounded-lg bg-white/10 backdrop-blur-sm ${tier.borderAccent} border`}>
+                      <Trophy className={`w-3 h-3 sm:w-3 sm:h-3 ${tier.accent}`} />
+                      <span className="text-white/90 text-[10px] sm:text-[10px] font-semibold">Level {tier.level}</span>
                     </div>
-                  </div>
+                    </div>
 
                   {/* Spacer */}
                   <div />
 
                   {/* Bottom Stats + CTA */}
-                  <div className="relative z-10 space-y-3">
-                    <div className="bg-white/10 backdrop-blur-md rounded-xl p-3 border border-white/10 space-y-2">
+                  <div className="relative z-10 space-y-1.5 sm:space-y-2">
+                    <div className="bg-white/10 backdrop-blur-md rounded-lg sm:rounded-lg p-1 sm:p-2 border border-white/10 space-y-1 sm:space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className={`text-[11px] font-medium ${tier.accent}`}>Min. Deposit</span>
-                        <span className="text-white font-bold text-sm">${formatMoney(tier.minDeposit)}</span>
+                        <span className={`text-[10px] sm:text-[10px] font-medium ${tier.accent}`}>Min. Deposit</span>
+                        <span className="text-white font-bold text-[10px] sm:text-xs">${formatMoney(tier.minDeposit)}</span>
                       </div>
                       <div className="h-px bg-white/10" />
                       <div className="flex justify-between items-center">
-                        <span className={`text-[11px] font-medium ${tier.accent}`}>Daily Profit</span>
-                        <span className="text-white font-bold text-sm">{tier.dailyProfit}%</span>
+                        <span className={`text-[10px] sm:text-[10px] font-medium ${tier.accent}`}>Daily Profit</span>
+                        <span className="text-white font-bold text-[10px] sm:text-xs">{tier.dailyProfit}%</span>
                       </div>
                     </div>
 
                     {/* CTA Button */}
                     <button
                       disabled={!isUnlocked}
-                      className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+                      className={`w-full py-1 sm:py-1.5 rounded-lg sm:rounded-lg text-[10px] sm:text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1 sm:gap-1.5 ${
                         isUnlocked
                           ? 'bg-white/20 hover:bg-white/30 text-white shadow-lg backdrop-blur-sm border border-white/20 hover:shadow-xl active:scale-[0.98]'
                           : 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-slate-600/50'
@@ -298,29 +323,37 @@ export default function VipMembership({ balance = 0 }) {
                       {isUnlocked ? (
                         <>
                           {isCurrentLevel ? 'Activated' : 'Join Now'}
-                          <ChevronRight className={`w-4 h-4 ${isCurrentLevel ? '' : 'group-hover:translate-x-0.5 transition-transform'}`} />
+                          <ChevronRight className={`w-3 h-3 sm:w-3 sm:h-3 ${isCurrentLevel ? '' : 'group-hover:translate-x-0.5 transition-transform'}`} />
                         </>
                       ) : (
                         <>
-                          <Lock className="w-4 h-4" />
+                          <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                           Locked
                         </>
                       )}
                     </button>
                   </div>
+                  </div>
                 </div>
 
                 {/* Locked Overlay */}
                 {!isUnlocked && (
-                  <div className="absolute inset-0 bg-black/30 backdrop-blur-[1.5px] flex flex-col items-center justify-center z-20">
-                    <div className="bg-white/10 rounded-full p-3 mb-2.5 border border-white/10">
-                      <Lock className="w-6 h-6 text-white/70" />
+                  <div className="absolute inset-0 xl:backdrop-blur-[0.4px] flex flex-row xl:flex-col items-center justify-between xl:justify-center z-20 px-3 rounded-2xl">
+                    <div className="flex xl:hidden items-center gap-1.5">
+                      <Lock className="w-3 h-3 text-white/70" />
+                      <span className="text-white/90 text-[9px] font-bold">Locked</span>
                     </div>
-                    <p className="text-white/90 text-sm font-bold">Locked</p>
-                    <p className="text-white/50 text-[11px] mt-1 text-center px-4 leading-relaxed">
-                      Unlock at<br />
-                      <span className="text-amber-300 font-semibold">${formatMoney(tier.unlockBalance)} Balance</span>
-                    </p>
+                    <span className="flex xl:hidden text-white/50 text-[8px]">${formatMoney(tier.unlockBalance)}</span>
+                    <div className="hidden xl:flex xl:flex-col xl:items-center xl:justify-center">
+                      <div className="bg-white/10 rounded-full p-1.5 sm:p-3 mb-1.5 sm:mb-2.5 border border-white/10">
+                        <Lock className="w-4 h-4 sm:w-6 sm:h-6 text-white/70" />
+                      </div>
+                      <p className="text-white/90 text-[11px] sm:text-sm font-bold">Locked</p>
+                      <p className="text-white/50 text-[10px] sm:text-[11px] mt-0.5 sm:mt-1 text-center px-2 sm:px-4 leading-relaxed">
+                        Unlock at<br />
+                        <span className="text-amber-300 font-semibold">${formatMoney(tier.unlockBalance)} Balance</span>
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

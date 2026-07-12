@@ -47,9 +47,9 @@ const icons = [
 
 export default function FloatingAppIcons() {
   return (
-    <section className="w-full overflow-hidden py-6">
+    <section className="w-full overflow-hidden shrink-0 py-2 md:py-3">
       <motion.div
-        className="flex gap-4 md:gap-6 will-change-transform"
+        className="flex gap-2 md:gap-3 will-change-transform"
         animate={{ x: [0, -1000] }}
         transition={{
           repeat: Infinity,
@@ -75,7 +75,7 @@ export default function FloatingAppIcons() {
             <img
               src={icon.src}
               alt={icon.alt}
-              className="w-20 h-20 md:w-12 md:h-12 rounded-xl object-contain bg-white shadow-sm p-1.5"
+              className="w-18 h-18 md:w-10 md:h-10 rounded-lg object-contain bg-white shadow-sm  p-3"
               loading="lazy"
               decoding="async"
             />

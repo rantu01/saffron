@@ -12,6 +12,8 @@ function Spinner({ size = 16 }) {
   );
 }
 
+const ITEMS_PER_PAGE = 20;
+
 export default function TaskManagementPage() {
   const [users, setUsers] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -20,6 +22,10 @@ export default function TaskManagementPage() {
   const [filterUserUid, setFilterUserUid] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [filterGroupId, setFilterGroupId] = useState("");
+  const [groupsPage, setGroupsPage] = useState(1);
+  const [groupTasksPage, setGroupTasksPage] = useState(1);
+  const [tasksPage, setTasksPage] = useState(1);
+  const [activeTab, setActiveTab] = useState("groups");
 
   const DEFAULT_RATING_OPTIONS = [
     "Peace of mind and security, very good app.",
@@ -527,516 +533,524 @@ export default function TaskManagementPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">Task Management</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Task Management</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {tasks.length} total tasks &middot; {taskGroups.length} groups &middot; {users.length} users
+          </p>
+        </div>
+      </div>
 
-      {/* ════════════════════════════════════════════════
-          SECTION 0: TASK GROUPS
-          ════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Task Groups</h2>
-
-        <form onSubmit={handleCreateGroup} className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          <input
-            type="text"
-            placeholder="Group Name"
-            value={groupForm.name}
-            onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-            required
-          />
-          <input
-            type="text"
-            placeholder="Description (optional)"
-            value={groupForm.description}
-            onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-          />
-          <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {creatingGroup && <Spinner />}
-            Create Group
+      {/* ── Tab Bar ── */}
+      <div className="flex gap-1 mb-6 bg-white rounded-xl border border-slate-200 p-1 shadow-sm overflow-x-auto">
+        {[
+          { id: "groups", label: "Task Groups", desc: `${taskGroups.length} groups` },
+          { id: "create", label: "New Task", desc: "Create a task" },
+          { id: "assign", label: "Assign Group", desc: "Link group to user" },
+          { id: "tasks", label: "All Tasks", desc: `${tasks.length} total` },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition flex-1 sm:flex-none ${
+              activeTab === t.id
+                ? "bg-[#E05305] text-white shadow"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            <span className="hidden sm:inline text-left">
+              <div className="font-medium leading-tight">{t.label}</div>
+              <div className={`text-[11px] ${activeTab === t.id ? "text-white/70" : "text-slate-400"}`}>{t.desc}</div>
+            </span>
+            <span className="sm:hidden text-xs">{t.label}</span>
           </button>
-        </form>
-
-        {taskGroups.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {taskGroups.map((g) => {
-              const used = g.taskCount || 0;
-              const available = 30 - used;
-              return (
-                <div key={g._id} className="border border-slate-200 rounded-lg p-3 text-sm">
-                  <p className="font-medium text-slate-900">{g.name}</p>
-                  {g.description && <p className="text-xs text-slate-400 mt-0.5">{g.description}</p>}
-                  <p className="text-xs mt-2">
-                    <span className="text-slate-500">{used}/30 tasks</span>
-                    <span className={`ml-2 font-medium ${available > 0 ? "text-emerald-600" : "text-red-500"}`}>
-                      ({available} slot{available !== 1 ? "s" : ""} available)
-                    </span>
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        ))}
       </div>
 
       {/* ════════════════════════════════════════════════
-          SECTION 1: CREATE NEW TASK
+          TAB: GROUPS
           ════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Create New Task</h2>
-        <form onSubmit={handleCreateTask} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            placeholder="App Name"
-            value={createForm.appName}
-            onChange={(e) => setCreateForm((p) => ({ ...p, appName: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-            required
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            min="0.01"
-            placeholder="Total Amount"
-            value={createForm.totalAmount}
-            onChange={(e) => setCreateForm((p) => ({ ...p, totalAmount: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
-            required
-          />
-
-          {/* Group Selection */}
-          <div className="md:col-span-2">
-            <label className="text-sm font-medium text-slate-700 block mb-1">Task Group</label>
-            <select
-              value={createForm.taskGroupId}
-              onChange={(e) => setCreateForm((p) => ({ ...p, taskGroupId: e.target.value }))}
-              className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white w-full"
-              required
-            >
-              <option value="">— Select a group —</option>
-              {availableGroups.map((g) => {
-                const used = g.taskCount || 0;
-                const slotAvail = 30 - used;
-                return (
-                  <option key={g._id} value={g._id}>
-                    {g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)
-                  </option>
-                );
-              })}
-            </select>
-            {availableGroups.length === 0 && (
-              <p className="text-xs text-red-500 mt-1">All groups are full. Create a new group first.</p>
-            )}
+      {activeTab === "groups" && (
+        <div>
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Create Task Group</h2>
+            </div>
+            <form onSubmit={handleCreateGroup} className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-xs font-medium text-slate-500 block mb-1">Group Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. App Store Optimization"
+                  value={groupForm.name}
+                  onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                  required
+                />
+              </div>
+              <div className="flex-1 min-w-[200px]">
+                <label className="text-xs font-medium text-slate-500 block mb-1">Description (optional)</label>
+                <input
+                  type="text"
+                  placeholder="Brief description of the group"
+                  value={groupForm.description}
+                  onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                />
+              </div>
+              <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-5 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
+                {creatingGroup && <Spinner />}
+                Create Group
+              </button>
+            </form>
           </div>
 
-          {/* Logo Upload */}
-          <div className="md:col-span-2">
-            <label className="text-sm font-medium text-slate-700 block mb-1">App Logo</label>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-                dragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"
-              }`}
-            >
-              {logoPreview ? (
-                <div className="flex flex-col items-center gap-2">
-                  <img src={logoPreview} alt="Logo preview" className="h-20 w-20 object-contain rounded-lg" />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeLogo(); }} className="text-xs text-red-500 hover:underline">Remove</button>
-                </div>
-              ) : (
-                <div className="text-slate-400">
-                  <svg className="mx-auto h-10 w-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <p className="text-sm">Drag & drop or click to upload</p>
-                  <p className="text-xs mt-1">PNG, JPG, WEBP (max 2MB)</p>
+          {taskGroups.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-slate-700">All Task Groups ({taskGroups.length})</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {taskGroups.slice((groupsPage - 1) * ITEMS_PER_PAGE, groupsPage * ITEMS_PER_PAGE).map((g) => {
+                  const used = g.taskCount || 0;
+                  const available = 30 - used;
+                  const pct = (used / 30) * 100;
+                  return (
+                    <div key={g._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <p className="font-semibold text-slate-900">{g.name}</p>
+                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${available > 0 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                          {available} left
+                        </span>
+                      </div>
+                      {g.description && <p className="text-xs text-slate-400 mb-3">{g.description}</p>}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div className="h-full bg-[#E05305] rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                        <span className="text-xs text-slate-500 font-medium">{used}/30</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {taskGroups.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between px-1 py-3 mt-3">
+                  <button onClick={() => setGroupsPage((p) => Math.max(1, p - 1))} disabled={groupsPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
+                  <span className="text-sm text-slate-500">Page {groupsPage} of {Math.ceil(taskGroups.length / ITEMS_PER_PAGE)}</span>
+                  <button onClick={() => setGroupsPage((p) => Math.min(Math.ceil(taskGroups.length / ITEMS_PER_PAGE), p + 1))} disabled={groupsPage >= Math.ceil(taskGroups.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
                 </div>
               )}
+            </div>
+          )}
+
+          {taskGroups.length === 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
+              <p className="text-sm font-medium">No task groups yet</p>
+              <p className="text-xs mt-1">Create your first group above to get started.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+          TAB: NEW TASK
+          ════════════════════════════════════════════════ */}
+      {activeTab === "create" && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-semibold">Create New Task</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Add a new task to a task group</p>
+            </div>
+          </div>
+          <form onSubmit={handleCreateTask} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">App Name</label>
               <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleLogoFile(e.target.files?.[0])}
+                type="text"
+                placeholder="e.g. My Shopping App"
+                value={createForm.appName}
+                onChange={(e) => setCreateForm((p) => ({ ...p, appName: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                required
               />
             </div>
-          </div>
 
-          {/* Auto Profit Display */}
-          <div className="md:col-span-2 bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-700">Calculated Profit (0.5%)</p>
-              <p className="text-xs text-slate-400">0.5% of total amount</p>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">Total Amount ($)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="e.g. 100.00"
+                value={createForm.totalAmount}
+                onChange={(e) => setCreateForm((p) => ({ ...p, totalAmount: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                required
+              />
             </div>
-            <span className="text-lg font-bold text-[#E05305]">${formatMoney(createdProfit)}</span>
-          </div>
 
-          <textarea
-            placeholder="Description (optional)"
-            value={createForm.description}
-            onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-            className="md:col-span-2 border border-slate-200 rounded-lg px-3 py-2.5 text-sm min-h-20"
-          />
+            <div className="md:col-span-2">
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">Task Group</label>
+              <select
+                value={createForm.taskGroupId}
+                onChange={(e) => setCreateForm((p) => ({ ...p, taskGroupId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                required
+              >
+                <option value="">— Select a group —</option>
+                {availableGroups.map((g) => {
+                  const used = g.taskCount || 0;
+                  const slotAvail = 30 - used;
+                  return (
+                    <option key={g._id} value={g._id}>
+                      {g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)
+                    </option>
+                  );
+                })}
+              </select>
+              {availableGroups.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">All groups are full. Create a new group first.</p>
+              )}
+            </div>
 
-          {/* ── Submission Requirements ── */}
-          <div className="md:col-span-2 border-t border-slate-100 pt-4">
-            <button
-              type="button"
-              onClick={() => setShowSubmissionConfig(!showSubmissionConfig)}
-              className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
-            >
-              <span className={`transition-transform ${showSubmissionConfig ? "rotate-90" : ""}`}>▸</span>
-              Submission Requirements
-            </button>
-
-            {showSubmissionConfig && (
-              <div className="mt-3 space-y-4 pl-4 border-l-2 border-slate-100">
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={createForm.submissionConfig.enabled}
-                    onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))}
-                    className="accent-[#E05305]"
-                  />
-                  Enable custom submission requirements for this task
-                </label>
-
-                {createForm.submissionConfig.enabled && (
-                  <>
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={createForm.submissionConfig.requireRating}
-                        onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))}
-                        className="accent-[#E05305]"
-                      />
-                      Require rating selection
-                    </label>
-
-                    {createForm.submissionConfig.requireRating && (
-                      <div className="space-y-2 pl-6">
-                        <p className="text-xs text-slate-400 font-medium">Rating options:</p>
-                        {createForm.submissionConfig.ratingOptions.map((opt, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <input
-                              value={opt}
-                              onChange={(e) => {
-                                const updated = [...createForm.submissionConfig.ratingOptions];
-                                updated[i] = e.target.value;
-                                setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } }));
-                              }}
-                              className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))}
-                              className="text-red-400 hover:text-red-600 text-xs"
-                            >✕</button>
-                          </div>
-                        ))}
-                        <div className="flex items-center gap-2">
-                          <input
-                            value={newRatingOption}
-                            onChange={(e) => setNewRatingOption(e.target.value)}
-                            placeholder="New option..."
-                            className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (newRatingOption.trim()) {
-                                setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, newRatingOption.trim()] } }));
-                                setNewRatingOption("");
-                              }
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-xs font-medium"
-                          >+ Add</button>
-                        </div>
-                      </div>
-                    )}
-
-                    <label className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={createForm.submissionConfig.requireFeedback}
-                        onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))}
-                        className="accent-[#E05305]"
-                      />
-                      Require feedback / comment
-                    </label>
-
-                    {createForm.submissionConfig.requireFeedback && (
-                      <div className="pl-6">
-                        <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={5000}
-                          value={createForm.submissionConfig.maxFeedbackLength}
-                          onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))}
-                          className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-32"
-                        />
-                      </div>
-                    )}
-                  </>
+            <div className="md:col-span-2">
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">App Logo</label>
+              <div
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                  dragOver ? "border-[#E05305] bg-orange-50" : "border-slate-300 hover:border-slate-400"
+                }`}
+              >
+                {logoPreview ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img src={logoPreview} alt="Logo preview" className="h-20 w-20 object-contain rounded-lg" />
+                    <button type="button" onClick={(e) => { e.stopPropagation(); removeLogo(); }} className="text-xs text-red-500 hover:underline">Remove</button>
+                  </div>
+                ) : (
+                  <div className="text-slate-400">
+                    <svg className="mx-auto h-10 w-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <p className="text-sm">Drag & drop or click to upload</p>
+                    <p className="text-xs mt-1">PNG, JPG, WEBP (max 2MB)</p>
+                  </div>
                 )}
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleLogoFile(e.target.files?.[0])} />
+              </div>
+            </div>
+
+            <div className="md:col-span-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-lg px-5 py-4 flex items-center justify-between border border-amber-200/60">
+              <div>
+                <p className="text-sm font-medium text-slate-700">Calculated Profit</p>
+                <p className="text-xs text-slate-400">0.5% of total amount</p>
+              </div>
+              <span className="text-xl font-bold text-[#E05305]">${formatMoney(createdProfit)}</span>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">Description (optional)</label>
+              <textarea
+                placeholder="Task description or instructions..."
+                value={createForm.description}
+                onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm min-h-24 resize-y"
+              />
+            </div>
+
+            <div className="md:col-span-2 border-t border-slate-100 pt-5">
+              <button
+                type="button"
+                onClick={() => setShowSubmissionConfig(!showSubmissionConfig)}
+                className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
+              >
+                <svg className={`w-4 h-4 transition-transform ${showSubmissionConfig ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                Submission Requirements
+              </button>
+
+              {showSubmissionConfig && (
+                <div className="mt-4 space-y-4 pl-5 border-l-2 border-slate-100">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={createForm.submissionConfig.enabled} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, enabled: e.target.checked } }))} className="accent-[#E05305]" />
+                    Enable custom submission requirements for this task
+                  </label>
+
+                  {createForm.submissionConfig.enabled && (
+                    <>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={createForm.submissionConfig.requireRating} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireRating: e.target.checked } }))} className="accent-[#E05305]" />
+                        Require rating selection
+                      </label>
+
+                      {createForm.submissionConfig.requireRating && (
+                        <div className="space-y-2 pl-6">
+                          <p className="text-xs text-slate-400 font-medium">Rating options:</p>
+                          {createForm.submissionConfig.ratingOptions.map((opt, i) => (
+                            <div key={i} className="flex items-center gap-2">
+                              <input value={opt} onChange={(e) => { const updated = [...createForm.submissionConfig.ratingOptions]; updated[i] = e.target.value; setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: updated } })); }} className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                              <button type="button" onClick={() => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: p.submissionConfig.ratingOptions.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2">
+                            <input value={newRatingOption} onChange={(e) => setNewRatingOption(e.target.value)} placeholder="New option..." className="flex-1 border border-slate-200 rounded px-2 py-1.5 text-xs" />
+                            <button type="button" onClick={() => { if (newRatingOption.trim()) { setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, ratingOptions: [...p.submissionConfig.ratingOptions, newRatingOption.trim()] } })); setNewRatingOption(""); } }} className="text-blue-600 hover:text-blue-800 text-xs font-medium">+ Add</button>
+                          </div>
+                        </div>
+                      )}
+
+                      <label className="flex items-center gap-2 text-sm">
+                        <input type="checkbox" checked={createForm.submissionConfig.requireFeedback} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, requireFeedback: e.target.checked } }))} className="accent-[#E05305]" />
+                        Require feedback / comment
+                      </label>
+
+                      {createForm.submissionConfig.requireFeedback && (
+                        <div className="pl-6">
+                          <label className="text-xs text-slate-500 block mb-1">Max feedback length</label>
+                          <input type="number" min={1} max={5000} value={createForm.submissionConfig.maxFeedbackLength} onChange={(e) => setCreateForm((p) => ({ ...p, submissionConfig: { ...p.submissionConfig, maxFeedbackLength: Number(e.target.value) } }))} className="border border-slate-200 rounded-lg px-3 py-2 text-sm w-32" />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button type="submit" disabled={creatingTask} className="md:col-span-2 bg-[#E05305] text-white rounded-lg px-4 py-3 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              {creatingTask && <Spinner />}
+              Create Task
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+          TAB: ASSIGN GROUP
+          ════════════════════════════════════════════════ */}
+      {activeTab === "assign" && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold">Assign Task Group to User</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Link a task group to a user so they receive tasks from it</p>
+          </div>
+          <form onSubmit={handleGroupAssign} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">Select Task Group</label>
+              <select
+                value={groupAssign.groupId}
+                onChange={(e) => setGroupAssign((p) => ({ ...p, groupId: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                required
+              >
+                <option value="">Choose a group...</option>
+                {taskGroups.map((g) => (
+                  <option key={g._id} value={g._id}>
+                    {g.name} ({g.taskCount || 0} tasks)
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">Select User</label>
+              <select
+                value={groupAssign.assigneeUid}
+                onChange={(e) => setGroupAssign((p) => ({ ...p, assigneeUid: e.target.value }))}
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
+                required
+              >
+                <option value="">Choose a user...</option>
+                {users.map((u) => (
+                  <option key={u.uid} value={u.uid}>{u.email}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button type="submit" disabled={assigningGroup} className="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                {assigningGroup && <Spinner />}
+                Assign Group
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════
+          TAB: ALL TASKS
+          ════════════════════════════════════════════════ */}
+      {activeTab === "tasks" && (
+        <div className="space-y-6">
+          {/* ── Group Task List ── */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[200px]">
+                  <label className="text-xs font-medium text-slate-500 block mb-1">View tasks by group</label>
+                  <select
+                    value={selectedGroupTaskId}
+                    onChange={(e) => { setSelectedGroupTaskId(e.target.value); setGroupTasksPage(1); }}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
+                  >
+                    <option value="">All groups</option>
+                    {taskGroups.map((g) => (
+                      <option key={g._id} value={g._id}>
+                        {g.name} ({g.taskCount || 0} tasks)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedGroupTaskId && (
+                  <span className="text-xs text-slate-400 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                    {groupTaskList.length} task{groupTaskList.length !== 1 ? "s" : ""} in this group
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {!selectedGroupTaskId ? (
+              <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                <svg className="h-10 w-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                <p className="text-sm font-medium">Select a group to view its tasks</p>
+                <p className="text-xs mt-1">Choose a group from the dropdown above.</p>
+              </div>
+            ) : groupTaskList.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                      <th className="py-3 px-4">App Name</th>
+                      <th className="py-3 px-4">Logo</th>
+                      <th className="py-3 px-4">Total Amount</th>
+                      <th className="py-3 px-4">Profit</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {groupTaskList.slice((groupTasksPage - 1) * ITEMS_PER_PAGE, groupTasksPage * ITEMS_PER_PAGE).map((task) => (
+                      <tr key={task._id} className="hover:bg-slate-50/40">
+                        <td className="py-3 px-4 font-medium text-slate-900">{task.appName || task.title || "—"}</td>
+                        <td className="py-3 px-4">{task.appLogo ? <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" /> : <span className="text-slate-300">—</span>}</td>
+                        <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
+                        <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${task.status === "completed" ? "bg-emerald-50 text-emerald-700" : task.status === "cancelled" ? "bg-red-50 text-red-700" : task.status === "available" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{task.status}</span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-400">{new Date(task.createdAt).toLocaleDateString()}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => openEditModal(task)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                            <button onClick={() => handleDeleteTask(task)} disabled={deletingTaskId === task._id} className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1">{deletingTaskId === task._id ? <Spinner size={12} /> : null}Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="p-6 text-center text-slate-500">No tasks in this group.</p>
+            )}
+
+            {groupTaskList.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+                <button onClick={() => setGroupTasksPage((p) => Math.max(1, p - 1))} disabled={groupTasksPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
+                <span className="text-sm text-slate-500">Page {groupTasksPage} of {Math.ceil(groupTaskList.length / ITEMS_PER_PAGE)}</span>
+                <button onClick={() => setGroupTasksPage((p) => Math.min(Math.ceil(groupTaskList.length / ITEMS_PER_PAGE), p + 1))} disabled={groupTasksPage >= Math.ceil(groupTaskList.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
               </div>
             )}
           </div>
 
-          <button type="submit" disabled={creatingTask} className="md:col-span-2 bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {creatingTask && <Spinner />}
-            Create Task
-          </button>
-        </form>
-      </div>
+          {/* ── All Tasks with Filters ── */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">Filter Tasks</h3>
+              <div className="flex flex-wrap items-center gap-3">
+                <select value={filterGroupId} onChange={(e) => { setFilterGroupId(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[140px]">
+                  <option value="">All groups</option>
+                  {taskGroups.map((g) => (<option key={g._id} value={g._id}>{g.name}</option>))}
+                </select>
+                <select value={filterUserUid} onChange={(e) => { setFilterUserUid(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[160px]">
+                  <option value="">All users</option>
+                  {users.map((user) => (<option key={user.uid} value={user.uid}>{user.email}</option>))}
+                </select>
+                <select value={filterType} onChange={(e) => { setFilterType(e.target.value); setTasksPage(1); }} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white min-w-[120px]">
+                  <option value="all">All types</option>
+                  <option value="template">Templates</option>
+                  <option value="assigned">Assigned</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                </select>
+                <span className="text-xs text-slate-400 ml-auto">{filteredTasks.length} task{(filteredTasks.length !== 1) && "s"}</span>
+              </div>
+            </div>
 
-      {/* ════════════════════════════════════════════════
-          SECTION 2: ASSIGN GROUP TO USER
-          ════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Assign Task Group to User</h2>
-        <form onSubmit={handleGroupAssign} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <select
-            value={groupAssign.groupId}
-            onChange={(e) => setGroupAssign((p) => ({ ...p, groupId: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
-            required
-          >
-            <option value="">Select a group</option>
-            {taskGroups.map((g) => (
-              <option key={g._id} value={g._id}>
-                {g.name} ({g.taskCount || 0} tasks)
-              </option>
-            ))}
-          </select>
+            {!filterUserUid ? (
+              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                <svg className="h-12 w-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                <p className="text-sm font-medium">Select a user to view tasks</p>
+                <p className="text-xs mt-1">Choose a user from the filter above to see their tasks.</p>
+              </div>
+            ) : filteredTasks.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                      <th className="py-3 px-4">App Name</th>
+                      <th className="py-3 px-4">Group</th>
+                      <th className="py-3 px-4">Logo</th>
+                      <th className="py-3 px-4">User</th>
+                      <th className="py-3 px-4">Total Amount</th>
+                      <th className="py-3 px-4">Profit</th>
+                      <th className="py-3 px-4">Type</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Date</th>
+                      <th className="py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {filteredTasks.slice((tasksPage - 1) * ITEMS_PER_PAGE, tasksPage * ITEMS_PER_PAGE).map((task) => (
+                      <tr key={task._id} className="hover:bg-slate-50/40">
+                        <td className="py-3 px-4 font-medium text-slate-900 max-w-xs truncate">{task.appName || task.title || "—"}</td>
+                        <td className="py-3 px-4 text-xs text-slate-500">{(() => { const gid = task.taskGroupId || task.parentTaskGroupId; const g = taskGroups.find((gr) => gr._id === gid); return g ? g.name : "—"; })()}</td>
+                        <td className="py-3 px-4">{task.appLogo ? <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" /> : <span className="text-slate-300">—</span>}</td>
+                        <td className="py-3 px-4 text-slate-600 text-xs">{task.assigneeEmail || (task.isTemplate ? <span className="text-slate-400 italic">Template</span> : task.assigneeUid?.slice(0, 12))}</td>
+                        <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
+                        <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
+                        <td className="py-3 px-4">{task.isTemplate ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">Template</span> : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700">Assigned</span>}</td>
+                        <td className="py-3 px-4">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${task.status === "completed" ? "bg-emerald-50 text-emerald-700" : task.status === "cancelled" ? "bg-red-50 text-red-700" : task.status === "available" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"}`}>{task.status}</span>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-slate-400">{new Date(task.createdAt).toLocaleDateString()}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => openEditModal(task)} className="text-xs text-blue-600 hover:text-blue-800 font-medium">Edit</button>
+                            <button onClick={() => handleDeleteTask(task)} disabled={deletingTaskId === task._id} className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1">{deletingTaskId === task._id ? <Spinner size={12} /> : null}Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="p-6 text-center text-slate-500">No tasks match the selected filters.</p>
+            )}
 
-          <select
-            value={groupAssign.assigneeUid}
-            onChange={(e) => setGroupAssign((p) => ({ ...p, assigneeUid: e.target.value }))}
-            className="border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white"
-            required
-          >
-            <option value="">Select target user</option>
-            {users.map((u) => (
-              <option key={u.uid} value={u.uid}>{u.email}</option>
-            ))}
-          </select>
-
-          <button type="submit" disabled={assigningGroup} className="bg-blue-600 text-white rounded-lg px-4 py-2.5 font-medium hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
-            {assigningGroup && <Spinner />}
-            Assign Group
-          </button>
-        </form>
-      </div>
-
-      {/* ════════════════════════════════════════════════
-          SECTION 3: GROUP TASK LIST
-          ════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
-        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-          <select
-            value={selectedGroupTaskId}
-            onChange={(e) => setSelectedGroupTaskId(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white"
-          >
-            <option value="">Select a group to view tasks</option>
-            {taskGroups.map((g) => (
-              <option key={g._id} value={g._id}>
-                {g.name} ({g.taskCount || 0} tasks)
-              </option>
-            ))}
-          </select>
-          {selectedGroupTaskId && (
-            <span className="text-xs text-slate-400">{groupTaskList.length} task{groupTaskList.length !== 1 ? "s" : ""} in this group</span>
-          )}
+            {filteredTasks.length > ITEMS_PER_PAGE && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50">
+                <button onClick={() => setTasksPage((p) => Math.max(1, p - 1))} disabled={tasksPage <= 1} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Previous</button>
+                <span className="text-sm text-slate-500">Page {tasksPage} of {Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)}</span>
+                <button onClick={() => setTasksPage((p) => Math.min(Math.ceil(filteredTasks.length / ITEMS_PER_PAGE), p + 1))} disabled={tasksPage >= Math.ceil(filteredTasks.length / ITEMS_PER_PAGE)} className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50">Next</button>
+              </div>
+            )}
+          </div>
         </div>
-
-        {!selectedGroupTaskId ? (
-          <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-            <svg className="h-10 w-10 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-            <p className="text-sm font-medium">Select a group to view its tasks</p>
-          </div>
-        ) : groupTaskList.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                  <th className="py-3 px-4">App Name</th>
-                  <th className="py-3 px-4">Logo</th>
-                  <th className="py-3 px-4">Total Amount</th>
-                  <th className="py-3 px-4">Profit</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {groupTaskList.map((task) => (
-                  <tr key={task._id} className="hover:bg-slate-50/40">
-                    <td className="py-3 px-4 font-medium text-slate-900">{task.appName || task.title || "—"}</td>
-                    <td className="py-3 px-4">
-                      {task.appLogo ? (
-                        <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" />
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
-                    <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        task.status === "completed" ? "bg-emerald-50 text-emerald-700" :
-                        task.status === "cancelled" ? "bg-red-50 text-red-700" :
-                        task.status === "available" ? "bg-blue-50 text-blue-700" :
-                        "bg-amber-50 text-amber-700"
-                      }`}>
-                        {task.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-xs text-slate-400">{new Date(task.createdAt).toLocaleDateString()}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditModal(task)}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task)}
-                          disabled={deletingTaskId === task._id}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-                        >
-                          {deletingTaskId === task._id ? <Spinner size={12} /> : null}
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="p-6 text-center text-slate-500">No tasks in this group.</p>
-        )}
-      </div>
-
-      {/* ════════════════════════════════════════════════
-          SECTION 4: TASKS TABLE
-          ════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-          <select value={filterGroupId} onChange={(e) => setFilterGroupId(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="">All groups</option>
-            {taskGroups.map((g) => (<option key={g._id} value={g._id}>{g.name}</option>))}
-          </select>
-          <select value={filterUserUid} onChange={(e) => setFilterUserUid(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="">All users</option>
-            {users.map((user) => (<option key={user.uid} value={user.uid}>{user.email}</option>))}
-          </select>
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
-            <option value="all">All</option>
-            <option value="template">Templates</option>
-            <option value="assigned">Assigned</option>
-            <option value="pending">Pending</option>
-            <option value="completed">Completed</option>
-          </select>
-          <span className="text-xs text-slate-400 ml-auto">{filteredTasks.length} task{(filteredTasks.length !== 1) && "s"}</span>
-        </div>
-
-        {!filterUserUid ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-            <svg className="h-12 w-12 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-            <p className="text-sm font-medium">Select a user to view tasks</p>
-            <p className="text-xs mt-1">Choose a user from the filter above to see their tasks.</p>
-          </div>
-        ) : filteredTasks.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-400 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
-                  <th className="py-3 px-4">App Name</th>
-                  <th className="py-3 px-4">Group</th>
-                  <th className="py-3 px-4">Logo</th>
-                  <th className="py-3 px-4">User</th>
-                  <th className="py-3 px-4">Total Amount</th>
-                  <th className="py-3 px-4">Profit</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {filteredTasks.map((task) => (
-                  <tr key={task._id} className="hover:bg-slate-50/40">
-                    <td className="py-3 px-4 font-medium text-slate-900 max-w-xs truncate">{task.appName || task.title || "—"}</td>
-                    <td className="py-3 px-4 text-xs text-slate-500">
-                      {(() => {
-                        const gid = task.taskGroupId || task.parentTaskGroupId;
-                        const g = taskGroups.find((gr) => gr._id === gid);
-                        return g ? g.name : "—";
-                      })()}
-                    </td>
-                    <td className="py-3 px-4">
-                      {task.appLogo ? (
-                        <img src={task.appLogo} alt="" className="h-8 w-8 object-contain rounded" />
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-slate-600 text-xs">{task.assigneeEmail || (task.isTemplate ? <span className="text-slate-400 italic">Template</span> : task.assigneeUid?.slice(0, 12))}</td>
-                    <td className="py-3 px-4">${formatMoney(task.totalAmount)}</td>
-                    <td className="py-3 px-4 text-emerald-600 font-medium">${formatMoney(task.profit)}</td>
-                    <td className="py-3 px-4">
-                      {task.isTemplate ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">Template</span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700">Assigned</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        task.status === "completed" ? "bg-emerald-50 text-emerald-700" :
-                        task.status === "cancelled" ? "bg-red-50 text-red-700" :
-                        task.status === "available" ? "bg-blue-50 text-blue-700" :
-                        "bg-amber-50 text-amber-700"
-                      }`}>
-                        {task.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-xs text-slate-400">{new Date(task.createdAt).toLocaleDateString()}</td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openEditModal(task)}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTask(task)}
-                          disabled={deletingTaskId === task._id}
-                          className="text-xs text-red-500 hover:text-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1"
-                        >
-                          {deletingTaskId === task._id ? <Spinner size={12} /> : null}
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="p-6 text-center text-slate-500">No tasks match the selected filters.</p>
-        )}
-      </div>
+      )}
 
       {/* ════════════════════════════════════════════════
           EDIT TASK MODAL

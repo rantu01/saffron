@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
-import { getComboConfig, shouldGenerateComboTask, createComboTask, getComboPosition, generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
+import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -84,15 +84,26 @@ export async function POST(request) {
     }
 
     const comboConfig = await getComboConfig();
-    const hasComboTask = shouldGenerateComboTask(comboConfig);
+    let hasComboTask = false;
     let comboTaskId = null;
     let comboPosition = null;
 
-    if (hasComboTask) {
-      const comboResult = await createComboTask(uid, nextSetNumber, comboConfig, userBalance);
+    const isFirstComboEligible = await isEligibleForFirstCombo(user, comboConfig);
+    const isSecondComboEligible = await isEligibleForSecondCombo(user);
+
+    if (isFirstComboEligible) {
+      const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, 1);
       if (comboResult) {
         comboTaskId = String(comboResult._id);
         comboPosition = comboResult.position;
+        hasComboTask = true;
+      }
+    } else if (isSecondComboEligible) {
+      const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, 2);
+      if (comboResult) {
+        comboTaskId = String(comboResult._id);
+        comboPosition = comboResult.position;
+        hasComboTask = true;
       }
     }
 

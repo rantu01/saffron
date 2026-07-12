@@ -370,19 +370,19 @@ export default function UserTasksPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-10 space-y-6 animate-pulse">
-        <div className="h-7 w-32 bg-slate-200 rounded mb-2" />
-        <div className="h-4 w-48 bg-slate-200 rounded" />
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 flex flex-col items-center">
-          <div className="h-24 w-24 bg-slate-200 rounded-full mb-4" />
-          <div className="h-10 w-32 bg-slate-200 rounded-lg mb-3" />
-          <div className="h-4 w-48 bg-slate-200 rounded" />
-          <div className="h-12 w-40 bg-slate-200 rounded-lg mt-6" />
+      <div className="h-full flex items-center justify-center animate-pulse">
+        <div className="w-full max-w-sm space-y-4">
+          <div className="h-6 w-24 bg-slate-200 rounded mx-auto" />
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col items-center">
+            <div className="h-20 w-20 bg-slate-200 rounded-full mb-3" />
+            <div className="h-8 w-24 bg-slate-200 rounded-lg mb-2" />
+            <div className="h-10 w-32 bg-slate-200 rounded-lg mt-4" />
+          </div>
         </div>
       </div>
     );
   }
-  if (!user) return <div className="max-w-2xl mx-auto px-4 py-10">Please login to view tasks.</div>;
+  if (!user) return <div className="h-full flex items-center justify-center text-slate-500">Please login to view tasks.</div>;
 
   const nextTask = getNextPendingTask();
 
@@ -403,190 +403,195 @@ export default function UserTasksPage() {
   const taskStartAmount = nextTask?.totalAmount || 0;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-10 space-y-6">
-      <ScreenshotCarousel />
-      <FloatingAppIcons />
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">My Tasks</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Complete tasks one at a time</p>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden">
 
-      {/* Progress Card */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 flex flex-col items-center">
-        {/* Progress Circle */}
-        <div className="relative h-28 w-28 mb-4">
-          <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="8" />
-            <circle
-              cx="60"
-              cy="60"
-              r="52"
-              fill="none"
-              stroke={isAllComplete ? "#10b981" : "#E05305"}
-              strokeWidth="8"
-              strokeLinecap="round"
-              strokeDasharray={`${(completedCount / totalTasks) * 327} 327`}
-              className="transition-all duration-500"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-3xl font-bold text-slate-900">
-              {completedCount}
-              <span className="text-lg text-slate-400">/{totalTasks}</span>
-            </span>
-          </div>
+
+      {/* Main Content - fills remaining space, scrollable internally if needed */}
+      <div className="flex-1 flex flex-col gap-2 overflow-hidden min-h-0 px-1">
+        {/* Screenshot Carousel */}
+        <div className="shrink-0">
+          <ScreenshotCarousel />
+        </div>
+        {/* Compact Floating Icons */}
+        <div className="shrink-0">
+          <FloatingAppIcons />
         </div>
 
-          {noGroupsAvailable ? (
-          <div className="text-center">
-            <div className="text-5xl mb-3">📋</div>
-            <p className="text-lg font-bold text-slate-900 mb-1">No tasks available now</p>
-            <p className="text-sm text-slate-500">Please try again later.</p>
-          </div>
-        ) : isAllComplete ? (
-          <div className="text-center">
-            <p className="text-lg font-bold text-emerald-600 mb-1">{totalTasks}/{totalTasks} Completed</p>
-            <p className="text-sm text-slate-500">{isAutoAssigning ? "Loading next group..." : "Congratulations! You have completed all tasks in this set."}</p>
-          </div>
-        ) : (
-          <div className="text-center">
-            <p className="text-lg font-bold text-slate-900">
-              {completedCount} of {totalTasks} Completed
-            </p>
-            <p className="text-sm text-slate-500 mt-1">
-              {nextTask
-                ? nextTask.isComboTask ? `Next: Combined Task` : `Next: ${nextTask.appName}`
-                : isAutoAssigning
-                  ? "Loading tasks..."
-                  : "No pending tasks available"}
-            </p>
-            {nextTask && !nextTask.isComboTask && Number(taskStartAmount) > 0 && (
-              <p className="text-xs text-slate-400 mt-0.5">
-                Required balance: ${formatMoney(taskStartAmount)}
-              </p>
-            )}
-            {nextTask && nextTask.isComboTask && activeCombo && (
-              <>
-                <p className="text-xs text-amber-500 mt-0.5 font-medium">
-                  Combined Task - Multiple Orders
+        {/* Title */}
+        <div className="shrink-0">
+          <h1 className="text-lg font-bold ">My Tasks</h1>
+          <p className="text-[10px] ">Complete tasks one at a time</p>
+        </div>
+
+        {/* Progress + VIP side by side on desktop, stacked on mobile */}
+        <div className="flex-1 flex flex-col xl:flex-row gap-2 min-h-0 overflow-hidden">
+          {/* Progress Card */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col items-center justify-center shrink-0 xl:w-1/2">
+            <div className="relative h-20 w-20 mb-2">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                <circle
+                  cx="60"
+                  cy="60"
+                  r="52"
+                  fill="none"
+                  stroke={isAllComplete ? "#10b981" : "#E05305"}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(completedCount / totalTasks) * 327} 327`}
+                  className="transition-all duration-500"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xl font-bold text-slate-900">
+                  {completedCount}
+                  <span className="text-sm text-slate-400">/{totalTasks}</span>
+                </span>
+              </div>
+            </div>
+
+            {noGroupsAvailable ? (
+              <div className="text-center">
+                <p className="text-sm font-bold text-slate-900">No tasks available now</p>
+                <p className="text-[10px] text-slate-500">Please try again later.</p>
+              </div>
+            ) : isAllComplete ? (
+              <div className="text-center">
+                <p className="text-sm font-bold text-emerald-600">{totalTasks}/{totalTasks} Completed</p>
+                <p className="text-[10px] text-slate-500">{isAutoAssigning ? "Loading next group..." : "All tasks completed in this set."}</p>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-sm font-bold text-slate-900">
+                  {completedCount} of {totalTasks} Completed
                 </p>
-                <div className="flex justify-center gap-4 mt-2 text-xs">
-                  <span className="text-slate-500">
-                    Total Balance: <span className="font-semibold text-slate-700">${formatMoney(userBalance + frozenBalance)}</span>
-                  </span>
-                  <span className="text-slate-500">
-                    Total Required: <span className="font-semibold text-slate-700">${formatMoney(activeCombo.totalRequiredAmount)}</span>
-                  </span>
-                </div>
-                {(userBalance + frozenBalance) < activeCombo.totalRequiredAmount && (
-                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                    <p className="text-amber-800 font-semibold text-sm">Insufficient Balance</p>
-                    <p className="text-amber-600 text-xs mt-0.5">
-                      Deposit additional ${formatMoney(activeCombo.totalRequiredAmount - (userBalance + frozenBalance))} to continue with this Combined Task.
-                    </p>
-                  </div>
-                )}
-                {frozenBalance > 0 && (
-                  <p className="text-[10px] text-amber-500 mt-1">
-                    Balance frozen for Combined Task
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  {nextTask
+                    ? nextTask.isComboTask ? `Next: Combined Task` : `Next: ${nextTask.appName}`
+                    : isAutoAssigning
+                      ? "Loading tasks..."
+                      : "No pending tasks available"}
+                </p>
+                {nextTask && !nextTask.isComboTask && Number(taskStartAmount) > 0 && (
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Required: ${formatMoney(taskStartAmount)}
                   </p>
                 )}
-              </>
+                {nextTask && nextTask.isComboTask && activeCombo && (
+                  <>
+                    <p className="text-[10px] text-amber-500 font-medium">Combined Task - Multiple Orders</p>
+                    <div className="flex justify-center gap-3 mt-1 text-[10px]">
+                      <span className="text-slate-500">
+                        Balance: <span className="font-semibold text-slate-700">${formatMoney(userBalance + frozenBalance)}</span>
+                      </span>
+                      <span className="text-slate-500">
+                        Required: <span className="font-semibold text-slate-700">${formatMoney(activeCombo.totalRequiredAmount)}</span>
+                      </span>
+                    </div>
+                    {(userBalance + frozenBalance) < activeCombo.totalRequiredAmount && (
+                      <div className="mt-1 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                        <p className="text-amber-800 font-semibold text-[10px]">Insufficient Balance</p>
+                        <p className="text-amber-600 text-[9px] mt-0.5">
+                          Deposit ${formatMoney(activeCombo.totalRequiredAmount - (userBalance + frozenBalance))} more.
+                        </p>
+                      </div>
+                    )}
+                    {frozenBalance > 0 && (
+                      <p className="text-[9px] text-amber-500 mt-0.5">Balance frozen for Combined Task</p>
+                    )}
+                  </>
+                )}
+                {!nextTask && !isAutoAssigning && !noGroupsAvailable && (
+                  <button
+                    onClick={async () => { await tryAutoAssign(); await loadData(); }}
+                    className="mt-1 text-[10px] text-blue-600 hover:underline"
+                  >
+                    Check for new tasks
+                  </button>
+                )}
+              </div>
             )}
-            {!nextTask && !isAutoAssigning && !noGroupsAvailable && (
-              <button
-                onClick={async () => {
-                  await tryAutoAssign();
-                  await loadData();
-                }}
-                className="mt-3 text-sm text-blue-600 hover:underline"
-              >
-                Check for new tasks
-              </button>
+
+            {!isAllComplete && nextTask && !noGroupsAvailable && (
+              nextTask.isComboTask && activeCombo && (userBalance + frozenBalance) < activeCombo.totalRequiredAmount ? (
+                <button
+                  onClick={() => window.location.href = "/user-dashboard/deposits"}
+                  className="mt-2 bg-amber-500 text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-amber-600 transition shadow"
+                >
+                  Deposit to Continue
+                </button>
+              ) : (
+                <button
+                  onClick={handleStartTask}
+                  className="mt-2 bg-[#E05305] text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                >
+                  Start
+                </button>
+              )
             )}
           </div>
-        )}
 
-        {!isAllComplete && nextTask && !noGroupsAvailable && (
-          nextTask.isComboTask && activeCombo && (userBalance + frozenBalance) < activeCombo.totalRequiredAmount ? (
-            <button
-              onClick={() => window.location.href = "/user-dashboard/deposits"}
-              className="mt-6 bg-amber-500 text-white rounded-xl px-10 py-3 font-semibold hover:bg-amber-600 transition shadow-lg shadow-amber-200"
-            >
-              Deposit to Continue
-            </button>
-          ) : (
-            <button
-              onClick={handleStartTask}
-              className="mt-6 bg-[#E05305] text-white rounded-xl px-10 py-3 font-semibold hover:bg-[#c84a04] transition shadow-lg shadow-orange-200"
-            >
-              Start
-            </button>
-          )
-        )}
-      </div>
+          {/* VIP Status Card */}
+          <div className={`bg-gradient-to-r ${currentTier.gradient} rounded-xl border border-white/10 shadow-sm p-3 relative overflow-hidden xl:w-1/2 flex flex-col justify-center`}>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent_70%)] pointer-events-none" />
+            <div className="relative z-10">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Crown className="w-3 h-3 text-white/80" />
+                <span className="text-white/80 font-bold text-[10px] uppercase tracking-widest">VIP Membership</span>
+              </div>
 
-      {/* VIP Status Card */}
-      <div className={`bg-gradient-to-r ${currentTier.gradient} rounded-2xl border border-white/10 shadow-sm p-6 relative overflow-hidden`}>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent_70%)] pointer-events-none" />
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-3">
-            <Crown className="w-4 h-4 text-white/80" />
-            <span className="text-white/80 font-bold text-xs uppercase tracking-widest">VIP Membership</span>
-          </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-base font-bold text-white">{currentTier.name}</span>
+                  <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${currentTier.badgeBg} text-white`}>
+                    <Trophy className="w-2.5 h-2.5" />
+                    {currentTier.label}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[8px] text-white/60 uppercase tracking-wider">Balance</p>
+                  <p className="text-sm font-bold text-white">${formatMoney(userBalance)}</p>
+                  {frozenBalance > 0 && (
+                    <p className="text-[8px] text-amber-300 mt-0.5">Frozen: ${formatMoney(frozenBalance)}</p>
+                  )}
+                </div>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-white">{currentTier.name}</span>
-              <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${currentTier.badgeBg} text-white`}>
-                <Trophy className="w-3 h-3" />
-                {currentTier.label}
-              </span>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px] text-white/60 uppercase tracking-wider">Balance</p>
-              <p className="text-lg font-bold text-white">${formatMoney(userBalance)}</p>
-              {frozenBalance > 0 && (
-                <p className="text-[10px] text-amber-300 mt-0.5">
-                  Frozen: ${formatMoney(frozenBalance)}
+              {nextTier ? (
+                <div className="mt-2">
+                  <div className="flex justify-between text-[10px] text-white/70 mb-0.5">
+                    <span className="flex items-center gap-0.5">
+                      <Star className="w-2.5 h-2.5 text-yellow-300" />
+                      {currentTier.name}
+                    </span>
+                    <span className="flex items-center gap-0.5">
+                      {nextTier.name}
+                      <Crown className="w-2.5 h-2.5 text-yellow-300" />
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-200 transition-all duration-500"
+                      style={{ width: `${vipProgressPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[9px] text-white/50 mt-0.5">
+                    <span>${formatMoney(currentTier.unlockBalance)}</span>
+                    <span>${formatMoney(nextTier.unlockBalance)}</span>
+                  </div>
+                  <p className="text-[10px] text-white/70 mt-1">
+                    Next: <span className="text-yellow-300 font-semibold">{nextTier.name}</span> at <span className="text-white font-semibold">${formatMoney(nextTier.unlockBalance)}</span>
+                    &nbsp;·&nbsp;Profit: <span className="text-white font-semibold">{currentTier.dailyProfit}%</span>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-[10px] text-white/80 mt-1">
+                  <Trophy className="w-3 h-3 text-yellow-300 inline mr-0.5" />
+                  Max VIP level! Enjoy {currentTier.dailyProfit}% daily profit.
                 </p>
               )}
             </div>
           </div>
-
-          {nextTier ? (
-            <div className="mt-4">
-              <div className="flex justify-between text-xs text-white/70 mb-1">
-                <span className="flex items-center gap-1">
-                  <Star className="w-3 h-3 text-yellow-300" />
-                  {currentTier.name}
-                </span>
-                <span className="flex items-center gap-1">
-                  {nextTier.name}
-                  <Crown className="w-3 h-3 text-yellow-300" />
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-black/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-yellow-400 via-amber-300 to-yellow-200 transition-all duration-500"
-                  style={{ width: `${vipProgressPercent}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-[11px] text-white/50 mt-1">
-                <span>${formatMoney(currentTier.unlockBalance)}</span>
-                <span>${formatMoney(nextTier.unlockBalance)}</span>
-              </div>
-              <p className="text-xs text-white/70 mt-2">
-                Next unlock: <span className="text-yellow-300 font-semibold">{nextTier.name}</span> at <span className="text-white font-semibold">${formatMoney(nextTier.unlockBalance)}</span>
-                &nbsp;·&nbsp;Daily profit: <span className="text-white font-semibold">{currentTier.dailyProfit}%</span>
-              </p>
-            </div>
-          ) : (
-            <p className="text-xs text-white/80 mt-3">
-              <Trophy className="w-3.5 h-3.5 text-yellow-300 inline mr-1" />
-              Maximum VIP level reached! Enjoy {currentTier.dailyProfit}% daily profit.
-            </p>
-          )}
         </div>
       </div>
 
@@ -611,64 +616,63 @@ export default function UserTasksPage() {
 
       {/* Task Submission Modal */}
       {isModalOpen && selectedTask && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-[380px] shadow-2xl relative overflow-hidden flex flex-col font-sans text-[#333]">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
+          <div className="bg-white rounded-2xl w-full max-w-[380px] shadow-2xl relative overflow-hidden flex flex-col font-sans text-[#333] max-h-[90dvh]">
             <button
               onClick={handleCloseModal}
-              className="absolute top-3 right-4 text-slate-400 hover:text-slate-600 text-lg font-bold"
+              className="absolute top-2 right-3 text-slate-400 hover:text-slate-600 text-base font-bold z-10"
             >
               ✕
             </button>
 
-            <div className="p-5 pb-3 text-center border-b border-slate-100">
-              <h2 className="text-[#E05305] text-lg font-bold">{selectedTask.appName || "Task Submission"}</h2>
+            <div className="p-3 pb-2 text-center border-b border-slate-100 shrink-0">
+              <h2 className="text-[#E05305] text-sm font-bold">{selectedTask.appName || "Task Submission"}</h2>
 
-              <div className="my-3 flex justify-center">
+              <div className="my-2 flex justify-center">
                 {selectedTask.appLogo ? (
-                  <img src={selectedTask.appLogo} alt="" className="h-16 w-16 object-contain rounded-xl" />
+                  <img src={selectedTask.appLogo} alt="" className="h-12 w-12 object-contain rounded-lg" />
                 ) : (
-                  <div className="w-16 h-16 bg-[#E05305] rounded-xl flex items-center justify-center text-white font-black text-xs p-1">
+                  <div className="w-12 h-12 bg-[#E05305] rounded-lg flex items-center justify-center text-white font-black text-[10px] p-1">
                     <span className="tracking-tighter text-center uppercase leading-none">{(selectedTask.appName || "Task").slice(0, 2)}</span>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-slate-400 font-semibold tracking-wide">{selectedTask.appName || "Task"}</p>
 
-              <div className="grid grid-cols-2 gap-2 mt-4 text-center">
+              <div className="grid grid-cols-2 gap-1 mt-2 text-center">
                 <div>
-                  <span className="text-[11px] text-slate-400 block font-medium">Total amount</span>
-                  <span className="text-[#E05305] text-sm font-bold">
+                  <span className="text-[9px] text-slate-400 block font-medium">Total amount</span>
+                  <span className="text-[#E05305] text-xs font-bold">
                     USDC/T {formatMoney(selectedTask.totalAmount || selectedTask.requiredBalance || 0)}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[11px] text-slate-400 block font-medium">Profit</span>
-                  <span className="text-[#E05305] text-sm font-bold">
+                  <span className="text-[9px] text-slate-400 block font-medium">Profit</span>
+                  <span className="text-[#E05305] text-xs font-bold">
                     USDC/T {formatMoney(selectedTask.profit || 0)}
                   </span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 space-y-4 text-[12px] flex-1 max-h-[400px] overflow-y-auto">
-              <div className="flex justify-between text-slate-500">
+            <div className="p-3 space-y-2 text-[11px] flex-1 overflow-y-auto min-h-0">
+              <div className="flex justify-between text-slate-500 text-[10px]">
                 <span>Creation time</span>
                 <span>{selectedTask.createdAt ? new Date(selectedTask.createdAt).toISOString().replace('T', ' ').substring(0, 19) : "—"}</span>
               </div>
-              <div className="flex justify-between text-slate-500">
+              <div className="flex justify-between text-slate-500 text-[10px]">
                 <span>Progress</span>
                 <span className="font-medium">{completedCount + 1}/{totalTasks}</span>
               </div>
 
               {requireRating && (
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-slate-500 font-medium">Application Evaluation</span>
-                    <div className="flex text-amber-400 text-sm">★★★★★</div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-slate-500 font-medium text-[10px]">Application Evaluation</span>
+                    <div className="flex text-amber-400 text-[11px]">★★★★★</div>
                   </div>
-                  <div className="space-y-2.5 mt-2">
+                  <div className="space-y-1 mt-1">
                     {ratingOptions.map((opt, idx) => (
-                      <label key={idx} className="flex items-start gap-2.5 cursor-pointer text-slate-600 leading-tight">
+                      <label key={idx} className="flex items-start gap-1.5 cursor-pointer text-slate-600 leading-tight text-[10px]">
                         <input
                           type="radio"
                           name="rating_option"
@@ -677,7 +681,7 @@ export default function UserTasksPage() {
                             setSelectedRating(opt);
                             setCustomComment(opt);
                           }}
-                          className="mt-0.5 accent-[#E05305] h-3.5 w-3.5 shrink-0"
+                          className="mt-0.5 accent-[#E05305] h-3 w-3 shrink-0"
                         />
                         <span>{opt}</span>
                       </label>
@@ -687,14 +691,14 @@ export default function UserTasksPage() {
               )}
 
               {requireFeedback && (
-                <div className="pt-2">
+                <div className="pt-1">
                   <textarea
                     value={customComment}
                     onChange={(e) => setCustomComment(e.target.value.slice(0, maxFeedbackLength))}
-                    className="w-full border border-slate-200 rounded-lg p-2.5 text-xs text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#E05305] resize-none h-20"
+                    className="w-full border border-slate-200 rounded-lg p-1.5 text-[10px] text-slate-700 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-[#E05305] resize-none h-14"
                     placeholder="Write your feedback..."
                   />
-                  <div className="text-right text-[10px] text-slate-400 mt-1">
+                  <div className="text-right text-[9px] text-slate-400 mt-0.5">
                     {customComment.length}/{maxFeedbackLength}
                   </div>
                 </div>
@@ -703,7 +707,7 @@ export default function UserTasksPage() {
 
             <button
               onClick={handleFinalSubmit}
-              className="w-full bg-[#E05305] hover:bg-[#c84a04] text-white text-sm font-bold py-3.5 text-center transition-colors"
+              className="w-full bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2.5 text-center transition-colors shrink-0"
             >
               Submit
             </button>

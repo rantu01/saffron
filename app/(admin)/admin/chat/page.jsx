@@ -4,6 +4,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { MessageCircle, Send, Loader2, Search, ChevronLeft } from "lucide-react";
 
+const ITEMS_PER_PAGE = 20;
+
 export default function AdminChatPage() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
@@ -17,6 +19,7 @@ export default function AdminChatPage() {
   const lastMessageIdRef = useRef(null);
   const pollRef = useRef(null);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -237,7 +240,7 @@ export default function AdminChatPage() {
                 <input
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                   onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   placeholder="Search conversations..."
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
                 />
@@ -257,7 +260,7 @@ export default function AdminChatPage() {
                   </p>
                 </div>
               ) : (
-                filteredConvs.map((conv) => (
+                filteredConvs.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE).map((conv) => (
                   <button
                     key={conv.conversationId}
                     onClick={() => openConversation(conv)}
@@ -287,6 +290,26 @@ export default function AdminChatPage() {
                     )}
                   </button>
                 ))
+              )}
+
+              {filteredConvs.length > ITEMS_PER_PAGE && (
+                <div className="flex items-center justify-between px-5 py-4 border-t border-gray-100 bg-gray-50/50">
+                  <button
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-gray-500">Page {page} of {Math.ceil(filteredConvs.length / ITEMS_PER_PAGE)}</span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(Math.ceil(filteredConvs.length / ITEMS_PER_PAGE), p + 1))}
+                    disabled={page >= Math.ceil(filteredConvs.length / ITEMS_PER_PAGE)}
+                    className="px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 bg-white disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-50"
+                  >
+                    Next
+                  </button>
+                </div>
               )}
             </div>
           </div>
