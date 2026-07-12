@@ -204,7 +204,7 @@ export default function ComboSettingsPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+        <h1 className="text-2xl font-bold  flex items-center gap-2">
           <Layers className="w-6 h-6 text-[#E05305]" />
           Combined Task Settings
         </h1>

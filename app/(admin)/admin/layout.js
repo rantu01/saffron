@@ -16,6 +16,7 @@ const mobileNavItems = [
 	{ label: "Overview", href: "/admin", icon: LayoutGrid },
 	{ label: "User Management", href: "/admin/user-management", icon: Users },
 	{ label: "Task Management", href: "/admin/task-management", icon: CheckSquare },
+	{ label: "Combo Settings", href: "/admin/combo-settings", icon: CheckSquare },
 	{ label: "Deposits", href: "/admin/deposits", icon: DollarSign },
 	{ label: "Withdrawals", href: "/admin/withdrawals", icon: Send },
 	{ label: "Balance Logs", href: "/admin/balance-logs", icon: History },
