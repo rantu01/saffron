@@ -201,7 +201,7 @@ export default function UserComboManager() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, email, UID, or group name..."
-          className="flex-1 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
+          className="flex-1 appearance-none text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
         />
         {loading && <span className="text-xs text-slate-400">Loading...</span>}
       </div>
@@ -410,7 +410,7 @@ export default function UserComboManager() {
                           value={form.position}
                           onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
                           placeholder={String(detail.defaults?.positions?.[0] ?? 8)}
-                          className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                          className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                         />
                       </Field>
                       <Field label="Number of orders" hint="Tasks in combo">
@@ -421,7 +421,7 @@ export default function UserComboManager() {
                           value={form.numOrders}
                           onChange={(e) => setForm((p) => ({ ...p, numOrders: e.target.value }))}
                           placeholder={`${detail.defaults?.minOrders ?? 2}`}
-                          className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                          className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                         />
                       </Field>
                     </div>
@@ -435,7 +435,7 @@ export default function UserComboManager() {
                         value={form.orderAmounts}
                         onChange={(e) => setForm((p) => ({ ...p, orderAmounts: e.target.value }))}
                         placeholder="e.g. 30, 45, 60"
-                        className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                        className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                       />
                     </Field>
 
@@ -450,7 +450,7 @@ export default function UserComboManager() {
                           setForm((p) => ({ ...p, commissionPercent: e.target.value }))
                         }
                         placeholder={`${detail.defaults?.commissionPercent ?? 5}`}
-                        className="w-full border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+                        className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                       />
                     </Field>
                   </div>
