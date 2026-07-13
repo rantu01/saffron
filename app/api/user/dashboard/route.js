@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getActiveComboTask } from "@/lib/comboTaskModel";
+import { evaluateVipEligibility } from "@/lib/vipModel";
 
 export async function GET(request) {
   try {
@@ -18,6 +19,10 @@ export async function GET(request) {
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     const user = await db.collection("users").findOne({ uid });
+
+    // Raise a pending VIP upgrade request if the user now qualifies for a higher
+    // level (admin approval still required; the level is never auto-unlocked).
+    await evaluateVipEligibility(uid).catch(() => {});
 
     const tasks = await db
       .collection("tasks")
@@ -58,6 +63,8 @@ export async function GET(request) {
         freezeThreshold: Number(user?.freezeThreshold || 0),
         demoProfitSharePercent: Number(user?.demoProfitSharePercent || 20),
         comboStage: user?.comboStage || 0,
+        vipLevel: Number(user?.vipLevel || 1),
+        vipNotifiedLevel: Number(user?.vipNotifiedLevel || 1),
         tasks,
         activeComboTask: activeCombo || null,
       },

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { completeComboOrder, creditComboCommission } from "@/lib/comboTaskModel";
+import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
+import { evaluateVipEligibility } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -38,6 +40,9 @@ export async function POST(request) {
       const combo = await db.collection("comboTasks").findOne({ _id: new ObjectId(comboId) });
 
       if (combo) {
+        // Check VIP eligibility (creates a pending admin request if qualified).
+        await evaluateVipEligibility(uid).catch(() => {});
+
         const taskEntry = await db.collection("tasks").findOne({
           assigneeUid: uid,
           setNumber: combo.setNumber,
@@ -46,6 +51,16 @@ export async function POST(request) {
         });
 
         if (taskEntry && taskEntry.status !== "completed") {
+          // Enforce the daily set limit before counting this set as complete.
+          const dailyLimit = await getDailyLimitStatus(uid);
+          if (dailyLimit.reached) {
+            return NextResponse.json({
+              success: false,
+              dailyLimitReached: true,
+              message: "Daily task limit reached. Please try again after 24 hours.",
+            }, { status: 400 });
+          }
+
           await db.collection("tasks").updateOne(
             { _id: taskEntry._id },
             {
@@ -58,11 +73,15 @@ export async function POST(request) {
             }
           );
 
-          await db.collection("userTaskSets").findOneAndUpdate(
+          const updatedSet = await db.collection("userTaskSets").findOneAndUpdate(
             { uid, setNumber: combo.setNumber },
             { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
             { returnDocument: "after" }
           );
+
+          if (updatedSet?.value && (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || 30)) {
+            await markSetCompletedToday(uid, combo.setNumber);
+          }
         }
       }
 

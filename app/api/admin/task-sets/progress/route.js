@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getDailyLimitStatus } from "@/lib/taskSetModel";
 
 export async function GET(request) {
   try {
@@ -22,7 +23,9 @@ export async function GET(request) {
       .sort({ setNumber: -1 })
       .toArray();
 
-    return NextResponse.json({ success: true, taskSets });
+    const dailyLimit = await getDailyLimitStatus(uid);
+
+    return NextResponse.json({ success: true, taskSets, dailyLimit });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to fetch task sets" },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle } from "lucide-react";
+import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle, Crown } from "lucide-react";
 import { useAdminNotificationCounts } from "./AdminNotificationContext";
 
 const navigation = [
@@ -10,6 +10,7 @@ const navigation = [
     { label: "User Management", href: "/admin/user-management", icon: Users },
     { label: "Task Management", href: "/admin/task-management", icon: CheckSquare },
     { label: "Combined Tasks", href: "/admin/combo-settings", icon: Layers },
+    { label: "VIP Levels", href: "/admin/vip-levels", icon: Crown },
     { label: "Deposit Verification", href: "/admin/deposits", icon: DollarSign },
     { label: "Withdrawal Requests", href: "/admin/withdrawals", icon: Send },
     { label: "Balance Logs", href: "/admin/balance-logs", icon: History },
@@ -23,11 +24,12 @@ const navigation = [
 
 export default function DashboardSidebar({ open, onClose }) {
     const pathname = usePathname();
-    const { pendingDeposits, unreadMessages } = useAdminNotificationCounts();
+    const { pendingDeposits, unreadMessages, pendingVipRequests } = useAdminNotificationCounts();
 
     function getBadgeCount(href) {
         if (href === "/admin/deposits") return pendingDeposits;
         if (href === "/admin/chat") return unreadMessages;
+        if (href === "/admin/vip-levels") return pendingVipRequests;
         return 0;
     }
 

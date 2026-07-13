@@ -3,6 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
 import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
+import { getDailyLimitStatus } from "@/lib/taskSetModel";
 
 export async function POST(request) {
   try {
@@ -19,6 +20,18 @@ export async function POST(request) {
     const user = await db.collection("users").findOne({ uid });
     if (!user) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+    }
+
+    // Daily task limit: block assigning a new set once the user has completed
+    // DAILY_SET_LIMIT full sets earlier today.
+    const dailyLimit = await getDailyLimitStatus(uid);
+    if (dailyLimit.reached) {
+      return NextResponse.json({
+        success: true,
+        assigned: false,
+        dailyLimitReached: true,
+        message: "Daily task limit reached. Please try again after 24 hours.",
+      });
     }
 
     const userBalance = Number(user.availableBalance || 0);
@@ -89,7 +102,7 @@ export async function POST(request) {
     let comboPosition = null;
 
     const isFirstComboEligible = await isEligibleForFirstCombo(user, comboConfig);
-    const isSecondComboEligible = await isEligibleForSecondCombo(user);
+    const isSecondComboEligible = await isEligibleForSecondCombo(user, comboConfig);
 
     if (isFirstComboEligible) {
       const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, 1);

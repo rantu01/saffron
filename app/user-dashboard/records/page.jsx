@@ -183,6 +183,85 @@ export default function RecordsPage() {
             const labelStatus =
               record.status.charAt(0).toUpperCase() +
               record.status.slice(1);
+
+            if (record.isCombo) {
+              return (
+                <div
+                  key={record._id}
+                  className="border border-purple-200 rounded-2xl p-4 shadow-sm bg-white hover:shadow-md transition-shadow duration-200"
+                >
+                  {/* Top Row */}
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="pr-2">
+                      <span className="inline-block mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded">
+                        Combo Task
+                      </span>
+                      <h3 className="text-base font-bold text-slate-900 leading-snug">
+                        {record.title}
+                      </h3>
+                    </div>
+                    <StatusBadge status={labelStatus} />
+                  </div>
+
+                  <div className="text-xs text-gray-400 mb-3">
+                    {record.createdAt ? formatDate(record.createdAt) : "No date"}
+                  </div>
+
+                  <div className="border-t border-gray-100 my-2" />
+
+                  {/* Bottom Row */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-orange-500">
+                        USDCIT {formatMoney(record.totalAmount)}
+                      </span>
+                      <span className="text-xs text-gray-400">Total amount</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-orange-500">
+                        USDCIT {formatMoney(record.profit)}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        Commission ({record.commissionPercent || 0}%)
+                      </span>
+                    </div>
+                    {/* <div className="flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-700">
+                        {record.completedOrders}/{record.orderCount} orders
+                      </span>
+                      <span className="text-xs text-gray-400">Progress</span>
+                    </div> */}
+                  </div>
+
+                  <div className="border-t border-gray-100 my-2" />
+
+                  {/* Order breakdown */}
+                  {/* <div className="space-y-1">
+                    {record.orders.map((o) => (
+                      <div
+                        key={o.orderNumber}
+                        className="flex items-center justify-between text-xs"
+                      >
+                        <span className="text-slate-600">Order {o.orderNumber}</span>
+                        <span className="text-slate-500">
+                          USDCIT {formatMoney(o.requiredAmount)}
+                        </span>
+                        <span
+                          className={
+                            o.status === "completed"
+                              ? "text-green-600 font-medium"
+                              : "text-amber-600 font-medium"
+                          }
+                        >
+                          {o.status === "completed" ? "Done" : "Pending"}
+                        </span>
+                      </div>
+                    ))}
+                  </div> */}
+                </div>
+              );
+            }
+
             return (
               <div
                 key={record._id}

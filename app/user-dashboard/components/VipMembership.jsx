@@ -85,13 +85,14 @@ const cardVariants = {
   },
 };
 
-export default function VipMembership({ balance = 0 }) {
+export default function VipMembership({ balance = 0, level }) {
   const currentLevel = useMemo(() => {
+    if (level) return Number(level);
     if (balance >= 10000) return 4;
     if (balance >= 5000) return 3;
     if (balance >= 1500) return 2;
     return 1;
-  }, [balance]);
+  }, [balance, level]);
 
   const nextTier = useMemo(() => {
     const next = VIP_TIERS.find(t => t.level === currentLevel + 1);

@@ -7,7 +7,7 @@ const AdminNotificationContext = createContext(null);
 const POLL_INTERVAL = 10000;
 
 export function AdminNotificationProvider({ children }) {
-  const [counts, setCounts] = useState({ pendingDeposits: 0, unreadMessages: 0 });
+  const [counts, setCounts] = useState({ pendingDeposits: 0, unreadMessages: 0, pendingVipRequests: 0 });
   const intervalRef = useRef(null);
 
   const fetchCounts = useCallback(async () => {
@@ -15,7 +15,11 @@ export function AdminNotificationProvider({ children }) {
       const res = await fetch("/api/admin/notifications/counts");
       const data = await res.json();
       if (data.success) {
-        setCounts({ pendingDeposits: data.pendingDeposits, unreadMessages: data.unreadMessages });
+        setCounts({
+          pendingDeposits: data.pendingDeposits,
+          unreadMessages: data.unreadMessages,
+          pendingVipRequests: data.pendingVipRequests,
+        });
       }
     } catch {
       // silently fail

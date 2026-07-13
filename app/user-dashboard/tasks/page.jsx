@@ -15,8 +15,11 @@ export default function UserTasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
+  const [dailyLimitReached, setDailyLimitReached] = useState(false);
+  const [dailyLimitMessage, setDailyLimitMessage] = useState("");
   const [userBalance, setUserBalance] = useState(0);
   const [frozenBalance, setFrozenBalance] = useState(0);
+  const [vipLevel, setVipLevel] = useState(1);
 
   const [activeCombo, setActiveCombo] = useState(null);
   const [showComboModal, setShowComboModal] = useState(false);
@@ -28,12 +31,7 @@ export default function UserTasksPage() {
     { level: 4, name: "VIP 4", label: "Diamond", minDeposit: 10000, dailyProfit: 12, unlockBalance: 10000, gradient: "from-red-600 to-rose-500", badgeBg: "bg-red-500" },
   ];
 
-  const currentVipLevel = (() => {
-    if (userBalance >= 10000) return 4;
-    if (userBalance >= 5000) return 3;
-    if (userBalance >= 1500) return 2;
-    return 1;
-  })();
+  const currentVipLevel = vipLevel;
 
   const currentTier = VIP_TIERS[currentVipLevel - 1];
   const nextTier = VIP_TIERS.find(t => t.level === currentVipLevel + 1) || null;
@@ -57,6 +55,12 @@ export default function UserTasksPage() {
   const loadData = useCallback(async () => {
     if (!user?.uid) return [];
     try {
+      await fetch("/api/user/tasks/sync-combo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: user.uid }),
+      }).catch(() => {});
+
       const [tasksRes, progressRes, dashRes] = await Promise.all([
         fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}`),
         fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
@@ -70,6 +74,7 @@ export default function UserTasksPage() {
       if (dashData?.success) {
         setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
         setFrozenBalance(Number(dashData.dashboard?.frozenBalance || 0));
+        setVipLevel(Number(dashData.dashboard?.vipLevel || 1));
         if (dashData.dashboard?.activeComboTask) {
           setActiveCombo(dashData.dashboard.activeComboTask);
         } else {
@@ -83,6 +88,13 @@ export default function UserTasksPage() {
       }
       if (progressData?.success && progressData.taskSets?.length) {
         setSetProgress(progressData.taskSets[0]);
+      }
+      if (progressData?.success && progressData.dailyLimit?.reached) {
+        setDailyLimitReached(true);
+        setDailyLimitMessage(progressData.dailyLimit.message || "Daily task limit reached. Please try again after 24 hours.");
+      } else {
+        setDailyLimitReached(false);
+        setDailyLimitMessage("");
       }
 
       return tasks;
@@ -108,6 +120,10 @@ export default function UserTasksPage() {
       }
       if (data?.noGroups) {
         setNoGroupsAvailable(true);
+      }
+      if (data?.dailyLimitReached) {
+        setDailyLimitReached(true);
+        setDailyLimitMessage(data.message || "Daily task limit reached. Please try again after 24 hours.");
       }
       return false;
     } catch {
@@ -149,6 +165,7 @@ export default function UserTasksPage() {
   const completedCount = setProgress?.completedTasks || 0;
   const totalTasks = setProgress?.totalTasks || 30;
   const isAllComplete = completedCount >= totalTasks;
+  const displayProgress = isAllComplete ? totalTasks : Math.min(completedCount + 1, totalTasks);
 
   const currentSetTasks = assignedTasks.filter(
     (t) => (t.setNumber || 1) === currentSetNumber && t.position > 0
@@ -167,6 +184,14 @@ export default function UserTasksPage() {
 
   const handleStartTask = () => {
     if (isAllComplete) return;
+    if (dailyLimitReached) {
+      Swal.fire({
+        icon: "info",
+        title: "Daily task limit reached",
+        text: dailyLimitMessage || "Please try again after 24 hours.",
+      });
+      return;
+    }
     const nextTask = getNextPendingTask();
     if (!nextTask) {
       Swal.fire({
@@ -438,32 +463,37 @@ export default function UserTasksPage() {
                   stroke={isAllComplete ? "#10b981" : "#E05305"}
                   strokeWidth="8"
                   strokeLinecap="round"
-                  strokeDasharray={`${(completedCount / totalTasks) * 327} 327`}
+                  strokeDasharray={`${(displayProgress / totalTasks) * 327} 327`}
                   className="transition-all duration-500"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-xl font-bold text-slate-900">
-                  {completedCount}
+                  {displayProgress}
                   <span className="text-sm text-slate-400">/{totalTasks}</span>
                 </span>
               </div>
             </div>
 
-            {noGroupsAvailable ? (
+            {dailyLimitReached ? (
+              <div className="text-center">
+                <p className="text-sm font-bold text-amber-600">Daily task limit reached</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Please try again after 24 hours."}</p>
+              </div>
+            ) : noGroupsAvailable ? (
               <div className="text-center">
                 <p className="text-sm font-bold text-slate-900">No tasks available now</p>
                 <p className="text-[10px] text-slate-500">Please try again later.</p>
               </div>
             ) : isAllComplete ? (
               <div className="text-center">
-                <p className="text-sm font-bold text-emerald-600">{totalTasks}/{totalTasks} Completed</p>
+                <p className="text-sm font-bold text-emerald-600">Task {totalTasks} of {totalTasks}</p>
                 <p className="text-[10px] text-slate-500">{isAutoAssigning ? "Loading next group..." : "All tasks completed in this set."}</p>
               </div>
             ) : (
               <div className="text-center">
                 <p className="text-sm font-bold text-slate-900">
-                  {completedCount} of {totalTasks} Completed
+                  Task {displayProgress} of {totalTasks}
                 </p>
                 <p className="text-[10px] text-slate-500 mt-0.5">
                   {nextTask
@@ -501,7 +531,7 @@ export default function UserTasksPage() {
                     )}
                   </>
                 )}
-                {!nextTask && !isAutoAssigning && !noGroupsAvailable && (
+                {!nextTask && !isAutoAssigning && !noGroupsAvailable && !dailyLimitReached && (
                   <button
                     onClick={async () => { await tryAutoAssign(); await loadData(); }}
                     className="mt-1 text-[10px] text-blue-600 hover:underline"
@@ -512,7 +542,7 @@ export default function UserTasksPage() {
               </div>
             )}
 
-            {!isAllComplete && nextTask && !noGroupsAvailable && (
+            {!isAllComplete && nextTask && !noGroupsAvailable && !dailyLimitReached && (
               nextTask.isComboTask && activeCombo && (userBalance + frozenBalance) < activeCombo.totalRequiredAmount ? (
                 <button
                   onClick={() => window.location.href = "/user-dashboard/deposits"}

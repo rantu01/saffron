@@ -283,7 +283,7 @@ export default function UserDashboardPage() {
       </div>
 
       {/* VIP Membership Section */}
-      <VipMembership balance={dashboard.availableBalance || 0} />
+      <VipMembership balance={dashboard.availableBalance || 0} level={dashboard.vipLevel} />
 
       {/* Account Freeze / Alert Notice */}
       {dashboard.accountStatus === 'frozen' && (

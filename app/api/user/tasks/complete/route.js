@@ -5,6 +5,8 @@ import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { roundCurrency } from "@/lib/taskModel";
 import { getActiveComboTask, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
+import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
+import { evaluateVipEligibility } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -89,6 +91,17 @@ export async function POST(request) {
       return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
     }
 
+    // Daily task limit: a user may complete at most DAILY_SET_LIMIT full sets per
+    // day. Block starting/completing further tasks once the limit is reached.
+    const dailyLimit = await getDailyLimitStatus(uid);
+    if (dailyLimit.reached) {
+      return NextResponse.json({
+        success: false,
+        dailyLimitReached: true,
+        message: "Daily task limit reached. Please try again after 24 hours.",
+      }, { status: 400 });
+    }
+
     const userDebt = Number(user.comboDebt || 0);
     if (userDebt > 0) {
       return NextResponse.json({
@@ -121,6 +134,9 @@ export async function POST(request) {
     await creditUserBalance(uid, earned, { autoResolveFreeze: true });
     const userAfterTask = await getUserByUid(uid);
     const balanceAfter = Number(userAfterTask?.availableBalance || 0);
+
+    // Check VIP eligibility (creates a pending admin request if qualified).
+    await evaluateVipEligibility(uid).catch(() => {});
 
     await createBalanceLog({
       uid,
@@ -191,6 +207,10 @@ export async function POST(request) {
     const setComplete = updatedSet?.value
       ? (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || 30)
       : false;
+
+    if (setComplete && updatedSet?.value) {
+      await markSetCompletedToday(uid, updatedSet.value.setNumber);
+    }
 
     return NextResponse.json({
       success: true,

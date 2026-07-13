@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 import { Layers, Plus, X, Save, Search, Trash2 } from "lucide-react";
+import UserComboManager from "./UserComboManager";
 
 export default function ComboSettingsPage() {
   const [config, setConfig] = useState(null);
@@ -202,13 +203,21 @@ export default function ComboSettingsPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold  flex items-center gap-2">
           <Layers className="w-6 h-6 text-[#E05305]" />
           Combined Task Settings
         </h1>
         <p className="text-sm text-slate-500 mt-1">Configure Combined (Combo) Tasks that appear randomly in user task rounds.</p>
+      </div>
+
+      {/* Per-User Management */}
+      <UserComboManager />
+
+      <div>
+        <h2 className="text-lg font-bold text-slate-900">Global Defaults</h2>
+        <p className="text-xs text-slate-500">Fallback settings applied to users without a per-user override.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">

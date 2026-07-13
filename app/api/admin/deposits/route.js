@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { updateDepositStatus, getDepositById } from "@/lib/depositModel";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
+import { evaluateVipEligibility } from "@/lib/vipModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendDepositApproved, sendDepositRejected } from "@/lib/whatsappService";
@@ -131,6 +132,10 @@ export async function PATCH(request) {
       }
 
       updatedUser = await getUserByUid(deposit.uid);
+
+      // Raise a pending VIP upgrade request if the deposit pushed the user over
+      // a tier threshold (admin approval still required).
+      await evaluateVipEligibility(deposit.uid).catch(() => {});
 
       await createBalanceLog({
         uid: deposit.uid,
