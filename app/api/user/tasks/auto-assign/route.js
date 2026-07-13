@@ -30,7 +30,7 @@ export async function POST(request) {
         success: true,
         assigned: false,
         dailyLimitReached: true,
-        message: "Daily task limit reached. Please try again after 24 hours.",
+        message: "Try again in 24 hours.",
       });
     }
 
@@ -49,6 +49,17 @@ export async function POST(request) {
       .sort({ createdAt: 1 })
       .toArray();
 
+    if (allGroups.length === 0) {
+      return NextResponse.json({
+        success: true,
+        assigned: false,
+        noGroups: true,
+        message: "No task groups available.",
+      });
+    }
+
+    // Assign groups sequentially and reuse them across cycles (Set N uses the
+    // group at index (N-1) % totalGroups). Reusing previous sets is allowed.
     let availableGroup = null;
     for (const group of allGroups) {
       const gid = group._id.toString();
@@ -61,6 +72,19 @@ export async function POST(request) {
       if (templateCount > 0) {
         availableGroup = { ...group, _id: gid };
         break;
+      }
+    }
+
+    if (!availableGroup) {
+      // All groups already assigned in this cycle: cycle back and reuse them.
+      const groupIndex = (nextSetNumber - 1) % allGroups.length;
+      const reused = allGroups[groupIndex];
+      const reusedId = reused._id.toString();
+      const templateCount = await db
+        .collection("tasks")
+        .countDocuments({ taskGroupId: reusedId, isTemplate: true });
+      if (templateCount > 0) {
+        availableGroup = { ...reused, _id: reusedId };
       }
     }
 

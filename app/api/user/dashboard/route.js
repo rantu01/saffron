@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getActiveComboTask } from "@/lib/comboTaskModel";
+import { getActiveComboTask, activateComboFreeze } from "@/lib/comboTaskModel";
 import { evaluateVipEligibility } from "@/lib/vipModel";
 
 export async function GET(request) {
@@ -38,8 +38,22 @@ export async function GET(request) {
       .toArray();
 
     const currentSetNumber = latestSet.length > 0 ? latestSet[0].setNumber : 1;
+    const currentSetProgress = latestSet.length > 0 ? latestSet[0] : null;
+    const currentPosition = currentSetProgress ? Number(currentSetProgress.currentPosition || 0) : 0;
+
     let activeCombo = await getActiveComboTask(uid, currentSetNumber);
     if (activeCombo) {
+      // Drive the balance negative only when the combo has reached its position.
+      const activated = await activateComboFreeze(db, uid, activeCombo, currentPosition);
+      if (activated) {
+        // Reload the user + combo so the returned balances reflect the new freeze.
+        const refreshed = await db.collection("users").findOne({ uid });
+        if (refreshed) {
+          user.availableBalance = refreshed.availableBalance;
+          user.frozenBalance = refreshed.frozenBalance;
+        }
+        activeCombo = await getActiveComboTask(uid, currentSetNumber);
+      }
       const { _id, ...comboData } = activeCombo;
       activeCombo = { _id: String(_id), ...comboData };
     }
@@ -50,6 +64,7 @@ export async function GET(request) {
         availableBalance: Number(user?.availableBalance || 0),
         frozenBalance: Number(user?.frozenBalance || 0),
         comboDebt: Number(user?.comboDebt || 0),
+        firstTaskStarted: Boolean(user?.firstTaskStarted || false),
         totalEarned: user?.totalEarned || 0,
         totalEarnedNet: Math.max(0, Number(user?.totalEarned || 0) - Number(user?.comboDebt || 0)),
         usdRate: 129,

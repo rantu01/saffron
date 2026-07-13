@@ -39,27 +39,30 @@ export async function GET(request) {
 
     const comboDebt = Number(user?.comboDebt || 0);
 
-    return NextResponse.json({
-      success: true,
-      combo: {
-        _id: combo._id,
-        uid: combo.uid,
-        setNumber: combo.setNumber,
-        position: combo.position,
-        status: combo.status,
-        commissionPercent: combo.commissionPercent,
-        totalRequiredAmount: combo.totalRequiredAmount,
-        totalCommission: combo.totalCommission,
-        currentOrderIndex: combo.currentOrderIndex,
-        orders: combo.orders,
-        totalBalance,
-        frozenBalance,
-        comboDebt,
-        additionalRequired,
-        createdAt: combo.createdAt,
-        updatedAt: combo.updatedAt,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        combo: {
+          _id: combo._id,
+          uid: combo.uid,
+          setNumber: combo.setNumber,
+          position: combo.position,
+          status: combo.status,
+          commissionPercent: combo.commissionPercent,
+          totalRequiredAmount: combo.totalRequiredAmount,
+          totalCommission: combo.totalCommission,
+          currentOrderIndex: combo.currentOrderIndex,
+          orders: combo.orders,
+          fromTargetNegative: Boolean(combo.fromTargetNegative || false),
+          totalBalance,
+          frozenBalance,
+          frozenAmount: Number(combo.frozenAmount || 0),
+          balanceFrozen: Boolean(combo.balanceFrozen || false),
+          comboDebt,
+          additionalRequired,
+          createdAt: combo.createdAt,
+          updatedAt: combo.updatedAt,
+        },
+      });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to load combo task" },

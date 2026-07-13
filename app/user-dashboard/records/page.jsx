@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import Swal from "sweetalert2";
 import { Star, Filter } from "lucide-react";
+import ComboTaskModal from "@/app/user-dashboard/tasks/components/ComboTaskModal";
 
 const TABS = ["All", "Submission", "Completed", "Pending"];
 
@@ -55,6 +57,108 @@ export default function RecordsPage() {
   const [activeTab, setActiveTab] = useState("All");
   const [error, setError] = useState("");
 
+  const [submitRecord, setSubmitRecord] = useState(null);
+  const [submitRating, setSubmitRating] = useState("");
+  const [submitComment, setSubmitComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const [comboModalCombo, setComboModalCombo] = useState(null);
+  const [comboModalOpen, setComboModalOpen] = useState(false);
+  const [comboUserBalance, setComboUserBalance] = useState(0);
+  const [comboFrozenBalance, setComboFrozenBalance] = useState(0);
+
+  const DEFAULT_RATING_OPTIONS = [
+    "Peace of mind and security, very good app.",
+    "Convenient, easy, and simple.",
+    "Update too often.",
+    "This is very good software.",
+    "Free is quite good, but from time to time it shows that the server is busy, I hope to get improved",
+  ];
+
+  const openSubmit = (record) => {
+    setSubmitRecord(record);
+    const first = record.submissionConfig?.ratingOptions?.length
+      ? record.submissionConfig.ratingOptions[0]
+      : DEFAULT_RATING_OPTIONS[0];
+    setSubmitRating(first);
+    setSubmitComment(first);
+  };
+
+  const closeSubmit = () => {
+    setSubmitRecord(null);
+    setSubmitRating("");
+    setSubmitComment("");
+  };
+
+  const openCombo = async (record) => {
+    try {
+      const [comboRes, dashRes] = await Promise.all([
+        fetch(`/api/user/tasks/combo?uid=${encodeURIComponent(user.uid)}&setNumber=${record.setNumber}`),
+        fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
+      ]);
+      const comboData = await comboRes.json();
+      const dashData = await dashRes.json();
+      if (comboData?.success && comboData?.combo) {
+        setComboModalCombo(comboData.combo);
+        setComboUserBalance(Number(dashData?.dashboard?.availableBalance || 0));
+        setComboFrozenBalance(Number(dashData?.dashboard?.frozenBalance || 0));
+        setComboModalOpen(true);
+      } else {
+        Swal.fire({ icon: "error", title: "Error", text: "Could not load combined task." });
+      }
+    } catch {
+      Swal.fire({ icon: "error", title: "Error", text: "Something went wrong!" });
+    }
+  };
+
+  const handleSubmitTask = async () => {
+    if (!submitRecord) return;
+    const subConfig = submitRecord.submissionConfig;
+    const requireRating = subConfig ? subConfig.requireRating !== false : true;
+    const requireFeedback = subConfig ? subConfig.requireFeedback !== false : true;
+
+    if (requireRating && !submitRating) {
+      Swal.fire({ icon: "error", title: "Required", text: "Please select a rating option." });
+      return;
+    }
+    if (requireFeedback && !submitComment.trim()) {
+      Swal.fire({ icon: "error", title: "Required", text: "Please provide feedback." });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/user/tasks/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId: submitRecord.taskId,
+          uid: user.uid,
+          feedback: submitComment,
+          ratingOption: submitRating,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not submit task." });
+        return;
+      }
+      await Swal.fire({
+        icon: "success",
+        title: "Task Submitted!",
+        text: `You earned $${formatMoney(data.earned)}`,
+      });
+      closeSubmit();
+      setActiveTab("Pending");
+      load();
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: "error", title: "Error", text: "Something went wrong!" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const formatMoney = (val) => {
     const n = Number(val || 0);
     if (!Number.isFinite(n)) return "0.00";
@@ -64,37 +168,34 @@ export default function RecordsPage() {
     });
   };
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      if (!user?.uid) {
-        setIsLoading(false);
-        return;
-      }
-      setIsLoading(true);
-      setError("");
-
-      try {
-        const statusParam = activeTab === "All" ? "all" : activeTab.toLowerCase();
-        const res = await fetch(
-          `/api/user/records?uid=${encodeURIComponent(user.uid)}&status=${statusParam}`
-        );
-        const data = await res.json();
-        if (cancelled) return;
-        if (!res.ok || !data.success)
-          throw new Error(data.message || "Failed to load records");
-        setRecords(data.records || []);
-      } catch (err) {
-        if (!cancelled) setError(err.message);
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
+  const load = useCallback(async () => {
+    if (!user?.uid) {
+      setIsLoading(false);
+      return;
     }
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const statusParam = activeTab === "All" ? "all" : activeTab.toLowerCase();
+      const res = await fetch(
+        `/api/user/records?uid=${encodeURIComponent(user.uid)}&status=${statusParam}`
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success)
+        throw new Error(data.message || "Failed to load records");
+      setRecords(data.records || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, activeTab]);
+
+  useEffect(() => {
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid, activeTab]);
+  }, [load]);
 
   if (loading) {
     return (
@@ -258,6 +359,15 @@ export default function RecordsPage() {
                       </div>
                     ))}
                   </div> */}
+
+                  {record.status === "pending" && (
+                    <button
+                      onClick={() => openCombo(record)}
+                      className="w-full mt-2 bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2 rounded-xl transition-colors"
+                    >
+                      Work Combined Task
+                    </button>
+                  )}
                 </div>
               );
             }
@@ -325,10 +435,130 @@ export default function RecordsPage() {
                     <span className="text-xs text-gray-400">Profit</span>
                   </div>
                 </div>
+
+                {record.submittable && (
+                  <button
+                    onClick={() => openSubmit(record)}
+                    className="w-full mt-2 bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2 rounded-xl transition-colors"
+                  >
+                    Submit Task
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+
+      {submitRecord && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-2">
+          <div className="bg-white rounded-2xl w-full max-w-[380px] shadow-2xl relative overflow-hidden flex flex-col font-sans text-[#333] max-h-[90dvh]">
+            <button
+              onClick={closeSubmit}
+              className="absolute top-2 right-3 text-slate-400 hover:text-slate-600 text-base font-bold z-10"
+            >
+              ✕
+            </button>
+
+            <div className="p-3 pb-2 text-center border-b border-slate-100 shrink-0">
+              <h2 className="text-[#E05305] text-sm font-bold">{submitRecord.appName || "Task Submission"}</h2>
+              <div className="grid grid-cols-2 gap-1 mt-2 text-center">
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-medium">Total amount</span>
+                  <span className="text-[#E05305] text-xs font-bold">
+                    USDC/T {formatMoney(submitRecord.totalAmount || submitRecord.requiredBalance || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-medium">Profit</span>
+                  <span className="text-[#E05305] text-xs font-bold">
+                    USDC/T {formatMoney(submitRecord.profit || 0)}
+                  </span>
+                </div>
+              </div>
+              {submitRecord.frozenAmount > 0 && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  ${formatMoney(submitRecord.frozenAmount)} will be released from Frozen Balance on submission.
+                </p>
+              )}
+            </div>
+
+            <div className="p-3 space-y-2 text-[11px] flex-1 overflow-y-auto min-h-0">
+              {(() => {
+                const subConfig = submitRecord.submissionConfig;
+                const requireRating = subConfig ? subConfig.requireRating !== false : true;
+                const requireFeedback = subConfig ? subConfig.requireFeedback !== false : true;
+                const ratingOptions = subConfig?.ratingOptions?.length
+                  ? subConfig.ratingOptions
+                  : DEFAULT_RATING_OPTIONS;
+                const maxLen = Math.min(Math.max(Number(subConfig?.maxFeedbackLength) || 500, 1), 5000);
+
+                return (
+                  <>
+                    {requireRating && (
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-500 font-medium text-[10px]">Application Evaluation</span>
+                          <div className="flex text-amber-400 text-[11px]">★★★★★</div>
+                        </div>
+                        <div className="space-y-1 mt-1">
+                          {ratingOptions.map((opt, idx) => (
+                            <label key={idx} className="flex items-start gap-1.5 cursor-pointer text-slate-600 leading-tight text-[10px]">
+                              <input
+                                type="radio"
+                                name="record_rating_option"
+                                checked={submitRating === opt}
+                                onChange={() => {
+                                  setSubmitRating(opt);
+                                  setSubmitComment(opt);
+                                }}
+                                className="mt-0.5 accent-[#E05305] h-3 w-3 shrink-0"
+                              />
+                              <span>{opt}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {requireFeedback && (
+                      <div className="pt-1">
+                        <textarea
+                          value={submitComment}
+                          onChange={(e) => setSubmitComment(e.target.value.slice(0, maxLen))}
+                          className="w-full border border-slate-200 rounded-lg p-1.5 text-[10px] text-slate-700 bg-slate-50 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305] resize-none h-14"
+                          placeholder="Write your feedback..."
+                        />
+                        <div className="text-right text-[9px] text-slate-400 mt-0.5">
+                          {submitComment.length}/{maxLen}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            <button
+              onClick={handleSubmitTask}
+              disabled={submitting}
+              className="w-full bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2.5 text-center transition-colors shrink-0 disabled:opacity-50"
+            >
+              {submitting ? "Submitting..." : "Submit"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {comboModalOpen && comboModalCombo && (
+        <ComboTaskModal
+          combo={comboModalCombo}
+          uid={user.uid}
+          userBalance={comboUserBalance}
+          frozenBalance={comboFrozenBalance}
+          onClose={() => { setComboModalOpen(false); load(); }}
+          onComplete={() => { setComboModalOpen(false); load(); }}
+        />
       )}
     </div>
   );

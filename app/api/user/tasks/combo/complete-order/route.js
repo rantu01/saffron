@@ -57,9 +57,16 @@ export async function POST(request) {
             return NextResponse.json({
               success: false,
               dailyLimitReached: true,
-              message: "Daily task limit reached. Please try again after 24 hours.",
+              message: "Try again in 24 hours.",
             }, { status: 400 });
           }
+
+          // A combo with N orders advances the user past every position it
+          // occupies (combo.position .. combo.position + N - 1) instead of a
+          // single position, so the next available task follows the combo.
+          const orderCount = Array.isArray(combo.orders) ? combo.orders.length : 1;
+          const comboPosition = Number(combo.position || 0);
+          const advanceTo = comboPosition + orderCount;
 
           await db.collection("tasks").updateOne(
             { _id: taskEntry._id },
@@ -73,9 +80,27 @@ export async function POST(request) {
             }
           );
 
+          // Mark any normal tasks absorbed by the combo's order span as completed
+          // so the set can still reach its total and progress doesn't deadlock.
+          await db.collection("tasks").updateMany(
+            {
+              assigneeUid: uid,
+              setNumber: combo.setNumber,
+              position: { $gt: comboPosition, $lte: advanceTo },
+              isComboTask: { $ne: true },
+              status: { $ne: "completed" },
+            },
+            {
+              $set: { status: "completed", completedAt: new Date(), updatedAt: new Date() },
+            }
+          );
+
           const updatedSet = await db.collection("userTaskSets").findOneAndUpdate(
             { uid, setNumber: combo.setNumber },
-            { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
+            {
+              $max: { completedTasks: advanceTo, currentPosition: advanceTo },
+              $set: { updatedAt: new Date() },
+            },
             { returnDocument: "after" }
           );
 

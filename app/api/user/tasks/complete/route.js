@@ -98,7 +98,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: false,
         dailyLimitReached: true,
-        message: "Daily task limit reached. Please try again after 24 hours.",
+        message: "Try again in 24 hours.",
       }, { status: 400 });
     }
 
@@ -113,7 +113,10 @@ export async function POST(request) {
 
     const totalAmount = Number(task.totalAmount || 0);
     const profit = roundCurrency(totalAmount * NORMAL_COMMISSION_RATE);
-    const earned = roundCurrency(totalAmount + profit);
+    // Only the profit is "earned". The task principal is reserved (frozen) while
+    // the task is pending and returned to the wallet on completion — it is never
+    // credited as earnings.
+    const earned = profit;
 
     const updateFields = {
       status: 'completed',
@@ -130,8 +133,37 @@ export async function POST(request) {
       { $set: updateFields }
     );
 
+    // Return the reserved principal to Main Balance and credit only the profit.
+    const frozenAmount = Number(task.frozenAmount || 0);
     const balanceBefore = Number(user.availableBalance || 0);
-    await creditUserBalance(uid, earned, { autoResolveFreeze: true });
+    let frozenBalanceAfter = Number(user.frozenBalance || 0);
+
+    if (frozenAmount > 0) {
+      await db.collection("users").updateOne(
+        { uid },
+        {
+          $inc: {
+            availableBalance: frozenAmount,
+            frozenBalance: -frozenAmount,
+          },
+          $set: { firstTaskStarted: true, updatedAt: new Date() },
+        }
+      );
+      await db.collection("tasks").updateOne(
+        { _id: task._id },
+        { $set: { frozenAmount: 0, startedWithoutSubmit: false, updatedAt: new Date() } }
+      );
+      frozenBalanceAfter = roundCurrency(frozenBalanceAfter - frozenAmount);
+    } else {
+      await db.collection("users").updateOne(
+        { uid },
+        { $set: { firstTaskStarted: true, updatedAt: new Date() } }
+      );
+    }
+
+    // Credit only the profit (this updates totalEarned and resolves any account
+    // freeze state). The principal has already been returned above.
+    await creditUserBalance(uid, profit, { autoResolveFreeze: true });
     const userAfterTask = await getUserByUid(uid);
     const balanceAfter = Number(userAfterTask?.availableBalance || 0);
 
@@ -142,10 +174,10 @@ export async function POST(request) {
       uid,
       email: user?.email || "",
       type: "task_earnings",
-      amount: earned,
+      amount: profit,
       balanceBefore,
       balanceAfter,
-      description: `Task completed: ${task.appName || task.title || "Task"} (total $${totalAmount} + profit $${profit})`,
+      description: `Task completed: ${task.appName || task.title || "Task"} (profit $${profit})`,
       referenceId: String(task._id),
       referenceType: "task",
       metadata: { totalAmount, profit, appName: task.appName },
@@ -219,6 +251,8 @@ export async function POST(request) {
       totalAmount,
       profit,
       setComplete,
+      frozenBalanceAfter,
+      balanceAfter,
     });
   } catch (error) {
     return NextResponse.json({ success: false, message: error.message || 'Failed to complete task' }, { status: 500 });

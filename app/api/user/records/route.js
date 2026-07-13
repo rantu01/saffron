@@ -16,22 +16,25 @@ export async function GET(request) {
 
     const records = [];
 
-    // Normal (non-combo) tasks: only include tasks that have actually appeared to
-    // the user and been resolved. A task "appears" once it is reached; the only
-    // resolved states we surface are completed and cancelled. Cancelled tasks are
-    // shown as "Pending" (amount held until resolved). Untouched pending tasks that
-    // have not yet appeared are never listed.
+    // Normal (non-combo) tasks: include tasks that have been resolved
+    // (completed / cancelled / submission) plus tasks the user started but did
+    // not submit (held in Frozen Balance). Those frozen tasks are shown under
+    // "Pending" and can be submitted from this page.
     const normalTasks = await db
       .collection("tasks")
       .find({
         assigneeUid: uid,
         isComboTask: { $ne: true },
-        status: { $in: ["completed", "cancelled", "submission"] },
+        $or: [
+          { status: { $in: ["completed", "cancelled", "submission"] } },
+          { status: "pending", frozenAmount: { $gt: 0 } },
+        ],
       })
       .sort({ createdAt: -1 })
       .toArray();
 
     for (const r of normalTasks) {
+      const frozenAmount = Number(r.frozenAmount || 0);
       const displayStatus =
         r.status === "completed"
           ? "completed"
@@ -41,8 +44,14 @@ export async function GET(request) {
 
       records.push({
         _id: String(r._id),
+        taskId: String(r._id),
         title: r.appName || r.description || "Untitled",
+        appName: r.appName || "",
         status: displayStatus,
+        submittable: frozenAmount > 0,
+        frozenAmount,
+        submissionConfig: r.submissionConfig || null,
+        requiredBalance: Number(r.requiredBalance || 0),
         rating: r.ratingOption || r.submissionConfig?.ratingOptions?.[0] || 5,
         imageUrl: r.appLogo || "",
         totalAmount: Number(r.totalAmount || r.requiredBalance || 0),
@@ -98,6 +107,10 @@ export async function GET(request) {
         totalAmount: Number(combo.totalRequiredAmount || 0),
         profit: Number(combo.totalCommission || 0),
         commissionPercent: Number(combo.commissionPercent || 0),
+        setNumber: Number(combo.setNumber || 0),
+        position: Number(combo.position || 0),
+        frozenAmount: Number(combo.frozenAmount || 0),
+        balanceFrozen: Boolean(combo.balanceFrozen || false),
         orderCount: orders.length,
         completedOrders,
         orders: orders.map((o) => ({

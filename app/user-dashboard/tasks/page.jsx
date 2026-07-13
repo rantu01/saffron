@@ -20,6 +20,7 @@ export default function UserTasksPage() {
   const [userBalance, setUserBalance] = useState(0);
   const [frozenBalance, setFrozenBalance] = useState(0);
   const [vipLevel, setVipLevel] = useState(1);
+  const [firstTaskStarted, setFirstTaskStarted] = useState(false);
 
   const [activeCombo, setActiveCombo] = useState(null);
   const [showComboModal, setShowComboModal] = useState(false);
@@ -62,7 +63,7 @@ export default function UserTasksPage() {
       }).catch(() => {});
 
       const [tasksRes, progressRes, dashRes] = await Promise.all([
-        fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}`),
+        fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}&limit=200`),
         fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
         fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
       ]);
@@ -75,6 +76,7 @@ export default function UserTasksPage() {
         setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
         setFrozenBalance(Number(dashData.dashboard?.frozenBalance || 0));
         setVipLevel(Number(dashData.dashboard?.vipLevel || 1));
+        setFirstTaskStarted(Boolean(dashData.dashboard?.firstTaskStarted || false));
         if (dashData.dashboard?.activeComboTask) {
           setActiveCombo(dashData.dashboard.activeComboTask);
         } else {
@@ -91,7 +93,7 @@ export default function UserTasksPage() {
       }
       if (progressData?.success && progressData.dailyLimit?.reached) {
         setDailyLimitReached(true);
-        setDailyLimitMessage(progressData.dailyLimit.message || "Daily task limit reached. Please try again after 24 hours.");
+        setDailyLimitMessage(progressData.dailyLimit.message || "Try again in 24 hours.");
       } else {
         setDailyLimitReached(false);
         setDailyLimitMessage("");
@@ -123,7 +125,7 @@ export default function UserTasksPage() {
       }
       if (data?.dailyLimitReached) {
         setDailyLimitReached(true);
-        setDailyLimitMessage(data.message || "Daily task limit reached. Please try again after 24 hours.");
+        setDailyLimitMessage(data.message || "Try again in 24 hours.");
       }
       return false;
     } catch {
@@ -187,11 +189,34 @@ export default function UserTasksPage() {
     if (dailyLimitReached) {
       Swal.fire({
         icon: "info",
-        title: "Daily task limit reached",
-        text: dailyLimitMessage || "Please try again after 24 hours.",
+        title: "Try again in 24 hours.",
+        text: dailyLimitMessage || "Try again in 24 hours.",
       });
       return;
     }
+
+    // Block starting a new task while a previously started (but unsubmitted)
+    // task is held in Frozen Balance. The user must submit pending tasks first.
+    const frozenPending = assignedTasks.find(
+      (t) => (t.status === "pending" || t.status === "frozen") && Number(t.frozenAmount || 0) > 0
+    );
+    if (frozenPending) {
+      Swal.fire({
+        icon: "warning",
+        title: "Complete your pending task",
+        text: "You have a task held in Frozen Balance. Submit all pending tasks before starting a new one.",
+        showCancelButton: true,
+        confirmButtonText: "Go to Pending Tasks",
+        cancelButtonText: "Close",
+        confirmButtonColor: "#E05305",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          window.location.href = "/user-dashboard/records";
+        }
+      });
+      return;
+    }
+
     const nextTask = getNextPendingTask();
     if (!nextTask) {
       Swal.fire({
@@ -225,12 +250,13 @@ export default function UserTasksPage() {
       return;
     }
 
+    // The $40 minimum only applies to the very first task session.
     const MINIMUM_BALANCE = 40;
-    if (userBalance < MINIMUM_BALANCE) {
+    if (!firstTaskStarted && userBalance < MINIMUM_BALANCE) {
       Swal.fire({
         icon: "error",
         title: "Insufficient Balance",
-        text: `Your account balance must be at least $${formatMoney(MINIMUM_BALANCE)} to start any task. Your balance: $${formatMoney(userBalance)}`,
+        text: `Your account balance must be at least $${formatMoney(MINIMUM_BALANCE)} to start your first task. Your balance: $${formatMoney(userBalance)}`,
       });
       return;
     }
@@ -260,11 +286,11 @@ export default function UserTasksPage() {
     const confirmed = await Swal.fire({
       icon: "warning",
       title: "Close without submitting?",
-      text: `Are you sure you want to close this task without submitting it? The task amount of $${formatMoney(totalAmt)} will be deducted from your account balance.`,
+      text: `The task amount of $${formatMoney(totalAmt)} will be moved to your Frozen Balance. You can submit this task later from Pending Tasks.`,
       showCancelButton: true,
       confirmButtonColor: "#d33",
       cancelButtonColor: "#3085d6",
-      confirmButtonText: "Yes, close",
+      confirmButtonText: "Yes, hold task",
       cancelButtonText: "Go back",
     });
 
@@ -276,32 +302,27 @@ export default function UserTasksPage() {
       const res = await fetch("/api/user/tasks/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: selectedTask._id, uid: user.uid }),
+        body: JSON.stringify({ taskId: selectedTask._id, uid: user.uid, mode: "freeze" }),
       });
       const result = await res.json();
       if (result.success) {
+        setFirstTaskStarted(true);
         await Swal.fire({
           icon: "info",
-          title: "Task cancelled",
-          text: `$${formatMoney(result.deductedAmount)} deducted from your account.`,
+          title: "Task held in Frozen Balance",
+          text: `$${formatMoney(result.frozenAmount)} moved to Frozen Balance. Submit this task from Pending Tasks.`,
         });
         setUserBalance(result.balanceAfter || 0);
+        setFrozenBalance(result.frozenBalance || 0);
         setAssignedTasks((prev) =>
           prev.map((t) =>
             String(t._id) === String(selectedTask._id)
-              ? { ...t, status: "cancelled" }
+              ? { ...t, status: "pending", frozenAmount: result.frozenAmount }
               : t
           )
         );
-        setSetProgress((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            currentPosition: (prev.currentPosition || 0) + 1,
-          };
-        });
       } else {
-        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not cancel task." });
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not hold task." });
       }
     } catch (err) {
       console.error(err);
@@ -345,7 +366,11 @@ export default function UserTasksPage() {
         return;
       }
 
-      setUserBalance((prev) => prev + result.earned);
+      setUserBalance(result.balanceAfter !== undefined ? result.balanceAfter : (prev) => prev + result.earned);
+      setFirstTaskStarted(true);
+      if (result.frozenBalanceAfter !== undefined) {
+        setFrozenBalance(result.frozenBalanceAfter);
+      }
 
       if (result.setComplete) {
         const assigned = await tryAutoAssign();
@@ -367,9 +392,9 @@ export default function UserTasksPage() {
         }
       } else {
         await Swal.fire({
-          icon: 'success',
-          title: 'Task Completed!',
-          text: `You earned $${formatMoney(result.earned)} (Total: $${formatMoney(result.totalAmount)} + Profit: $${formatMoney(result.profit)})`,
+          icon: "success",
+          title: "Task Completed!",
+          text: `You earned $${formatMoney(result.earned)}`,
         });
         setAssignedTasks((prev) =>
           prev.map((t) =>
@@ -386,6 +411,9 @@ export default function UserTasksPage() {
             completedTasks: (prev.completedTasks || 0) + 1,
           };
         });
+        // Refetch so the dashboard triggers the combo freeze exactly when the
+        // combo becomes the current task.
+        await loadData();
       }
     } catch (error) {
       console.error(error);
@@ -477,8 +505,8 @@ export default function UserTasksPage() {
 
             {dailyLimitReached ? (
               <div className="text-center">
-                <p className="text-sm font-bold text-amber-600">Daily task limit reached</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Please try again after 24 hours."}</p>
+              <p className="text-sm font-bold text-amber-600">Try again in 24 hours.</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Try again in 24 hours."}</p>
               </div>
             ) : noGroupsAvailable ? (
               <div className="text-center">
@@ -512,23 +540,21 @@ export default function UserTasksPage() {
                     <p className="text-[10px] text-amber-500 font-medium">Combined Task - Multiple Orders</p>
                     <div className="flex justify-center gap-3 mt-1 text-[10px]">
                       <span className="text-slate-500">
-                        Balance: <span className="font-semibold text-slate-700">${formatMoney(userBalance + frozenBalance)}</span>
+                        Main Balance: <span className={`font-semibold ${(Number(userBalance) || 0) < 0 ? "text-red-500" : "text-slate-700"}`}>${formatMoney(userBalance)}</span>
                       </span>
                       <span className="text-slate-500">
-                        Required: <span className="font-semibold text-slate-700">${formatMoney(activeCombo.totalRequiredAmount)}</span>
+                        Frozen: <span className="font-semibold text-slate-700">${formatMoney(frozenBalance)}</span>
                       </span>
                     </div>
-                    {(userBalance + frozenBalance) < activeCombo.totalRequiredAmount && (
+                    {(Number(userBalance) || 0) < 0 && (
                       <div className="mt-1 bg-amber-50 border border-amber-200 rounded-lg p-2">
                         <p className="text-amber-800 font-semibold text-[10px]">Insufficient Balance</p>
                         <p className="text-amber-600 text-[9px] mt-0.5">
-                          Deposit ${formatMoney(activeCombo.totalRequiredAmount - (userBalance + frozenBalance))} more.
+                          Main Balance: -${formatMoney(Math.abs(Number(userBalance) || 0))}. Deposit ${formatMoney(Math.abs(Number(userBalance) || 0))} more.
                         </p>
                       </div>
                     )}
-                    {frozenBalance > 0 && (
-                      <p className="text-[9px] text-amber-500 mt-0.5">Balance frozen for Combined Task</p>
-                    )}
+                    <p className="text-[9px] text-amber-500 mt-0.5">Submit this Combined Task from Pending Tasks.</p>
                   </>
                 )}
                 {!nextTask && !isAutoAssigning && !noGroupsAvailable && !dailyLimitReached && (
@@ -543,12 +569,12 @@ export default function UserTasksPage() {
             )}
 
             {!isAllComplete && nextTask && !noGroupsAvailable && !dailyLimitReached && (
-              nextTask.isComboTask && activeCombo && (userBalance + frozenBalance) < activeCombo.totalRequiredAmount ? (
+              nextTask.isComboTask ? (
                 <button
-                  onClick={() => window.location.href = "/user-dashboard/deposits"}
-                  className="mt-2 bg-amber-500 text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-amber-600 transition shadow"
+                  onClick={() => window.location.href = "/user-dashboard/records"}
+                  className="mt-2 bg-[#E05305] text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
                 >
-                  Deposit to Continue
+                  Go to Pending Tasks
                 </button>
               ) : (
                 <button

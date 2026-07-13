@@ -20,6 +20,7 @@ export default function ComboSettingsPage() {
     demoPositions: [],
     mainPositions: [],
     userPositionOverrides: {},
+    targetNegativeBalance: 0,
     progressionLevels: [
       { level: 1, minAmountPerOrder: 20, maxAmountPerOrder: 100 },
     ],
@@ -48,6 +49,7 @@ export default function ComboSettingsPage() {
           demoPositions: data.config.demoPositions || [],
           mainPositions: data.config.mainPositions || [],
           userPositionOverrides: data.config.userPositionOverrides || {},
+          targetNegativeBalance: data.config.targetNegativeBalance || 0,
           progressionLevels: data.config.progressionLevels || [
             { level: 1, minAmountPerOrder: 20, maxAmountPerOrder: 100 },
           ],
@@ -290,6 +292,26 @@ export default function ComboSettingsPage() {
               className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
             />
           </div>
+        </div>
+
+        <hr className="border-slate-100" />
+
+        {/* Target Negative Balance */}
+        <div>
+          <label className="text-sm font-semibold text-slate-900 block mb-1">
+            Target Negative Balance
+          </label>
+          <p className="text-xs text-slate-500 mb-2">
+            When set, combo orders are auto-generated so that the user's final wallet balance reaches this negative amount (total = wallet balance + target). Leave 0 to use the default stage-based amounts. Applied to all users without a per-user override.
+          </p>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={form.targetNegativeBalance}
+            onChange={(e) => setForm((prev) => ({ ...prev, targetNegativeBalance: Math.max(0, Number(e.target.value) || 0) }))}
+            className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
+          />
         </div>
 
         <hr className="border-slate-100" />

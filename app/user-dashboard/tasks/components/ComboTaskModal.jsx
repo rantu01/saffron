@@ -206,7 +206,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
   const completedOrders = comboData?.orders?.filter((o) => o.status === "completed").length || 0;
   const totalOrders = comboData?.orders?.length || 0;
 
-  const totalEffectiveBalance = (userBalance || 0) + (frozenBalance || 0);
+  const needsDeposit = (Number(userBalance) || 0) < 0;
 
   const orderBeforeCurrentComplete = currentOrderIndex > 0
     ? comboData?.orders?.[currentOrderIndex - 1]?.status === "completed"
@@ -233,13 +233,13 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
 
         <div className="p-3 space-y-2 overflow-y-auto flex-1">
           {/* Status Banner */}
-          {isWaitingBalance && (
+          {needsDeposit && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 flex items-start gap-1.5">
               <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
               <div>
                 <p className="text-amber-800 font-semibold text-xs">Waiting for Balance</p>
                 <p className="text-amber-600 text-[10px] mt-0.5">
-                  Add funds to continue with the next order.
+                  Main Balance is -${formatMoney(Math.abs(Number(userBalance) || 0))}. Deposit ${formatMoney(Math.abs(Number(userBalance) || 0))} to continue with the next order.
                 </p>
               </div>
             </div>
@@ -250,13 +250,13 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <DollarSign className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs text-slate-600">Total Balance</span>
+                <span className="text-xs text-slate-600">Main Balance</span>
               </div>
-              <span className="text-xs font-bold text-slate-900">${formatMoney(userBalance)}</span>
+              <span className={`text-xs font-bold ${(Number(userBalance) || 0) < 0 ? "text-red-500" : "text-slate-900"}`}>${formatMoney(userBalance)}</span>
             </div>
             <div className="flex items-center justify-between pl-5">
               <span className="text-[10px] text-amber-500">Frozen for Combo</span>
-              <span className="text-[10px] font-bold text-amber-500">- ${formatMoney(frozenBalance || 0)}</span>
+              <span className="text-[10px] font-bold text-amber-500">${formatMoney(frozenBalance || 0)}</span>
             </div>
           </div>
 
@@ -316,26 +316,33 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
 
                     {isCurrent && !isCompleted && (
                       <div className="mt-1">
-                        {isPending && (
-                          <button
-                            onClick={() => handleStartOrder(index)}
-                            disabled={loading || totalEffectiveBalance < (comboData?.totalRequiredAmount || 0)}
-                            className={`w-full flex items-center justify-center gap-1 text-[10px] font-semibold py-1.5 rounded-lg transition ${
-                              totalEffectiveBalance >= (comboData?.totalRequiredAmount || 0)
-                                ? "bg-blue-500 text-white hover:bg-blue-600"
-                                : "bg-slate-300 text-slate-500 cursor-not-allowed"
-                            } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            {loading && orderLoadingIndex === index ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <Play className="w-3 h-3" />
-                            )}
-                            {totalEffectiveBalance >= (comboData?.totalRequiredAmount || 0)
-                              ? "Start Order"
-                              : "Insufficient Balance"}
-                          </button>
-                        )}
+                        {isPending && (() => {
+                          const canStart = (Number(userBalance) || 0) >= 0;
+                          if (canStart) {
+                            return (
+                              <button
+                                onClick={() => handleStartOrder(index)}
+                                disabled={loading}
+                                className={`w-full flex items-center justify-center gap-1 text-[10px] font-semibold py-1.5 rounded-lg transition bg-blue-500 text-white hover:bg-blue-600 ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                              >
+                                {loading && orderLoadingIndex === index ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Play className="w-3 h-3" />
+                                )}
+                                Start Order
+                              </button>
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={() => window.location.href = "/user-dashboard/deposits"}
+                              className="w-full flex items-center justify-center gap-1 text-[10px] font-semibold py-1.5 rounded-lg transition bg-amber-500 text-white hover:bg-amber-600"
+                            >
+                              Deposit to Continue
+                            </button>
+                          );
+                        })()}
                         {isInProgress && (
                           <button
                             onClick={() => handleCompleteOrder(index)}
@@ -378,7 +385,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
             </div>
           </div>
 
-          {isWaitingBalance && (
+          {needsDeposit ? (
             <div className="space-y-1.5">
               <button
                 onClick={() => window.location.href = "/user-dashboard/deposits"}
@@ -394,6 +401,14 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
                 Cancel Combined Task
               </button>
             </div>
+          ) : (
+            <button
+              onClick={handleCancel}
+              disabled={loading}
+              className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-semibold py-1.5 rounded-lg border border-red-200 transition shrink-0"
+            >
+              Cancel Combined Task
+            </button>
           )}
         </div>
       </div>

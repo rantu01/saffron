@@ -21,8 +21,7 @@ const money = (v) =>
 const emptyForm = {
   enabled: true,
   position: "",
-  numOrders: "",
-  orderAmounts: "",
+  targetNegativeBalance: "",
   commissionPercent: "",
 };
 
@@ -87,8 +86,7 @@ export default function UserComboManager() {
             ? {
                 enabled: s.enabled !== false,
                 position: s.position ?? "",
-                numOrders: s.numOrders ?? "",
-                orderAmounts: Array.isArray(s.orderAmounts) ? s.orderAmounts.join(", ") : "",
+                targetNegativeBalance: s.targetNegativeBalance ?? "",
                 commissionPercent: s.commissionPercent ?? "",
               }
             : { ...emptyForm }
@@ -111,16 +109,11 @@ export default function UserComboManager() {
 
   const handleSave = async () => {
     if (!selected) return;
-    const orderAmounts = form.orderAmounts
-      .split(",")
-      .map((v) => parseFloat(v.trim()))
-      .filter((v) => !isNaN(v) && v > 0);
 
     const settings = {
       enabled: form.enabled,
       position: form.position ? Number(form.position) : null,
-      numOrders: form.numOrders ? Number(form.numOrders) : null,
-      orderAmounts,
+      targetNegativeBalance: form.targetNegativeBalance !== "" ? Number(form.targetNegativeBalance) : null,
       commissionPercent: form.commissionPercent !== "" ? Number(form.commissionPercent) : null,
     };
 
@@ -413,31 +406,42 @@ export default function UserComboManager() {
                           className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                         />
                       </Field>
-                      <Field label="Number of orders" hint="Tasks in combo">
+                      <Field
+                        label="Target negative balance"
+                        hint="Final wallet balance after combo"
+                      >
                         <input
                           type="number"
-                          min="1"
-                          max="10"
-                          value={form.numOrders}
-                          onChange={(e) => setForm((p) => ({ ...p, numOrders: e.target.value }))}
-                          placeholder={`${detail.defaults?.minOrders ?? 2}`}
+                          min="0"
+                          step="1"
+                          value={form.targetNegativeBalance}
+                          onChange={(e) =>
+                            setForm((p) => ({ ...p, targetNegativeBalance: e.target.value }))
+                          }
+                          placeholder="0"
                           className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
                         />
                       </Field>
                     </div>
 
-                    <Field
-                      label="Order sequence (amounts)"
-                      hint="Comma-separated required amount per order. Overrides 'number of orders'. Leave blank to auto-generate."
-                    >
-                      <input
-                        type="text"
-                        value={form.orderAmounts}
-                        onChange={(e) => setForm((p) => ({ ...p, orderAmounts: e.target.value }))}
-                        placeholder="e.g. 30, 45, 60"
-                        className="w-full appearance-none border border-slate-200 rounded-lg bg-white px-2 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#E05305]"
-                      />
-                    </Field>
+                    <div className="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 space-y-1">
+                      <p className="font-semibold text-slate-700">Auto-generated combo preview</p>
+                      {(() => {
+                        const target = Number(form.targetNegativeBalance) || 0;
+                        const balance = Number(detail.user?.availableBalance || 0);
+                        const minOrders = detail.defaults?.minOrders ?? 2;
+                        const maxOrders = detail.defaults?.maxOrders ?? 5;
+                        const total = Math.max(0, balance + target);
+                        return (
+                          <p>
+                            Wallet balance: <span className="font-semibold">${money(balance)}</span> ·
+                            Target: <span className="font-semibold text-rose-600">-${money(target)}</span> ·
+                            Total required: <span className="font-semibold">${money(total)}</span> ·
+                            Split into {minOrders === maxOrders ? minOrders : `${minOrders}-${maxOrders}`} orders.
+                          </p>
+                        );
+                      })()}
+                    </div>
 
                     <Field label="Commission %" hint="Leave blank for global default">
                       <input
