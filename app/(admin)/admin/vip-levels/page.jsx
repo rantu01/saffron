@@ -151,7 +151,7 @@ export default function VipLevelsPage() {
       <div className="flex items-center gap-3 mb-4">
         <Crown className="w-7 h-7 text-amber-500" />
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">VIP Levels</h1>
+          <h1 className="text-2xl font-bold ">VIP Levels</h1>
           <p className="text-sm text-slate-500">Higher VIP levels require admin approval. VIP 1 is unlocked by default.</p>
         </div>
       </div>
