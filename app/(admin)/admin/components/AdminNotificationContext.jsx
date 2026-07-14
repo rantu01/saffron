@@ -34,8 +34,12 @@ export function AdminNotificationProvider({ children }) {
     };
   }, [fetchCounts]);
 
+  const refreshCounts = useCallback(() => {
+    fetchCounts();
+  }, [fetchCounts]);
+
   return (
-    <AdminNotificationContext.Provider value={counts}>
+    <AdminNotificationContext.Provider value={{ ...counts, refreshCounts }}>
       {children}
     </AdminNotificationContext.Provider>
   );

@@ -12,6 +12,7 @@ export default function UserTasksPage() {
   const { user, loading } = useAuth();
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [setProgress, setSetProgress] = useState(null);
+  const [allTaskSets, setAllTaskSets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
@@ -53,6 +54,18 @@ export default function UserTasksPage() {
     return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 });
   };
 
+  // Returns the set the user should currently be working on: the earliest set
+  // that is not yet fully completed. If every set is complete, the highest
+  // (most recent) set is returned so the completion screen can be shown.
+  const getActiveTaskSet = (sets) => {
+    if (!sets || !sets.length) return null;
+    const sorted = [...sets].sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
+    const incomplete = sorted.find(
+      (s) => (s.completedTasks || 0) < (s.totalTasks || 30)
+    );
+    return incomplete || sorted[sorted.length - 1];
+  };
+
   const loadData = useCallback(async () => {
     if (!user?.uid) return [];
     try {
@@ -88,9 +101,20 @@ export default function UserTasksPage() {
       if (tasksData?.success) {
         setAssignedTasks(tasks);
       }
-      if (progressData?.success && progressData.taskSets?.length) {
-        setSetProgress(progressData.taskSets[0]);
+
+      const sets = progressData?.success ? (progressData.taskSets || []) : [];
+      setAllTaskSets(sets);
+
+      // The "active" set is the earliest set the user has not yet finished.
+      // Once an admin assigns a new group, the freshly created (incomplete) set
+      // becomes the active one and surfaces on the dashboard immediately.
+      const activeSet = getActiveTaskSet(sets);
+      if (activeSet) {
+        setSetProgress(activeSet);
+      } else {
+        setSetProgress(null);
       }
+
       if (progressData?.success && progressData.dailyLimit?.reached) {
         setDailyLimitReached(true);
         setDailyLimitMessage(progressData.dailyLimit.message || "Try again in 24 hours.");
@@ -99,39 +123,10 @@ export default function UserTasksPage() {
         setDailyLimitMessage("");
       }
 
-      return tasks;
+      return { tasks, sets };
     } catch (err) {
       console.error(err);
       return [];
-    }
-  }, [user?.uid]);
-
-  const tryAutoAssign = useCallback(async () => {
-    if (!user?.uid) return false;
-    setIsAutoAssigning(true);
-    try {
-      const res = await fetch("/api/user/tasks/auto-assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid }),
-      });
-      const data = await res.json();
-      if (data?.success && data?.assigned) {
-        setNoGroupsAvailable(false);
-        return true;
-      }
-      if (data?.noGroups) {
-        setNoGroupsAvailable(true);
-      }
-      if (data?.dailyLimitReached) {
-        setDailyLimitReached(true);
-        setDailyLimitMessage(data.message || "Try again in 24 hours.");
-      }
-      return false;
-    } catch {
-      return false;
-    } finally {
-      setIsAutoAssigning(false);
     }
   }, [user?.uid]);
 
@@ -141,21 +136,12 @@ export default function UserTasksPage() {
       if (!user?.uid) { setIsLoading(false); return; }
       setIsLoading(true);
       setNoGroupsAvailable(false);
-      const tasks = await loadData();
-      if (cancelled) return;
-
-      const hasPending = tasks.some((t) => t.status === "pending");
-      if (!hasPending) {
-        await tryAutoAssign();
-        if (!cancelled) {
-          await loadData();
-        }
-      }
+      await loadData();
       if (!cancelled) setIsLoading(false);
     }
     init();
     return () => { cancelled = true; };
-  }, [user?.uid, loadData, tryAutoAssign]);
+  }, [user?.uid, loadData]);
 
   useEffect(() => {
     if (activeCombo && (activeCombo.status === "in_progress" || activeCombo.status === "waiting_balance")) {
@@ -163,11 +149,22 @@ export default function UserTasksPage() {
     }
   }, [activeCombo]);
 
+  // Real-time refresh: keep progress, balances, and active combo in sync with
+  // the server so newly assigned groups and admin changes are reflected without
+  // a manual page refresh.
+  useEffect(() => {
+    if (!user?.uid) return;
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user?.uid, loadData]);
+
   const currentSetNumber = setProgress?.setNumber || 1;
   const completedCount = setProgress?.completedTasks || 0;
   const totalTasks = setProgress?.totalTasks || 30;
   const isAllComplete = completedCount >= totalTasks;
-  const displayProgress = isAllComplete ? totalTasks : Math.min(completedCount + 1, totalTasks);
+  const displayProgress = isAllComplete ? totalTasks : Math.min(completedCount, totalTasks);
 
   const currentSetTasks = assignedTasks.filter(
     (t) => (t.setNumber || 1) === currentSetNumber && t.position > 0
@@ -373,23 +370,12 @@ export default function UserTasksPage() {
       }
 
       if (result.setComplete) {
-        const assigned = await tryAutoAssign();
         await loadData();
-        if (!assigned) {
-          await Swal.fire({
-            icon: 'success',
-            title: 'Set Completed!',
-            text: noGroupsAvailable
-              ? 'No tasks available now. Please try again later.'
-              : `You earned $${formatMoney(result.earned)}. New tasks loaded.`,
-          });
-        } else {
-          await Swal.fire({
-            icon: 'success',
-            title: 'Set Completed!',
-            text: `You earned $${formatMoney(result.earned)}. Next group assigned automatically.`,
-          });
-        }
+        await Swal.fire({
+          icon: 'success',
+          title: 'Set Completed!',
+          text: `You earned $${formatMoney(result.earned)}. Contact the admin if you would like another task group.`,
+        });
       } else {
         await Swal.fire({
           icon: "success",
@@ -421,8 +407,49 @@ export default function UserTasksPage() {
     }
   };
 
-  if (loading || isLoading) {
-    return (
+  // Shown after a set is completed. Refreshes the latest data from the server
+  // (so a group the admin just assigned is picked up without a page refresh)
+  // and, if a new task set exists, activates it. Otherwise it prompts the user
+  // to contact the admin.
+  const handleNextSet = async () => {
+    const prevActiveNum = getActiveTaskSet(allTaskSets)?.setNumber || 1;
+    setIsAutoAssigning(true);
+    try {
+      const { sets } = await loadData();
+      const active = getActiveTaskSet(sets || []);
+      const newActiveNum = active?.setNumber || 1;
+      const nextSet = (sets || []).find(
+        (s) => (s.setNumber || 0) > newActiveNum && (s.completedTasks || 0) < (s.totalTasks || 30)
+      );
+
+      if (newActiveNum > prevActiveNum) {
+        await Swal.fire({
+          icon: "success",
+          title: `Task Set ${newActiveNum} loaded`,
+          text: "Your new task set is ready. Keep going!",
+        });
+      } else if (nextSet) {
+        await Swal.fire({
+          icon: "success",
+          title: `Task Set ${nextSet.setNumber} loaded`,
+          text: "Your new task set is ready. Keep going!",
+        });
+      } else {
+        await Swal.fire({
+          icon: "info",
+          title: "No new task set yet",
+          text: "Please contact the admin to receive your next task set.",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire({ icon: "error", title: "Error", text: "Could not load the next task set." });
+    } finally {
+      setIsAutoAssigning(false);
+    }
+  };
+
+  if (loading || isLoading) {    return (
       <div className="h-full flex items-center justify-center animate-pulse">
         <div className="w-full max-w-sm space-y-4">
           <div className="h-6 w-24 bg-slate-200 rounded mx-auto" />
@@ -480,30 +507,54 @@ export default function UserTasksPage() {
         <div className="flex-1 flex flex-col xl:flex-row gap-2 min-h-0 overflow-hidden">
           {/* Progress Card */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col items-center justify-center shrink-0 xl:w-1/2">
-            <div className="relative h-20 w-20 mb-2">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="8" />
-                <circle
-                  cx="60"
-                  cy="60"
-                  r="52"
-                  fill="none"
-                  stroke={isAllComplete ? "#10b981" : "#E05305"}
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(displayProgress / totalTasks) * 327} 327`}
-                  className="transition-all duration-500"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold text-slate-900">
-                  {displayProgress}
-                  <span className="text-sm text-slate-400">/{totalTasks}</span>
-                </span>
+            {assignedTasks.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm font-bold text-slate-900">No tasks assigned yet</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Contact the admin to receive a task group.</p>
+                <a
+                  href="/user-dashboard/chat"
+                  className="mt-2 inline-block bg-[#E05305] text-white rounded-lg px-5 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                >
+                  Contact Admin
+                </a>
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="relative h-20 w-20 mb-2">
+                  <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                    <circle cx="60" cy="60" r="52" fill="none" stroke="#e2e8f0" strokeWidth="8" />
+                    <circle
+                      cx="60"
+                      cy="60"
+                      r="52"
+                      fill="none"
+                      stroke={isAllComplete ? "#10b981" : "#E05305"}
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(displayProgress / totalTasks) * 327} 327`}
+                      className="transition-all duration-500"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xl font-bold text-slate-900">
+                      {displayProgress}
+                      <span className="text-sm text-slate-400">/{totalTasks}</span>
+                    </span>
+                  </div>
+                </div>
 
             {dailyLimitReached ? (
+              <div className="text-center">
+                <p className="text-sm font-bold text-slate-900">No tasks assigned yet</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Contact the admin to receive a task group.</p>
+                <a
+                  href="/user-dashboard/chat"
+                  className="mt-2 inline-block bg-[#E05305] text-white rounded-lg px-5 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                >
+                  Contact Admin
+                </a>
+              </div>
+            ) : dailyLimitReached ? (
               <div className="text-center">
               <p className="text-sm font-bold text-amber-600">Try again in 24 hours.</p>
               <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Try again in 24 hours."}</p>
@@ -517,6 +568,14 @@ export default function UserTasksPage() {
               <div className="text-center">
                 <p className="text-sm font-bold text-emerald-600">Task {totalTasks} of {totalTasks}</p>
                 <p className="text-[10px] text-slate-500">{isAutoAssigning ? "Loading next group..." : "All tasks completed in this set."}</p>
+                {!isAutoAssigning && (
+                  <button
+                    onClick={handleNextSet}
+                    className="mt-2 bg-[#E05305] text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                  >
+                    Next Set
+                  </button>
+                )}
               </div>
             ) : (
               <div className="text-center">
@@ -558,12 +617,9 @@ export default function UserTasksPage() {
                   </>
                 )}
                 {!nextTask && !isAutoAssigning && !noGroupsAvailable && !dailyLimitReached && (
-                  <button
-                    onClick={async () => { await tryAutoAssign(); await loadData(); }}
-                    className="mt-1 text-[10px] text-blue-600 hover:underline"
-                  >
-                    Check for new tasks
-                  </button>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    No pending tasks available.
+                  </p>
                 )}
               </div>
             )}
@@ -585,6 +641,9 @@ export default function UserTasksPage() {
                 </button>
               )
             )}
+          </>
+          )}
+
           </div>
 
           {/* VIP Status Card */}

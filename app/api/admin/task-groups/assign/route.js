@@ -48,18 +48,75 @@ export async function POST(request) {
       );
     }
 
+    // Look at any previous assignment of this exact group to this user.
     const existingAssignments = await db
       .collection("tasks")
       .find({
         parentTaskGroupId: groupId,
         assigneeUid,
       })
-      .count();
+      .toArray();
 
-    if (existingAssignments > 0) {
+    if (existingAssignments.length > 0) {
+      // Only block when the group is genuinely still in progress for the user
+      // (an incomplete set that still has a pending task for this group).
+      // A finished or "stuck" assignment is allowed to be re-issued as a fresh
+      // set so it always remains accessible on the user dashboard.
+      const assignedSetNumbers = [
+        ...new Set(existingAssignments.map((t) => t.setNumber).filter((n) => n != null)),
+      ];
+      let inProgress = false;
+      if (assignedSetNumbers.length) {
+        const assignedSets = await db
+          .collection("userTaskSets")
+          .find({ uid: assigneeUid, setNumber: { $in: assignedSetNumbers } })
+          .toArray();
+        const incompleteSet = assignedSets.find(
+          (s) => (s.completedTasks || 0) < (s.totalTasks || 30)
+        );
+        if (incompleteSet) {
+          inProgress = existingAssignments.some(
+            (t) => t.setNumber === incompleteSet.setNumber && t.status === "pending"
+          );
+        }
+      }
+      if (inProgress) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "This group is already assigned and currently in progress for this user.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Each newly assigned group becomes its own task set (incrementing the
+    // user's set number) so it never collides with an already-completed set
+    // and is picked up immediately by the user dashboard.
+    const lastSet = await db
+      .collection("userTaskSets")
+      .findOne({ uid: assigneeUid }, { sort: { setNumber: -1 } });
+    const nextSetNumber = (lastSet?.setNumber || 0) + 1;
+
+    const DAILY_GROUP_LIMIT = 3;
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const assignedToday = await db
+      .collection("groupAssignments")
+      .countDocuments({ assigneeUid, assignedAt: { $gte: startOfToday } });
+
+    if (assignedToday >= DAILY_GROUP_LIMIT && !body.force) {
       return NextResponse.json(
-        { success: false, message: "This group has already been assigned to this user." },
-        { status: 409 }
+        {
+          success: false,
+          needsConfirmation: true,
+          assignedToday,
+          dailyLimit: DAILY_GROUP_LIMIT,
+          message: `You have already assigned ${DAILY_GROUP_LIMIT} task groups to this user today. Do you want to continue assigning additional groups?`,
+        },
+        { status: 200 }
       );
     }
 
@@ -68,7 +125,7 @@ export async function POST(request) {
 
     const tasksToInsert = templateTasks.map((t, index) => {
       const position = index + 1;
-      const taskProfile = buildTaskFinancialProfile(t, position, 1, combinationPositions);
+      const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
 
       const computedAmount = Number(t.totalAmount) || 0;
       const computedProfit = computeTaskProfit(computedAmount);
@@ -102,12 +159,24 @@ export async function POST(request) {
 
     const result = await db.collection("tasks").insertMany(tasksToInsert);
 
-    await initializeUserTaskSet(assigneeUid, 1);
+    await initializeUserTaskSet(assigneeUid, nextSetNumber, { totalTasks: templateTasks.length });
 
     const insertedTasks = tasksToInsert.map((t, i) => ({
       ...t,
       _id: result.insertedIds[i],
     }));
+
+    await db.collection("groupAssignments").insertOne({
+      groupId: groupId.toString(),
+      groupName: group.name,
+      assigneeUid,
+      assigneeEmail: assigneeEmail || "",
+      assignedAt: now,
+    });
+
+    const updatedAssignedToday = await db
+      .collection("groupAssignments")
+      .countDocuments({ assigneeUid, assignedAt: { $gte: startOfToday } });
 
     return NextResponse.json({
       success: true,
@@ -115,6 +184,8 @@ export async function POST(request) {
       tasks: insertedTasks,
       createdCount: insertedTasks.length,
       groupName: group.name,
+      assignedToday: updatedAssignedToday,
+      dailyLimit: DAILY_GROUP_LIMIT,
     });
   } catch (error) {
     return NextResponse.json(

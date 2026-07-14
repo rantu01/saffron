@@ -22,7 +22,7 @@ export async function POST(request) {
       isActive: true,
     });
 
-    if (!invitation || invitation.usedByUid) {
+    if (!invitation || (!invitation.reusable && invitation.usedByUid)) {
       return NextResponse.json(
         { success: false, message: "Invitation code is invalid or already used." },
         { status: 400 }

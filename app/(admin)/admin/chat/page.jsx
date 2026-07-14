@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useAdminNotificationCounts } from "@/app/(admin)/admin/components/AdminNotificationContext";
 import { MessageCircle, Send, Loader2, Search, ChevronLeft } from "lucide-react";
 
 const ITEMS_PER_PAGE = 20;
 
 export default function AdminChatPage() {
   const { user } = useAuth();
+  const { refreshCounts } = useAdminNotificationCounts();
   const [conversations, setConversations] = useState([]);
   const [selectedConv, setSelectedConv] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -80,6 +82,12 @@ export default function AdminChatPage() {
     lastMessageIdRef.current = lastId;
     setLoadingMsgs(false);
 
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.conversationId === conv.conversationId ? { ...c, unreadCount: 0 } : c
+      )
+    );
+
     await fetch("/api/chat/read", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -91,6 +99,8 @@ export default function AdminChatPage() {
       const lastId = await fetchMessages(conv.conversationId, lastMessageIdRef.current);
       if (lastId) lastMessageIdRef.current = lastId;
     }, 3000);
+
+    refreshCounts();
   };
 
   const closeConversation = () => {
@@ -135,6 +145,7 @@ export default function AdminChatPage() {
         setMessages((prev) => prev.map((m) => (m._id === tempId ? data.message : m)));
         lastMessageIdRef.current = data.message._id;
         fetchConversations();
+        refreshCounts();
       }
     } catch {
       // keep temp
@@ -160,9 +171,10 @@ export default function AdminChatPage() {
             <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-100 bg-gray-50/50">
               <button
                 onClick={closeConversation}
-                className="lg:hidden p-1 hover:bg-gray-200 rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2 py-1 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 <ChevronLeft size={20} className="text-gray-600" />
+                <span className="text-sm font-medium text-gray-600">Back</span>
               </button>
               <div className="w-9 h-9 rounded-full bg-[#E05305]/10 flex items-center justify-center">
                 <MessageCircle size={16} className="text-[#E05305]" />

@@ -341,17 +341,49 @@ export default function TaskManagementPage() {
   };
 
   const [assigningGroup, setAssigningGroup] = useState(false);
+  const doGroupAssign = async (force = false) => {
+    const user = users.find((u) => u.uid === groupAssign.assigneeUid);
+    const response = await fetch("/api/admin/task-groups/assign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupId: groupAssign.groupId, assigneeUid: user.uid, assigneeEmail: user.email, force }),
+    });
+    const result = await response.json();
+
+    if (result?.needsConfirmation) {
+      const confirm = await Swal.fire({
+        icon: "warning",
+        title: "Daily limit reached",
+        text: result.message,
+        showCancelButton: true,
+        confirmButtonColor: "#E05305",
+        confirmButtonText: "Continue anyway",
+        cancelButtonText: "Cancel",
+      });
+      if (confirm.isConfirmed) {
+        return doGroupAssign(true);
+      }
+      return;
+    }
+
+    if (!response.ok || !result.success) {
+      await Swal.fire({
+        icon: response.status === 409 ? "warning" : "error",
+        title: response.status === 409 ? "Already assigned" : "Assignment failed",
+        text: result.message || "Please try again.",
+      });
+      return;
+    }
+    await Swal.fire({ icon: "success", title: "Group assigned", text: result.message, timer: 3000 });
+    setGroupAssign({ groupId: "", assigneeUid: "" });
+  };
+
   const handleGroupAssign = async (e) => {
     e.preventDefault();
     if (!groupAssign.groupId || !groupAssign.assigneeUid) { await Swal.fire({ icon: "error", title: "Select", text: "Please select a group and a user." }); return; }
     setAssigningGroup(true);
     try {
-      const user = users.find((u) => u.uid === groupAssign.assigneeUid);
-      const response = await fetch("/api/admin/task-groups/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ groupId: groupAssign.groupId, assigneeUid: user.uid, assigneeEmail: user.email }) });
-      const result = await response.json();
-      if (!response.ok) { await Swal.fire({ icon: response.status === 409 ? "warning" : "error", title: response.status === 409 ? "Already assigned" : "Assignment failed", text: result.message || "Please try again." }); return; }
-      await Swal.fire({ icon: "success", title: "Group assigned", text: result.message, timer: 3000 });
-      setGroupAssign({ groupId: "", assigneeUid: "" });
+      await doGroupAssign(false);
     } finally { setAssigningGroup(false); }
   };
 
@@ -555,7 +587,7 @@ export default function TaskManagementPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
           <div className="mb-6">
             <h2 className="text-lg font-semibold">Assign Task Group to User</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Link a task group to a user so they receive tasks from it</p>
+            <p className="text-sm text-slate-500 mt-0.5">Link a task group to a user so they receive tasks from it. Up to 3 groups may be assigned per user per day.</p>
           </div>
           <form onSubmit={handleGroupAssign} className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>

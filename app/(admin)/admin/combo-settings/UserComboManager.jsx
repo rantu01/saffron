@@ -316,7 +316,12 @@ export default function UserComboManager() {
                       label="Set / Progress"
                       value={
                         detail.currentSet
-                          ? `Set ${detail.currentSet.setNumber} · ${detail.currentSet.completedTasks + 1}/${detail.currentSet.totalTasks}`
+                          ? (() => {
+                              const total = detail.currentSet.totalTasks || 30;
+                              const completed = detail.currentSet.completedTasks || 0;
+                              const prog = completed >= total ? total : Math.min(completed, total);
+                              return `Set ${detail.currentSet.setNumber} · ${prog}/${total}`;
+                            })()
                           : "—"
                       }
                     />
@@ -339,7 +344,7 @@ export default function UserComboManager() {
                           <span className="font-semibold text-amber-600">
                             {detail.activeCombo.status}
                           </span>{" "}
-                          · Position {detail.activeCombo.position} · Set {detail.activeCombo.setNumber}
+                           · Position {Math.max(1, (detail.activeCombo.position || 1) - 1)} · Set {detail.activeCombo.setNumber}
                         </p>
                         <p>
                           Orders: {detail.activeCombo.orders?.length || 0} · Required $

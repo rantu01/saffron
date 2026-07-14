@@ -12,6 +12,7 @@ const navigation = [
     // { label: "Referrals", href: "/user-dashboard/referrals", icon: Share2 },
     // { label: "Withdrawals", href: "/user-dashboard/withdrawals", icon: Send },
     { label: "Profile", href: "/user-dashboard/profile", icon: User },
+    { label: "Records", href: "/user-dashboard/records", icon: User },
 ];
 
 const paymentChildren = [

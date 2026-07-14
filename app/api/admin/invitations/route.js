@@ -41,6 +41,25 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
+    let reusable = false;
+
+    if (createdByUid) {
+      const existing = await db
+        .collection("invitationCodes")
+        .findOne({ createdByUid, isActive: true });
+
+      if (existing) {
+        return NextResponse.json({
+          success: true,
+          invitation: existing,
+          message: "This user already has a referral code.",
+        });
+      }
+
+      const owner = await db.collection("users").findOne({ uid: createdByUid });
+      reusable = Boolean(owner?.referralCodeReusable);
+    }
+
     let code = generateCode();
     let exists = await db.collection("invitationCodes").findOne({ code });
 
@@ -56,6 +75,7 @@ export async function POST(request) {
       createdByUid,
       createdByEmail,
       createdByName,
+      reusable: Boolean(reusable),
       usedByUid: "",
       usedByEmail: "",
       usedAt: null,

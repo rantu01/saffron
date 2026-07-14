@@ -7,7 +7,7 @@ import { getAuth, updatePassword, EmailAuthProvider, reauthenticateWithCredentia
 
 export default function ProfilePage() {
   const { user: authUser, loading } = useAuth();
-  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", canGenerateMultipleCodes: false, username: "" });
+  const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", referralCodeReusable: false, username: "" });
   const [usernameError, setUsernameError] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [invitations, setInvitations] = useState([]);
@@ -29,7 +29,7 @@ export default function ProfilePage() {
           avatarUrl: profileData.user.avatarUrl || "",
           phoneNumber: profileData.user.phoneNumber || "",
           referralCode: profileData.user.referralCode || "",
-          canGenerateMultipleCodes: Boolean(profileData.user.canGenerateMultipleCodes),
+          referralCodeReusable: Boolean(profileData.user.referralCodeReusable),
           username: profileData.user.username || "",
         });
       }
@@ -198,26 +198,10 @@ export default function ProfilePage() {
                   Copy
                 </button>
               </div>
-              {profile.canGenerateMultipleCodes && (
-                <button
-                  onClick={async () => {
-                    if (!authUser?.uid) return;
-                    const res = await fetch("/api/user/referral/generate-code", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ uid: authUser.uid, email: authUser.email, displayName: authUser.displayName }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok || !data.success) {
-                      return Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not generate code" });
-                    }
-                    Swal.fire({ icon: "success", title: "New code generated!", text: data.invitation.code, timer: 1500, showConfirmButton: false });
-                    loadData();
-                  }}
-                  className="mt-3 bg-[#E05305] text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-[#c84a04] transition"
-                >
-                  Generate New Code
-                </button>
+              {profile.referralCodeReusable && (
+                <p className="mt-3 text-xs text-slate-500">
+                  This code is reusable and can be shared with unlimited people.
+                </p>
               )}
             </div>
           ) : (

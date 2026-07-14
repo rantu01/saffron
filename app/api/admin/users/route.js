@@ -163,7 +163,7 @@ export async function PATCH(request) {
       inviterUid,
       inviterEmail,
       demoProfitSharePercent,
-      canGenerateMultipleCodes,
+      referralCodeReusable,
     } = body;
 
     if (!uid) {
@@ -242,14 +242,21 @@ export async function PATCH(request) {
       update.demoProfitSharePercent = numericPercent;
     }
 
-    if (typeof canGenerateMultipleCodes === "boolean") {
-      update.canGenerateMultipleCodes = canGenerateMultipleCodes;
+    if (typeof referralCodeReusable === "boolean") {
+      update.referralCodeReusable = referralCodeReusable;
     }
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     await db.collection("users").updateOne({ uid }, { $set: update });
+
+    if (typeof referralCodeReusable === "boolean") {
+      await db.collection("invitationCodes").updateMany(
+        { createdByUid: uid, isActive: true },
+        { $set: { reusable: referralCodeReusable, updatedAt: new Date() } }
+      );
+    }
 
     if (availableBalance !== undefined) {
       await resolveFrozenBalanceState(uid);

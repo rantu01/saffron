@@ -24,24 +24,29 @@ export async function POST(request) {
 
     const user = await db.collection("users").findOne({ uid });
 
-    if (!user?.canGenerateMultipleCodes) {
-      const existingInvite = await db.collection("invitationCodes").findOne({
-        createdByUid: uid,
-        isActive: true,
-        usedByUid: null,
-      });
+    const reusable = Boolean(user?.referralCodeReusable);
 
-      if (existingInvite) {
-        await db.collection("users").updateOne(
-          { uid },
-          { $set: { referralCode: existingInvite.code, updatedAt: new Date() } }
+    const existingInvite = await db.collection("invitationCodes").findOne({
+      createdByUid: uid,
+      isActive: true,
+    });
+
+    if (existingInvite) {
+      if (existingInvite.reusable !== reusable) {
+        await db.collection("invitationCodes").updateOne(
+          { _id: existingInvite._id },
+          { $set: { reusable, updatedAt: new Date() } }
         );
-        return NextResponse.json({
-          success: true,
-          invitation: existingInvite,
-          message: "You already have an active referral code",
-        });
       }
+      await db.collection("users").updateOne(
+        { uid },
+        { $set: { referralCode: existingInvite.code, updatedAt: new Date() } }
+      );
+      return NextResponse.json({
+        success: true,
+        invitation: { ...existingInvite, reusable },
+        message: "You already have a referral code",
+      });
     }
 
     let code = generateCode();
@@ -61,6 +66,7 @@ export async function POST(request) {
       createdByUid: uid,
       createdByEmail: email || "",
       createdByName: displayName || "",
+      reusable,
       usedByUid: null,
       usedByEmail: null,
       usedAt: null,

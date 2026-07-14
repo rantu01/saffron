@@ -198,9 +198,9 @@ export default function UserManagementPage() {
                     <option value="active">active</option>
                     <option value="frozen">frozen</option>
                   </select>
-                  <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-                    <input type="checkbox" defaultChecked={user.canGenerateMultipleCodes} onChange={(e) => updateUser(user.uid, { canGenerateMultipleCodes: e.target.checked })} className="w-4 h-4 accent-[#E05305]" />
-                    <span className="text-slate-600">Multiple Codes</span>
+                  <label className="flex items-center gap-1.5 text-sm cursor-pointer select-none" title="When enabled, the user keeps a single referral code that can be used an unlimited number of times.">
+                    <input type="checkbox" defaultChecked={user.referralCodeReusable} onChange={(e) => updateUser(user.uid, { referralCodeReusable: e.target.checked })} className="w-4 h-4 accent-[#E05305]" />
+                    <span className="text-slate-600">Reusable Code</span>
                   </label>
                   {user.accountType !== "demo" && !user.isDemoAccount && (
                     <button onClick={() => createDemoAccount(user)} className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-emerald-700 transition">Create Demo</button>
