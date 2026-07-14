@@ -42,7 +42,14 @@ export default function RootPage() {
     setError('');
     setIsSubmitting(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+      let target = '/user-dashboard';
+      try {
+        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(cred.user.uid)}`);
+        const data = await res.json();
+        if (data?.success && data.dashboard?.role === 'admin') target = '/admin';
+      } catch (e) {}
+      router.push(target);
     } catch (err) {
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
         setError('Invalid email or password. Please try again.');
