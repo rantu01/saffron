@@ -167,38 +167,6 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
     }
   };
 
-  const handleCancel = async () => {
-    const confirm = await Swal.fire({
-      icon: "warning",
-      title: "Cancel Combined Task?",
-      text: "This will cancel the entire combined task and unfreeze your balance.",
-      showCancelButton: true,
-      confirmButtonColor: "#dc2626",
-      confirmButtonText: "Yes, Cancel",
-      cancelButtonText: "Close",
-    });
-    if (!confirm.isConfirmed) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/user/tasks/combo/cancel", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ comboId: comboData._id, uid }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        Swal.fire({ icon: "error", title: "Error", text: data.message });
-        return;
-      }
-      await Swal.fire({ icon: "success", title: "Cancelled", text: data.message });
-      onComplete({ closed: true });
-    } catch (err) {
-      Swal.fire({ icon: "error", title: "Error", text: "Something went wrong!" });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const currentOrder = comboData?.orders?.[currentOrderIndex];
   const allCompleted = comboData?.orders?.every((o) => o.status === "completed");
   const isWaitingBalance = comboData?.status === "waiting_balance";
@@ -385,29 +353,12 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
             </div>
           </div>
 
-          {needsDeposit ? (
-            <div className="space-y-1.5">
-              <button
-                onClick={() => window.location.href = "/user-dashboard/deposits"}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-lg transition shrink-0"
-              >
-                Deposit to Continue
-              </button>
-              <button
-                onClick={handleCancel}
-                disabled={loading}
-                className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-semibold py-1.5 rounded-lg border border-red-200 transition shrink-0"
-              >
-                Cancel Combined Task
-              </button>
-            </div>
-          ) : (
+          {needsDeposit && (
             <button
-              onClick={handleCancel}
-              disabled={loading}
-              className="w-full bg-red-50 hover:bg-red-100 text-red-600 text-[10px] font-semibold py-1.5 rounded-lg border border-red-200 transition shrink-0"
+              onClick={() => window.location.href = "/user-dashboard/deposits"}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold py-2 rounded-lg transition shrink-0"
             >
-              Cancel Combined Task
+              Deposit to Continue
             </button>
           )}
         </div>

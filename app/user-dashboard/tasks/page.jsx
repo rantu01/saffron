@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
-import { Crown, Star, Trophy } from "lucide-react";
+import { Crown, Star, Trophy, Loader2 } from "lucide-react";
 import ScreenshotCarousel from "./components/ScreenshotCarousel";
 import FloatingAppIcons from "./components/FloatingAppIcons";
 import ComboTaskModal from "./components/ComboTaskModal";
@@ -25,6 +25,16 @@ export default function UserTasksPage() {
 
   const [activeCombo, setActiveCombo] = useState(null);
   const [showComboModal, setShowComboModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Guards against stale/out-of-order async results. Every loadData() call
+  // captures an incrementing sequence number; only the most recent call is
+  // allowed to write its results into state, so a slow in-flight fetch can
+  // never overwrite fresher balance/progress data.
+  const loadSeqRef = useRef(0);
+  // Serializes task submissions so completing tasks very rapidly cannot fire
+  // overlapping requests that leave the UI showing stale values.
+  const submittingRef = useRef(false);
 
   const VIP_TIERS = [
     { level: 1, name: "VIP 1", label: "Bronze", minDeposit: 25, dailyProfit: 0.5, unlockBalance: 0, gradient: "from-blue-600 to-blue-400", badgeBg: "bg-blue-500" },
@@ -68,6 +78,8 @@ export default function UserTasksPage() {
 
   const loadData = useCallback(async () => {
     if (!user?.uid) return [];
+    const seq = ++loadSeqRef.current;
+    const isLatest = () => seq === loadSeqRef.current;
     try {
       await fetch("/api/user/tasks/sync-combo", {
         method: "POST",
@@ -85,6 +97,15 @@ export default function UserTasksPage() {
       const progressData = await progressRes.json();
       const dashData = await dashRes.json();
 
+      const tasksFetched = tasksData?.success ? (tasksData.tasks || []) : [];
+      const setsFetched = progressData?.success ? (progressData.taskSets || []) : [];
+
+      // A newer loadData() started while this one was in flight. Discard these
+      // (now stale) results so we never render outdated balances/progress.
+      if (!isLatest()) {
+        return { tasks: tasksFetched, sets: setsFetched };
+      }
+
       if (dashData?.success) {
         setUserBalance(Number(dashData.dashboard?.availableBalance || 0));
         setFrozenBalance(Number(dashData.dashboard?.frozenBalance || 0));
@@ -97,12 +118,12 @@ export default function UserTasksPage() {
         }
       }
 
-      const tasks = tasksData?.success ? (tasksData.tasks || []) : [];
+      const tasks = tasksFetched;
       if (tasksData?.success) {
         setAssignedTasks(tasks);
       }
 
-      const sets = progressData?.success ? (progressData.taskSets || []) : [];
+      const sets = setsFetched;
       setAllTaskSets(sets);
 
       // The "active" set is the earliest set the user has not yet finished.
@@ -155,6 +176,9 @@ export default function UserTasksPage() {
   useEffect(() => {
     if (!user?.uid) return;
     const interval = setInterval(() => {
+      // Don't fire background refreshes mid-submission; a stale response could
+      // otherwise clobber the freshly-committed balance/frozen values.
+      if (submittingRef.current) return;
       loadData();
     }, 5000);
     return () => clearInterval(interval);
@@ -183,6 +207,7 @@ export default function UserTasksPage() {
 
   const handleStartTask = () => {
     if (isAllComplete) return;
+    if (submittingRef.current) return;
     if (dailyLimitReached) {
       Swal.fire({
         icon: "info",
@@ -329,6 +354,8 @@ export default function UserTasksPage() {
 
   const handleFinalSubmit = async () => {
     if (!selectedTask) return;
+    // Prevent overlapping submissions when tasks are completed very rapidly.
+    if (submittingRef.current) return;
 
     const subConfig = selectedTask.submissionConfig;
     const requireRating = subConfig ? subConfig.requireRating !== false : true;
@@ -344,6 +371,8 @@ export default function UserTasksPage() {
     }
 
     setIsModalOpen(false);
+    submittingRef.current = true;
+    setIsSubmitting(true);
 
     try {
       const res = await fetch('/api/user/tasks/complete', {
@@ -363,14 +392,15 @@ export default function UserTasksPage() {
         return;
       }
 
-      setUserBalance(result.balanceAfter !== undefined ? result.balanceAfter : (prev) => prev + result.earned);
       setFirstTaskStarted(true);
-      if (result.frozenBalanceAfter !== undefined) {
-        setFrozenBalance(result.frozenBalanceAfter);
-      }
+
+      // Wait for the server to fully process the submission (balance/frozen
+      // updates and combo creation) and pull the authoritative state BEFORE we
+      // render the next task, so the UI can never show a stale balance even if
+      // tasks are completed extremely quickly.
+      await loadData();
 
       if (result.setComplete) {
-        await loadData();
         await Swal.fire({
           icon: 'success',
           title: 'Set Completed!',
@@ -382,28 +412,13 @@ export default function UserTasksPage() {
           title: "Task Completed!",
           text: `You earned $${formatMoney(result.earned)}`,
         });
-        setAssignedTasks((prev) =>
-          prev.map((t) =>
-            String(t._id) === String(selectedTask._id)
-              ? { ...t, status: 'completed', earnedAmount: result.earned }
-              : t
-          )
-        );
-        setSetProgress((prev) => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            currentPosition: (prev.currentPosition || 0) + 1,
-            completedTasks: (prev.completedTasks || 0) + 1,
-          };
-        });
-        // Refetch so the dashboard triggers the combo freeze exactly when the
-        // combo becomes the current task.
-        await loadData();
       }
     } catch (error) {
       console.error(error);
       Swal.fire({ icon: 'error', title: 'Error', text: 'Something went wrong!' });
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
@@ -635,9 +650,11 @@ export default function UserTasksPage() {
               ) : (
                 <button
                   onClick={handleStartTask}
-                  className="mt-2 bg-[#E05305] text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                  disabled={isSubmitting}
+                  className={`mt-2 bg-[#E05305] text-white rounded-lg px-8 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow flex items-center justify-center gap-1.5 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  Start
+                  {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {isSubmitting ? "Processing..." : "Start"}
                 </button>
               )
             )}
@@ -822,9 +839,10 @@ export default function UserTasksPage() {
 
             <button
               onClick={handleFinalSubmit}
-              className="w-full bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2.5 text-center transition-colors shrink-0"
+              disabled={isSubmitting}
+              className={`w-full bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2.5 text-center transition-colors shrink-0 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              Submit
+              {isSubmitting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </div>
