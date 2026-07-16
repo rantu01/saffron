@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
-import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
-import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
+import { buildTaskFinancialProfile, generateCombinationPositions, roundCurrency } from "@/lib/taskModel";
+import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus } from "@/lib/taskSetModel";
+import { getVipTaskConfig } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -35,6 +36,11 @@ export async function POST(request) {
     }
 
     const userBalance = Number(user.availableBalance || 0);
+
+    // VIP tier controls how many tasks are generated per set and the profit rate.
+    const vipConfig = getVipTaskConfig(Number(user.vipLevel || 1));
+    const tasksPerSet = Math.max(1, Number(user.vipTasksPerSet || vipConfig.tasksPerSet));
+    const vipProfitIncrease = Number(user.vipProfitIncrease || vipConfig.profitIncrease);
 
     const assignedGroupIds = await db
       .collection("tasks")
@@ -120,6 +126,11 @@ export async function POST(request) {
       });
     }
 
+    // Apply the VIP tier's tasks-per-set size. If the group has fewer templates
+    // than the tier size we keep whatever templates exist; otherwise we take the
+    // first `tasksPerSet` templates.
+    const slicedTemplates = templateTasks.slice(0, tasksPerSet);
+
     const comboConfig = await getComboConfig();
     let hasComboTask = false;
     let comboTaskId = null;
@@ -147,9 +158,12 @@ export async function POST(request) {
     const combinationPositions = generateCombinationPositions();
     const now = new Date();
 
-    const tasksToInsert = templateTasks.map((t, index) => {
+    const tasksToInsert = slicedTemplates.map((t, index) => {
       const position = index + 1;
-      const isComboPosition = hasComboTask && position === comboPosition;
+      // Clamp the combo position to the (possibly reduced) set size so it never
+      // falls outside the assigned tasks.
+      const clampedComboPosition = hasComboTask ? Math.min(comboPosition, slicedTemplates.length) : null;
+      const isComboPosition = hasComboTask && position === clampedComboPosition;
 
       if (isComboPosition) {
         return {
@@ -183,7 +197,7 @@ export async function POST(request) {
 
       const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
       const generatedAmount = generateNormalTaskAmount(userBalance);
-      const generatedProfit = computeTaskProfit(generatedAmount);
+      const generatedProfit = roundCurrency(generatedAmount * (NORMAL_COMMISSION_RATE + vipProfitIncrease / 100));
 
       return {
         appName: t.appName,
@@ -215,12 +229,12 @@ export async function POST(request) {
     });
 
     const result = await db.collection("tasks").insertMany(tasksToInsert);
-    await initializeUserTaskSet(uid, nextSetNumber);
+    await initializeUserTaskSet(uid, nextSetNumber, { totalTasks: slicedTemplates.length });
 
     return NextResponse.json({
       success: true,
       assigned: true,
-      message: `Group "${availableGroup.name}" assigned with ${tasksToInsert.length} tasks.`,
+      message: `Group "${availableGroup.name}" assigned with ${tasksToInsert.length} tasks (VIP ${Number(user.vipLevel || 1)}).`,
       groupName: availableGroup.name,
       createdCount: tasksToInsert.length,
       hasComboTask,

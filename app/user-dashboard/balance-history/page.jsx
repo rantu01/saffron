@@ -30,6 +30,7 @@ const TYPE_OPTIONS = [
   { value: "withdrawal", label: "Withdrawals" },
   { value: "task_earnings", label: "Task Earnings" },
   { value: "referral_commission", label: "Referral Commission" },
+  { value: "balance_push", label: "Balance Push" },
 ];
 
 export default function BalanceHistoryPage() {
@@ -111,6 +112,7 @@ export default function BalanceHistoryPage() {
       withdrawal: { label: "DEBIT", class: "bg-red-50 text-red-600 border-red-200/50" },
       task_earnings: { label: "EARNED", class: "bg-emerald-50 text-emerald-600 border-emerald-200/50" },
       referral_commission: { label: "REFERRAL", class: "bg-purple-50 text-purple-600 border-purple-200/50" },
+      balance_push: { label: "PUSH", class: "bg-slate-100 text-slate-700 border-slate-200/50" },
     };
     return map[type] || { label: type, class: "bg-slate-100 text-slate-600 border-slate-200/50" };
   };

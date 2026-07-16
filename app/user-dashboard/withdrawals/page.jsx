@@ -9,7 +9,7 @@ export default function WithdrawalsPage() {
     const [withdrawals, setWithdrawals] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
-    const [form, setForm] = useState({ walletAddress: "", amount: "" });
+    const [form, setForm] = useState({ walletAddress: "", network: "TRC20", amount: "" });
     const [balance, setBalance] = useState(0);
 
     const formatMoney = (val) => {
@@ -78,6 +78,7 @@ export default function WithdrawalsPage() {
                     uid: user.uid,
                     email: user.email,
                     walletAddress: form.walletAddress,
+                    network: form.network,
                     amount: numAmount,
                 }),
             });
@@ -91,7 +92,7 @@ export default function WithdrawalsPage() {
             }
 
             await Swal.fire({ icon: "success", title: "Submitted", text: "Withdrawal request submitted for approval" });
-            setForm({ walletAddress: "", amount: "" });
+            setForm({ walletAddress: "", network: "TRC20", amount: "" });
             setShowForm(false);
             setWithdrawals([result.withdrawal, ...withdrawals]);
             setBalance(balance - numAmount);
@@ -150,6 +151,23 @@ export default function WithdrawalsPage() {
                         </div>
 
                         <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">Network</label>
+                            <select
+                                value={form.network}
+                                onChange={(e) => setForm((prev) => ({ ...prev, network: e.target.value }))}
+                                className="w-full rounded border border-slate-300 bg-white px-3 py-2 text-slate-900"
+                                required
+                            >
+                                <option value="TRC20">TRC20 (Tron)</option>
+                                <option value="ERC20">ERC20 (Ethereum)</option>
+                                <option value="BEP20">BEP20 (BSC)</option>
+                                <option value="Polygon">Polygon</option>
+                                <option value="Solana">Solana</option>
+                                <option value="Bitcoin">Bitcoin</option>
+                            </select>
+                        </div>
+
+                        <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Withdrawal Amount (USDT)</label>
                             <input
                                 type="number"
@@ -184,6 +202,9 @@ export default function WithdrawalsPage() {
                                     <p className="font-medium text-slate-900">${formatMoney(withdrawal.amount)}</p>
                                     <p className="text-xs text-slate-500 mt-1">
                                         {withdrawal.walletAddress.substring(0, 20)}...
+                                    </p>
+                                    <p className="text-xs text-slate-400 mt-1">
+                                        Network: {withdrawal.network || "TRC20"}
                                     </p>
                                 </div>
                                 <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${statusColors[withdrawal.status] || "bg-slate-100"}`}>

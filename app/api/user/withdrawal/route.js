@@ -6,7 +6,7 @@ import { canUserWithdraw, getUserByUid, resolveFrozenBalanceState } from "@/lib/
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { uid, email, walletAddress, amount } = body;
+    const { uid, email, walletAddress, network, amount } = body;
 
     if (!uid || !email || !walletAddress || !amount) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function POST(request) {
       );
     }
 
-    const withdrawal = await createWithdrawal(uid, email, walletAddress, numAmount);
+    const withdrawal = await createWithdrawal(uid, email, walletAddress, numAmount, network);
 
     return NextResponse.json({ success: true, withdrawal });
   } catch (error) {

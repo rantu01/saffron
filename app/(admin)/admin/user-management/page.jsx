@@ -16,6 +16,11 @@ export default function UserManagementPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [invPage, setInvPage] = useState(1);
+  const [balancePushUser, setBalancePushUser] = useState(null);
+  const [pushAction, setPushAction] = useState("add");
+  const [pushAmount, setPushAmount] = useState("");
+  const [pushDescription, setPushDescription] = useState("");
+  const [pushLoading, setPushLoading] = useState(false);
   const searchTimerRef = useRef(null);
 
   const loadUsers = useCallback(async (searchQuery, pageNum) => {
@@ -136,6 +141,60 @@ export default function UserManagementPage() {
   const totalInvPages = Math.ceil(invitations.length / ITEMS_PER_PAGE) || 1;
   const paginatedInvitations = invitations.slice((invPage - 1) * ITEMS_PER_PAGE, invPage * ITEMS_PER_PAGE);
 
+  const openBalancePush = (user) => {
+    setBalancePushUser(user);
+    setPushAction("add");
+    setPushAmount("");
+    setPushDescription("");
+  };
+
+  const closeBalancePush = () => {
+    if (pushLoading) return;
+    setBalancePushUser(null);
+  };
+
+  const submitBalancePush = async (e) => {
+    e.preventDefault();
+    if (!balancePushUser) return;
+
+    const numAmount = Number(pushAmount);
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
+      await Swal.fire({ icon: "error", title: "Invalid amount", text: "Please enter an amount greater than 0." });
+      return;
+    }
+
+    setPushLoading(true);
+    try {
+      const res = await fetch("/api/admin/users/balance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: balancePushUser.uid,
+          action: pushAction,
+          amount: numAmount,
+          description: pushDescription.trim(),
+        }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update balance." });
+        return;
+      }
+      await Swal.fire({
+        icon: "success",
+        title: "Balance updated",
+        text: `${pushAction === "add" ? "Added" : "Deducted"} $${numAmount} ${pushAction === "add" ? "to" : "from"} ${balancePushUser.email || balancePushUser.uid}. New balance: $${Number(result.balanceAfter).toFixed(2)}`,
+      });
+      setBalancePushUser(null);
+      loadUsers(search, page);
+    } catch (err) {
+      console.error(err);
+      await Swal.fire({ icon: "error", title: "Error", text: "Network error, please try again." });
+    } finally {
+      setPushLoading(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -189,7 +248,7 @@ export default function UserManagementPage() {
                     <option value="user">user</option>
                     <option value="admin">admin</option>
                   </select>
-                  <input type="number" step="0.01" defaultValue={Number(user.availableBalance || 0)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white text-slate-900" onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })} />
+                  {/* <input type="number" step="0.01" defaultValue={Number(user.availableBalance || 0)} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm w-28 bg-white text-slate-900" onBlur={(e) => updateUser(user.uid, { availableBalance: e.target.value })} /> */}
                   <select defaultValue={user.accountType || (user.isDemoAccount ? "demo" : "main")} onChange={(e) => updateUser(user.uid, { accountType: e.target.value })} className="border border-slate-200 rounded-lg px-2 py-1.5 text-sm bg-white text-slate-900">
                     <option value="main">main</option>
                     <option value="demo">demo</option>
@@ -206,6 +265,7 @@ export default function UserManagementPage() {
                     <button onClick={() => createDemoAccount(user)} className="bg-emerald-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-emerald-700 transition">Create Demo</button>
                   )}
                   <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">Referral Code</button>
+                  <button onClick={() => openBalancePush(user)} className="bg-slate-800 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-slate-900 transition">Balance Push</button>
                 </div>
               </div>
             </div>
@@ -255,6 +315,100 @@ export default function UserManagementPage() {
         )}
         <Pagination page={invPage} totalPages={totalInvPages} total={invitations.length} onPageChange={setInvPage} />
       </div>
+
+      {balancePushUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeBalancePush}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Balance Push</h2>
+              <button
+                onClick={closeBalancePush}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={submitBalancePush} className="space-y-4 p-5">
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-900">{balancePushUser.displayName || balancePushUser.email || balancePushUser.uid}</span>
+                <span className="mx-1 text-slate-400">|</span>
+                Current Balance: <span className="font-semibold text-slate-900">${(Number(balancePushUser.availableBalance || 0)).toFixed(2)}</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Action</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPushAction("add")}
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${pushAction === "add" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Add Balance
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPushAction("deduct")}
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition ${pushAction === "deduct" ? "border-red-500 bg-red-50 text-red-700" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  >
+                    Deduct Balance
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Amount (USDT)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Enter amount"
+                  value={pushAmount}
+                  onChange={(e) => setPushAmount(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Note (optional)</label>
+                <textarea
+                  rows={2}
+                  placeholder="Optional note recorded in the transaction history"
+                  value={pushDescription}
+                  onChange={(e) => setPushDescription(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeBalancePush}
+                  disabled={pushLoading}
+                  className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pushLoading}
+                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:opacity-60 ${pushAction === "add" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-red-600 hover:bg-red-700"}`}
+                >
+                  {pushLoading ? "Processing..." : pushAction === "add" ? "Add Balance" : "Deduct Balance"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
