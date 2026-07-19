@@ -6,7 +6,7 @@ import { createBalanceLog } from "@/lib/balanceLog";
 import { roundCurrency } from "@/lib/taskModel";
 import { getActiveComboTask, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
-import { evaluateVipEligibility, getVipTaskConfig } from "@/lib/vipModel";
+import { evaluateVipEligibility, getVipTaskConfig, getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -239,7 +239,7 @@ export async function POST(request) {
     ).catch(() => null);
 
     const setComplete = updatedSet?.value
-      ? (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || 30)
+      ? (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || getVipTasksPerSet(user.vipLevel))
       : false;
 
     if (setComplete && updatedSet?.value) {

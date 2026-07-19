@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
 import { NORMAL_COMMISSION_RATE, computeTaskProfit } from "@/lib/comboTaskModel";
+import { getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -28,6 +29,9 @@ export async function POST(request) {
       );
     }
 
+    const assigneeUser = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1 } });
+    const assigneeVipTasks = Number(assigneeUser?.vipTasksPerSet || getVipTasksPerSet(assigneeUser?.vipLevel));
+
     const templateTasks = await db
       .collection("tasks")
       .find({ taskGroupId: groupId, isTemplate: true })
@@ -41,9 +45,10 @@ export async function POST(request) {
       );
     }
 
-    if (templateTasks.length > 30) {
+    const MAX_GROUP_TASKS = 40;
+    if (templateTasks.length > MAX_GROUP_TASKS) {
       return NextResponse.json(
-        { success: false, message: "Group has more than 30 tasks. Please adjust." },
+        { success: false, message: `Group has more than ${MAX_GROUP_TASKS} tasks. Please adjust.` },
         { status: 400 }
       );
     }
@@ -72,7 +77,7 @@ export async function POST(request) {
           .find({ uid: assigneeUid, setNumber: { $in: assignedSetNumbers } })
           .toArray();
         const incompleteSet = assignedSets.find(
-          (s) => (s.completedTasks || 0) < (s.totalTasks || 30)
+          (s) => (s.completedTasks || 0) < (s.totalTasks || assigneeVipTasks)
         );
         if (incompleteSet) {
           inProgress = existingAssignments.some(

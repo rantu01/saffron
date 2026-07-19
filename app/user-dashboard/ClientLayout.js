@@ -15,11 +15,11 @@ import LiveChat from '@/app/Component/Common/LiveChat';
 
 const mobileNavItems = [
   // { label: 'Dashboard', href: '/user-dashboard', icon: AppWindowMac },
-  { label: 'Live Chat', href: '/user-dashboard/chat', icon: MessageCircle },
+  { label: 'Customer Service', href: '/user-dashboard/chat', icon: MessageCircle },
   { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
   { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
   { label: 'Profile', href: '/user-dashboard/profile', icon: User },
-  { label: 'Deposits', href: '/user-dashboard/deposits', icon: DollarSign },
+  { label: 'Add Fund', href: '/user-dashboard/deposits', icon: DollarSign },
   { label: 'Payments', href: '/user-dashboard/payments', icon: CreditCard },
   { label: 'Withdrawals', href: '/user-dashboard/withdrawals', icon: Send },
   // { label: 'Balance', href: '/user-dashboard/balance', icon: Wallet },
@@ -34,7 +34,7 @@ const bottomNavItems = [
 ];
 
 const drawerMenuItems = [
-  { label: 'Deposit', href: '/user-dashboard/deposits', icon: ArrowDownToLine },
+  { label: 'Add Fund', href: '/user-dashboard/deposits', icon: DollarSign },
   { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
   { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
   { label: 'Withdraw', href: '/user-dashboard/withdrawals', icon: ArrowUpFromLine },
@@ -42,7 +42,7 @@ const drawerMenuItems = [
   { label: 'Payments', href: '/user-dashboard/payments', icon: CreditCard },
   { label: 'Transaction', href: '/user-dashboard/records', icon: CreditCard },
   { label: 'Wallet Bind', href: '/user-dashboard/balance', icon: Wallet },
-  { label: 'Live Chat', href: '/user-dashboard/chat', icon: MessageCircle },
+  { label: 'Customer Service', href: '/user-dashboard/chat', icon: MessageCircle },
   { label: 'Balance History', href: '/user-dashboard/balance-history', icon: History },
   // { label: 'Language', href: '#', icon: Globe },
   // { label: 'Customer Service', href: '#', icon: Headphones },
@@ -123,18 +123,18 @@ export default function ClientLayout({ children }) {
   }, [loading, router, user]);
 
   if (loading || !user || roleChecking) {
-    return <div className='min-h-screen xl:bg-[#FFF8F3] bg-[#121212]' />;
+    return <div className='min-h-screen bg-[#121212]' />;
   }
 
   return (
     <>
       <UserSidebar open={open} onClose={() => setOpen(false)} />
-      <div className='min-h-screen xl:pl-64 flex flex-col'>
+      <div className='min-h-screen flex flex-col'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
         {/* MOBILE APP LAUNCHER - only on main dashboard */}
         {isDashboard && (
-        <div className="xl:hidden bg-[#121212] px-4 pt-2 pb-6">
+        <div className="bg-[#121212] px-4 pt-2 pb-6">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
               Saffron Edge
@@ -179,14 +179,14 @@ export default function ClientLayout({ children }) {
         </div>
         )}
 
-        <main className="px-4 pb-20 xl:pb-0 py-6 sm:px-6 xl:px-8 xl:py-8 xl:bg-transparent bg-[#121212] h-full">
-          <div className='mx-auto w-full max-w-7xl h-full'>{children}</div>
+        <main className="px-4 pb-20 py-6 sm:px-6 bg-[#121212] h-full">
+          <div className='mx-auto w-full max-w-2xl h-full'>{children}</div>
         </main>
       </div>
 
       {/* MOBILE SLIDE-IN DRAWER */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 xl:hidden">
+        <div className="fixed inset-0 z-50">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
           <div className="fixed left-0 top-0 h-full w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
             <div className="p-5">
@@ -317,8 +317,8 @@ export default function ClientLayout({ children }) {
       {/* <LiveChat /> */}
 
       {/* MOBILE BOTTOM NAV - visible on all dashboard pages */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 xl:hidden bg-[#FBBF24]">
-        <div className="flex items-center justify-around py-2">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#FBBF24]">
+        <div className="mx-auto w-full max-w-2xl flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');

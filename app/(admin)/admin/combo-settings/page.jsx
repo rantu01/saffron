@@ -122,7 +122,7 @@ export default function ComboSettingsPage() {
   };
 
   const updateOverridePositions = (uid, value) => {
-    const vals = value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+    const vals = value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 40);
     setOverrideInputs((prev) => ({ ...prev, [uid]: value }));
     setForm((prev) => ({
       ...prev,
@@ -348,7 +348,7 @@ export default function ComboSettingsPage() {
             type="text"
             value={(form.positions || []).join(", ")}
             onChange={(e) => {
-              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 40);
               setForm((prev) => ({ ...prev, positions: vals }));
             }}
             placeholder="8"
@@ -367,7 +367,7 @@ export default function ComboSettingsPage() {
             type="text"
             value={(form.demoPositions || []).join(", ")}
             onChange={(e) => {
-              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 40);
               setForm((prev) => ({ ...prev, demoPositions: vals }));
             }}
             placeholder="5"
@@ -385,7 +385,7 @@ export default function ComboSettingsPage() {
             type="text"
             value={(form.mainPositions || []).join(", ")}
             onChange={(e) => {
-              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 30);
+              const vals = e.target.value.split(",").map(v => parseInt(v.trim())).filter(v => !isNaN(v) && v >= 1 && v <= 40);
               setForm((prev) => ({ ...prev, mainPositions: vals }));
             }}
             placeholder="10"

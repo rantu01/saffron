@@ -387,7 +387,7 @@ export default function TaskManagementPage() {
     } finally { setAssigningGroup(false); }
   };
 
-  const availableGroups = taskGroups.filter((g) => g.taskCount < 30);
+  const availableGroups = taskGroups.filter((g) => g.taskCount < 40);
 
   if (loading) {
     return (
@@ -455,8 +455,8 @@ export default function TaskManagementPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {taskGroups.slice((groupsPage - 1) * ITEMS_PER_PAGE, groupsPage * ITEMS_PER_PAGE).map((g) => {
                   const used = g.taskCount || 0;
-                  const available = 30 - used;
-                  const pct = (used / 30) * 100;
+                  const available = 40 - used;
+                  const pct = (used / 40) * 100;
                   return (
                     <div key={g._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-2">
@@ -508,7 +508,7 @@ export default function TaskManagementPage() {
                 <option value="">— Select a group —</option>
                 {availableGroups.map((g) => {
                   const used = g.taskCount || 0;
-                  const slotAvail = 30 - used;
+                  const slotAvail = 40 - used;
                   return <option key={g._id} value={g._id}>{g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)</option>;
                 })}
               </select>
@@ -770,7 +770,7 @@ export default function TaskManagementPage() {
                   <option value="">— No group —</option>
                   {taskGroups.map((g) => {
                     const used = g.taskCount || 0;
-                    const slotAvail = 30 - used;
+                    const slotAvail = 40 - used;
                     const isCurrentGroup = g._id === editTask.taskGroupId;
                     return <option key={g._id} value={g._id} disabled={!isCurrentGroup && slotAvail <= 0}>{g.name} ({used}/30{isCurrentGroup ? "" : `, ${slotAvail} slots available`})</option>;
                   })}

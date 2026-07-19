@@ -37,11 +37,18 @@ export default function UserTasksPage() {
   const submittingRef = useRef(false);
 
   const VIP_TIERS = [
-    { level: 1, name: "VIP 1", label: "Bronze", minDeposit: 25, dailyProfit: 0.5, unlockBalance: 0, gradient: "from-blue-600 to-blue-400", badgeBg: "bg-blue-500" },
-    { level: 2, name: "VIP 2", label: "Silver", minDeposit: 1500, dailyProfit: 2, unlockBalance: 1500, gradient: "from-purple-600 to-purple-400", badgeBg: "bg-purple-500" },
-    { level: 3, name: "VIP 3", label: "Gold", minDeposit: 5000, dailyProfit: 6, unlockBalance: 5000, gradient: "from-amber-600 to-orange-400", badgeBg: "bg-amber-500" },
-    { level: 4, name: "VIP 4", label: "Diamond", minDeposit: 10000, dailyProfit: 12, unlockBalance: 10000, gradient: "from-red-600 to-rose-500", badgeBg: "bg-red-500" },
+    { level: 1, name: "VIP 1", label: "Bronze", minDeposit: 25, dailyProfit: 0.5, unlockBalance: 0, tasksPerSet: 20, gradient: "from-blue-600 to-blue-400", badgeBg: "bg-blue-500" },
+    { level: 2, name: "VIP 2", label: "Silver", minDeposit: 1500, dailyProfit: 2, unlockBalance: 1500, tasksPerSet: 25, gradient: "from-purple-600 to-purple-400", badgeBg: "bg-purple-500" },
+    { level: 3, name: "VIP 3", label: "Gold", minDeposit: 5000, dailyProfit: 6, unlockBalance: 5000, tasksPerSet: 30, gradient: "from-amber-600 to-orange-400", badgeBg: "bg-amber-500" },
+    { level: 4, name: "VIP 4", label: "Diamond", minDeposit: 10000, dailyProfit: 12, unlockBalance: 10000, tasksPerSet: 40, gradient: "from-red-600 to-rose-500", badgeBg: "bg-red-500" },
   ];
+
+  // Returns the task count for a VIP level, used as the fallback when the
+  // backend has not yet provided a totalTasks value (e.g. no set assigned yet).
+  const getVipTasksPerSet = (level) => {
+    const tier = VIP_TIERS.find((t) => t.level === Number(level)) || VIP_TIERS[0];
+    return Number(tier.tasksPerSet || 20);
+  };
 
   const currentVipLevel = vipLevel;
 
@@ -71,7 +78,7 @@ export default function UserTasksPage() {
     if (!sets || !sets.length) return null;
     const sorted = [...sets].sort((a, b) => (a.setNumber || 0) - (b.setNumber || 0));
     const incomplete = sorted.find(
-      (s) => (s.completedTasks || 0) < (s.totalTasks || 30)
+      (s) => (s.completedTasks || 0) < (s.totalTasks || getVipTasksPerSet(currentVipLevel))
     );
     return incomplete || sorted[sorted.length - 1];
   };
@@ -186,7 +193,7 @@ export default function UserTasksPage() {
 
   const currentSetNumber = setProgress?.setNumber || 1;
   const completedCount = setProgress?.completedTasks || 0;
-  const totalTasks = setProgress?.totalTasks || 30;
+  const totalTasks = setProgress?.totalTasks || getVipTasksPerSet(currentVipLevel);
   const isAllComplete = completedCount >= totalTasks;
   const displayProgress = isAllComplete ? totalTasks : Math.min(completedCount, totalTasks);
 
@@ -434,7 +441,7 @@ export default function UserTasksPage() {
       const active = getActiveTaskSet(sets || []);
       const newActiveNum = active?.setNumber || 1;
       const nextSet = (sets || []).find(
-        (s) => (s.setNumber || 0) > newActiveNum && (s.completedTasks || 0) < (s.totalTasks || 30)
+        (s) => (s.setNumber || 0) > newActiveNum && (s.completedTasks || 0) < (s.totalTasks || getVipTasksPerSet(currentVipLevel))
       );
 
       if (newActiveNum > prevActiveNum) {
@@ -519,9 +526,9 @@ export default function UserTasksPage() {
         </div>
 
         {/* Progress + VIP side by side on desktop, stacked on mobile */}
-        <div className="flex-1 flex flex-col xl:flex-row gap-2 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
           {/* Progress Card */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col items-center justify-center shrink-0 xl:w-1/2">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col items-center justify-center shrink-0">
             {assignedTasks.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm font-bold text-slate-900">No tasks assigned yet</p>
@@ -664,7 +671,7 @@ export default function UserTasksPage() {
           </div>
 
           {/* VIP Status Card */}
-          <div className={`bg-gradient-to-r ${currentTier.gradient} rounded-xl border border-white/10 shadow-sm p-3 relative overflow-hidden xl:w-1/2 flex flex-col justify-center`}>
+          <div className={`bg-gradient-to-r ${currentTier.gradient} rounded-xl border border-white/10 shadow-sm p-3 relative overflow-hidden flex flex-col justify-center`}>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent_70%)] pointer-events-none" />
             <div className="relative z-10">
               <div className="flex items-center gap-1.5 mb-2">

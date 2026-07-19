@@ -25,7 +25,18 @@ export async function GET(request) {
 
     const dailyLimit = await getDailyLimitStatus(uid);
 
-    return NextResponse.json({ success: true, taskSets, dailyLimit });
+    const enrichedSets = taskSets.map((s) => {
+      const total = Number(s.totalTasks || 0);
+      const completed = Number(s.completedTasks || 0);
+      return {
+        ...s,
+        totalTasks: total,
+        completedTasks: completed,
+        remainingTasks: Math.max(0, total - completed),
+      };
+    });
+
+    return NextResponse.json({ success: true, taskSets: enrichedSets, dailyLimit });
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "Failed to fetch task sets" },

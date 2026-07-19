@@ -121,7 +121,7 @@ export default function VipMembership({ balance = 0, level }) {
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-4 sm:p-6 md:p-8 mb-4 sm:mb-6 shadow-xl border border-slate-700/50 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(251,191,36,0.08),transparent_70%)] pointer-events-none" />
         <div className="relative z-10">
-          <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="w-5 h-5 text-amber-400 animate-glow-pulse" />
@@ -236,7 +236,7 @@ export default function VipMembership({ balance = 0, level }) {
                   />
 
                   {/* Mobile Layout */}
-                  <div className="flex xl:hidden items-center gap-2 w-full relative z-10">
+                  <div className="flex items-center gap-2 w-full relative z-10">
                     <div className="flex items-center gap-1 min-w-0">
                       <Crown className="w-3.5 h-3.5 flex-shrink-0 text-white/90" />
                       <span className="text-white font-bold text-[10px] leading-tight truncate">{tier.name}</span>
@@ -259,7 +259,7 @@ export default function VipMembership({ balance = 0, level }) {
                   </div>
 
                   {/* Desktop Layout */}
-                  <div className="hidden xl:block">
+                  <div className="hidden">
                     {/* Top Section */}
                     <div className="relative z-10">
                     <div className="flex items-center justify-between mb-1 sm:mb-1.5">
@@ -339,13 +339,13 @@ export default function VipMembership({ balance = 0, level }) {
 
                 {/* Locked Overlay */}
                 {!isUnlocked && (
-                  <div className="absolute inset-0 xl:backdrop-blur-[0.4px] flex flex-row xl:flex-col items-center justify-between xl:justify-center z-20 px-3 rounded-2xl">
-                    <div className="flex xl:hidden items-center gap-1.5">
+                  <div className="absolute inset-0 flex flex-row items-center justify-between z-20 px-3 rounded-2xl">
+                    <div className="flex items-center gap-1.5">
                       <Lock className="w-3 h-3 text-white/70" />
                       <span className="text-white/90 text-[9px] font-bold">Locked</span>
                     </div>
-                    <span className="flex xl:hidden text-white/50 text-[8px]">${formatMoney(tier.unlockBalance)}</span>
-                    <div className="hidden xl:flex xl:flex-col xl:items-center xl:justify-center">
+                    <span className="flex text-white/50 text-[8px]">${formatMoney(tier.unlockBalance)}</span>
+                    <div className="hidden">
                       <div className="bg-white/10 rounded-full p-1.5 sm:p-3 mb-1.5 sm:mb-2.5 border border-white/10">
                         <Lock className="w-4 h-4 sm:w-6 sm:h-6 text-white/70" />
                       </div>

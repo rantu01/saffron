@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -14,15 +15,18 @@ export async function POST(request) {
       );
     }
 
-    if (taskIds.length > 30) {
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+
+    const userDoc = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1 } });
+    const maxTasks = Number(userDoc?.vipTasksPerSet || getVipTasksPerSet(userDoc?.vipLevel));
+
+    if (taskIds.length > maxTasks) {
       return NextResponse.json(
-        { success: false, message: "Cannot assign more than 30 tasks at once." },
+        { success: false, message: `Cannot assign more than ${maxTasks} tasks at once.` },
         { status: 400 }
       );
     }
-
-    const client = await clientPromise;
-    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     const objectIds = taskIds.map((id) => typeof id === "string" ? new ObjectId(id) : id);
 

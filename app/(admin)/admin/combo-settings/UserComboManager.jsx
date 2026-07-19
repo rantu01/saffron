@@ -117,8 +117,8 @@ export default function UserComboManager() {
       commissionPercent: form.commissionPercent !== "" ? Number(form.commissionPercent) : null,
     };
 
-    if (settings.position && (settings.position < 1 || settings.position > 30)) {
-      Swal.fire({ icon: "error", title: "Invalid", text: "Task number must be between 1 and 30." });
+    if (settings.position && (settings.position < 1 || settings.position > 40)) {
+      Swal.fire({ icon: "error", title: "Invalid", text: "Task number must be between 1 and 40." });
       return;
     }
 
@@ -317,7 +317,7 @@ export default function UserComboManager() {
                       value={
                         detail.currentSet
                           ? (() => {
-                              const total = detail.currentSet.totalTasks || 30;
+                              const total = detail.currentSet.totalTasks || 40;
                               const completed = detail.currentSet.completedTasks || 0;
                               const prog = completed >= total ? total : Math.min(completed, total);
                               return `Set ${detail.currentSet.setNumber} · ${prog}/${total}`;
@@ -399,12 +399,12 @@ export default function UserComboManager() {
                     <div className="grid grid-cols-2 gap-3">
                       <Field
                         label="Appear at task #"
-                        hint="Task number (1-30)"
+                        hint="Task number (1-40)"
                       >
                         <input
                           type="number"
                           min="1"
-                          max="30"
+                          max="40"
                           value={form.position}
                           onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
                           placeholder={String(detail.defaults?.positions?.[0] ?? 8)}

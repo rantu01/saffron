@@ -33,10 +33,10 @@ export default function UserTopbar({ onToggle }) {
   }, [user?.uid]);
 
   return (
-    <header className="sticky top-0 z-20 border-b xl:border-[#F1E7DF] border-transparent xl:bg-white/90 bg-[#121212] backdrop-blur">
-      <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 xl:px-8">
+    <header className="sticky top-0 z-20 border-b border-transparent bg-[#121212] backdrop-blur">
+      <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6">
         {/* Mobile topbar — ultra-minimalist dark */}
-        <div className="flex w-full items-center justify-between xl:hidden">
+        <div className="mx-auto w-full max-w-2xl flex items-center justify-between">
           <div className="flex items-center gap-3">
             {!isDashboard && (
               <Link href="/user-dashboard" className="text-white hover:text-[#FBBF24] transition-colors">
@@ -58,17 +58,17 @@ export default function UserTopbar({ onToggle }) {
                 </button>
               </div>
             )}
-            <button
+            {/* <button
               onClick={handleLogout}
               className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-400/60"
             >
               Logout
-            </button>
+            </button> */}
           </div>
         </div>
 
-        {/* Desktop topbar — original clean style */}
-        <div className="hidden min-w-0 items-center gap-4 xl:flex">
+        {/* Desktop topbar — original clean style (hidden; mobile layout used everywhere) */}
+        <div className="hidden min-w-0 items-center gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#C2410C]">Dashboard</p>
             <h1 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">Welcome{profile?.displayName ? `, ${profile.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}</h1>
@@ -87,7 +87,7 @@ export default function UserTopbar({ onToggle }) {
           )}
         </div>
 
-        <div className="hidden items-center gap-3 sm:gap-4 xl:flex">
+        <div className="hidden items-center gap-3 sm:gap-4">
           <NotificationBell uid={user?.uid} />
           <div className="flex items-center gap-3 rounded-2xl border border-[#F1E7DF] bg-white px-3 py-2 shadow-sm">
             <div className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden bg-gradient-to-br from-[#F59E0B] to-[#EA580C] text-sm font-bold text-white">

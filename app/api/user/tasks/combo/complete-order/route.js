@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { completeComboOrder, creditComboCommission } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
-import { evaluateVipEligibility } from "@/lib/vipModel";
+import { evaluateVipEligibility, getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
   try {
@@ -42,6 +42,9 @@ export async function POST(request) {
       if (combo) {
         // Check VIP eligibility (creates a pending admin request if qualified).
         await evaluateVipEligibility(uid).catch(() => {});
+
+        const comboUser = await db.collection("users").findOne({ uid }, { projection: { vipLevel: 1 } });
+        const comboVipLevel = Number(comboUser?.vipLevel || 1);
 
         const taskEntry = await db.collection("tasks").findOne({
           assigneeUid: uid,
@@ -104,7 +107,7 @@ export async function POST(request) {
             { returnDocument: "after" }
           );
 
-          if (updatedSet?.value && (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || 30)) {
+          if (updatedSet?.value && (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || getVipTasksPerSet(comboVipLevel))) {
             await markSetCompletedToday(uid, combo.setNumber);
           }
         }

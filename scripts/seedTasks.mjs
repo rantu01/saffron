@@ -147,7 +147,7 @@ for (const name of groupNames) {
   });
   const groupId = groupRes.insertedId.toString();
 
-  const taskCount = 30; // each set must contain 30 tasks
+  const taskCount = 40; // groups must contain at least the largest VIP set size (VIP 4 = 40 tasks)
   const apps = pickUniqueApps(taskCount);
   const appMap = Object.fromEntries(APPS.map((a) => [a.name, a.logo]));
 

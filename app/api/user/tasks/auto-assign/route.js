@@ -83,7 +83,13 @@ export async function POST(request) {
 
     if (!availableGroup) {
       // All groups already assigned in this cycle: cycle back and reuse them.
-      const groupIndex = (nextSetNumber - 1) % allGroups.length;
+      const fallbackSets = await db
+        .collection("userTaskSets")
+        .find({ uid })
+        .sort({ setNumber: -1 })
+        .toArray();
+      const fallbackNext = fallbackSets.length > 0 ? fallbackSets[0].setNumber + 1 : 1;
+      const groupIndex = (fallbackNext - 1) % allGroups.length;
       const reused = allGroups[groupIndex];
       const reusedId = reused._id.toString();
       const templateCount = await db
