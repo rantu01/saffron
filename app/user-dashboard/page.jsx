@@ -100,7 +100,7 @@ export default function UserDashboardPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-8 animate-pulse">
+      <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
         {/* Header skeleton */}
         <div className="mb-8">
           <div className="h-3 w-24 bg-slate-200 rounded mb-2" />
@@ -188,7 +188,7 @@ export default function UserDashboardPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 min-h-screen relative">
+    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative">
       {/* Welcome Bonus Toast */}
       {showWelcomeToast && (
         <div className="fixed top-4 right-4 z-50 animate-slide-down">
@@ -210,11 +210,11 @@ export default function UserDashboardPage() {
       {/* Header section from image */}
       <div className="mb-8 flex flex-col gap-4">
         <div>
-          <p className="text-sm text-slate-500 font-medium uppercase tracking-wider">Welcome back</p>
-          <h1 className="text-3xl font-bold text-slate-900 mt-0.5">
+          <p className="text-sm  font-medium uppercase tracking-wider">Welcome back</p>
+          <h1 className="text-3xl font-bold  mt-0.5">
             {user.displayName || user.email?.split('@')[0] || 'User'}!
           </h1>
-          <p className="text-sm text-slate-600 mt-1">Manage your accounts, balances and requests efficiently.</p>
+          <p className="text-sm  mt-1">Manage your accounts, balances and requests efficiently.</p>
         </div>
         {error && <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg border border-red-200 text-sm">{error}</div>}
       </div>

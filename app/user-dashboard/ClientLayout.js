@@ -129,12 +129,12 @@ export default function ClientLayout({ children }) {
   return (
     <>
       <UserSidebar open={open} onClose={() => setOpen(false)} />
-      <div className='min-h-screen flex flex-col'>
+      <div className='min-h-screen flex flex-col md:max-w-2xl mx-auto'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
         {/* MOBILE APP LAUNCHER - only on main dashboard */}
         {isDashboard && (
-        <div className="bg-[#121212] px-4 pt-2 pb-6">
+        <div className="bg-[#121212] px-4 pt-2 pb-6 ">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
               Saffron Edge
@@ -144,7 +144,7 @@ export default function ClientLayout({ children }) {
             </h1>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 md:max-w-6xl mx-auto">
             {mobileNavItems.map((item) => {
               const Icon = item.icon;
               const showBadge = item.label === 'Live Chat' && unreadChat > 0;
