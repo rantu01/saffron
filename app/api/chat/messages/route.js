@@ -34,16 +34,23 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { conversationId, senderUid, senderRole, senderName, message } = body;
+    const { conversationId, senderUid, senderRole, senderName, message, imageUrl } = body;
 
-    if (!conversationId || !senderUid || !senderRole || !message) {
+    if (!conversationId || !senderUid || !senderRole) {
       return NextResponse.json(
-        { success: false, message: "conversationId, senderUid, senderRole, and message are required." },
+        { success: false, message: "conversationId, senderUid, and senderRole are required." },
         { status: 400 }
       );
     }
 
-    const msg = await sendMessage({ conversationId, senderUid, senderRole, senderName, message });
+    if (!imageUrl && !message?.trim()) {
+      return NextResponse.json(
+        { success: false, message: "Either a message or an image is required." },
+        { status: 400 }
+      );
+    }
+
+    const msg = await sendMessage({ conversationId, senderUid, senderRole, senderName, message, imageUrl });
     return NextResponse.json({ success: true, message: msg }, { status: 201 });
   } catch (error) {
     return NextResponse.json(

@@ -3,9 +3,11 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { useAdminNotificationCounts } from "@/app/(admin)/admin/components/AdminNotificationContext";
-import { MessageCircle, Send, Loader2, Search, ChevronLeft } from "lucide-react";
+import { MessageCircle, Send, Loader2, Search, ChevronLeft, ImagePlus, X } from "lucide-react";
 
 const ITEMS_PER_PAGE = 20;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export default function AdminChatPage() {
   const { user } = useAuth();
@@ -22,6 +24,10 @@ export default function AdminChatPage() {
   const pollRef = useRef(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [lightboxUrl, setLightboxUrl] = useState(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -109,11 +115,12 @@ export default function AdminChatPage() {
     setMessages([]);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || sending || !selectedConv || !user) return;
+  const handleSend = async (text, imageUrl) => {
+    const message = text || input;
+    if ((!message.trim() && !imageUrl) || sending || uploading || !selectedConv || !user) return;
 
     setSending(true);
-    const text = input.trim();
+    const trimmed = message.trim();
     setInput("");
 
     const tempId = "temp-" + Date.now();
@@ -123,7 +130,8 @@ export default function AdminChatPage() {
       senderUid: user.uid,
       senderRole: "admin",
       senderName: "Support",
-      message: text,
+      message: trimmed,
+      imageUrl: imageUrl || null,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, tempMsg]);
@@ -137,7 +145,8 @@ export default function AdminChatPage() {
           senderUid: user.uid,
           senderRole: "admin",
           senderName: "Support",
-          message: text,
+          message: trimmed,
+          imageUrl,
         }),
       });
       const data = await res.json();
@@ -146,11 +155,68 @@ export default function AdminChatPage() {
         lastMessageIdRef.current = data.message._id;
         fetchConversations();
         refreshCounts();
+      } else {
+        setUploadError(data.message || "Failed to send message.");
+        setMessages((prev) => prev.filter((m) => m._id !== tempId));
       }
     } catch {
-      // keep temp
+      setUploadError("Failed to send message. Please try again.");
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!file || sending || uploading || !selectedConv || !user) return;
+
+    setUploadError("");
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type.toLowerCase())) {
+      setUploadError("Only JPG, JPEG, PNG, and WEBP images are allowed.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE) {
+      setUploadError("Image is too large. Maximum size is 5 MB.");
+      return;
+    }
+
+    setUploading(true);
+
+    const tempId = "temp-" + Date.now();
+    const tempMsg = {
+      _id: tempId,
+      conversationId: selectedConv.conversationId,
+      senderUid: user.uid,
+      senderRole: "admin",
+      senderName: "Support",
+      message: "",
+      imageUrl: URL.createObjectURL(file),
+      uploading: true,
+      createdAt: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, tempMsg]);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("uid", user.uid);
+      const res = await fetch("/api/chat/upload-image", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!data.success) {
+        setUploadError(data.message || "Image upload failed.");
+        setMessages((prev) => prev.filter((m) => m._id !== tempId));
+        return;
+      }
+      await handleSend("", data.imageUrl);
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
+    } catch {
+      setUploadError("Image upload failed. Please try again.");
+      setMessages((prev) => prev.filter((m) => m._id !== tempId));
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -214,6 +280,26 @@ export default function AdminChatPage() {
                           {msg.senderName || "User"}
                         </p>
                       )}
+                      {msg.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setLightboxUrl(msg.imageUrl)}
+                          className="block w-full max-w-[220px] overflow-hidden rounded-xl mb-1 focus:outline-none"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={msg.imageUrl}
+                            alt="Shared image"
+                            className="w-full h-auto object-cover rounded-xl"
+                          />
+                        </button>
+                      )}
+                      {msg.uploading && (
+                        <div className="flex items-center gap-2 text-xs opacity-80">
+                          <Loader2 size={14} className="animate-spin" />
+                          Uploading image...
+                        </div>
+                      )}
                       {msg.message}
                     </div>
                   </div>
@@ -224,6 +310,26 @@ export default function AdminChatPage() {
 
             <div className="border-t border-gray-100 p-4 flex items-center gap-2">
               <input
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || sending}
+                title="Send an image"
+                className="w-10 h-10 bg-gray-100 hover:bg-gray-200 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
+              >
+                {uploading ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <ImagePlus size={16} />
+                )}
+              </button>
+              <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -232,8 +338,8 @@ export default function AdminChatPage() {
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E05305]/20 focus:border-[#E05305] bg-gray-50/50"
               />
               <button
-                onClick={handleSend}
-                disabled={!input.trim() || sending}
+                onClick={() => handleSend()}
+                disabled={(!input.trim() && !uploading) || sending}
                 className="w-10 h-10 bg-[#E05305] hover:bg-[#c84a04] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors"
               >
                 {sending ? (
@@ -243,6 +349,34 @@ export default function AdminChatPage() {
                 )}
               </button>
             </div>
+
+            {uploadError && (
+              <div className="px-4 pb-3">
+                <p className="text-xs text-red-500">{uploadError}</p>
+              </div>
+            )}
+
+            {lightboxUrl && (
+              <div
+                className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4"
+                onClick={() => setLightboxUrl(null)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lightboxUrl}
+                  alt="Preview"
+                  className="max-w-full max-h-full rounded-lg object-contain"
+                  onClick={(e) => e.stopPropagation()}
+                />
+                <button
+                  type="button"
+                  onClick={() => setLightboxUrl(null)}
+                  className="absolute top-4 right-4 text-white/80 hover:text-white"
+                >
+                  <X size={28} />
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div>
