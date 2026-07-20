@@ -156,7 +156,7 @@ export default function LiveChat({ inline = false }) {
             <MessageCircle size={18} className="text-white" />
           </div>
           <div>
-            <p className="text-white font-semibold text-sm">Support</p>
+            <p className="text-white font-semibold text-sm">Customer Service</p>
             <p className="text-orange-100 text-xs">Online</p>
           </div>
         </div>

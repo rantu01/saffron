@@ -29,13 +29,13 @@ export default function ChatPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold">Live Chat</h1>
-      <p className="text-sm mt-1">Chat with our support team</p>
+      <p className="text-sm mt-1">Chat with our Customer Service team</p>
 
       {unreadCount > 0 && (
         <div className="mt-6 flex items-center gap-3 bg-[#E05305]/10 border border-[#E05305]/20 text-[#c84a04] rounded-xl px-4 py-3">
           <Bell size={18} className="shrink-0" />
           <p className="text-sm font-medium">
-            You have {unreadCount} unread message{unreadCount > 1 ? "s" : ""} from support.
+            You have {unreadCount} unread message{unreadCount > 1 ? "s" : ""} from Customer Service.
           </p>
         </div>
       )}
