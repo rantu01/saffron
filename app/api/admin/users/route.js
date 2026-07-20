@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { resolveFrozenBalanceState } from "@/lib/userModel";
-import { adminAuth } from "@/lib/firebaseAdmin";
+import { getAdminAuth } from "@/lib/firebaseAdmin";
 
 export async function GET(request) {
   try {
@@ -298,6 +298,7 @@ export async function DELETE(request) {
 
     let firebaseDeleted = false;
     try {
+      const adminAuth = getAdminAuth();
       await adminAuth.deleteUser(uid);
       firebaseDeleted = true;
     } catch (fbError) {
