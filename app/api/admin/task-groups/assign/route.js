@@ -45,10 +45,15 @@ export async function POST(request) {
       );
     }
 
-    const MAX_GROUP_TASKS = 40;
-    if (templateTasks.length > MAX_GROUP_TASKS) {
+    // The number of tasks we actually assign is dictated by the assignee's VIP
+    // level, NOT the full size of the template group. We only ever assign the
+    // first `assigneeVipTasks` tasks.
+    if (templateTasks.length < assigneeVipTasks) {
       return NextResponse.json(
-        { success: false, message: `Group has more than ${MAX_GROUP_TASKS} tasks. Please adjust.` },
+        {
+          success: false,
+          message: `This group contains ${templateTasks.length} task(s), but VIP ${assigneeUser?.vipLevel || "?"} requires ${assigneeVipTasks} task(s) per set. Please choose a group with at least ${assigneeVipTasks} tasks.`,
+        },
         { status: 400 }
       );
     }
@@ -128,7 +133,11 @@ export async function POST(request) {
     const combinationPositions = generateCombinationPositions();
     const now = new Date();
 
-    const tasksToInsert = templateTasks.map((t, index) => {
+    // Only assign exactly the VIP-required number of tasks (the first N of the
+    // group's templates). Never assign more or fewer than the VIP level demands.
+    const slicedTemplates = templateTasks.slice(0, assigneeVipTasks);
+
+    const tasksToInsert = slicedTemplates.map((t, index) => {
       const position = index + 1;
       const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
 
@@ -164,7 +173,7 @@ export async function POST(request) {
 
     const result = await db.collection("tasks").insertMany(tasksToInsert);
 
-    await initializeUserTaskSet(assigneeUid, nextSetNumber, { totalTasks: templateTasks.length });
+    await initializeUserTaskSet(assigneeUid, nextSetNumber, { totalTasks: assigneeVipTasks });
 
     const insertedTasks = tasksToInsert.map((t, i) => ({
       ...t,

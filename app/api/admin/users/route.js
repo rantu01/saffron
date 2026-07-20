@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { resolveFrozenBalanceState } from "@/lib/userModel";
+import { adminAuth } from "@/lib/firebaseAdmin";
 
 export async function GET(request) {
   try {
@@ -266,6 +267,73 @@ export async function PATCH(request) {
   } catch (error) {
     return NextResponse.json(
       { success: false, message: error.message || "User update failed." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const uid = searchParams.get("uid") || (await request.json().then((b) => b.uid));
+
+    if (!uid) {
+      return NextResponse.json(
+        { success: false, message: "uid is required." },
+        { status: 400 }
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+
+    const deletedUser = await db.collection("users").findOneAndDelete({ uid });
+
+    if (!deletedUser) {
+      return NextResponse.json(
+        { success: false, message: "User not found in database." },
+        { status: 404 }
+      );
+    }
+
+    let firebaseDeleted = false;
+    try {
+      await adminAuth.deleteUser(uid);
+      firebaseDeleted = true;
+    } catch (fbError) {
+      const code = fbError?.errorInfo?.code || fbError?.code;
+      if (code === "auth/user-not-found") {
+        console.warn(`Firebase auth user ${uid} did not exist. Proceeding with MongoDB deletion only.`);
+      } else {
+        console.error(`Firebase deleteUser failed for ${uid}:`, fbError?.message || fbError);
+      }
+    }
+
+    try {
+      await Promise.all([
+        db.collection("tasks").deleteMany({ assigneeUid: uid }),
+        db.collection("taskSets").deleteMany({ assigneeUid: uid }),
+        db.collection("taskGroups").deleteMany({ assigneeUid: uid }),
+        db.collection("records").deleteMany({ uid }),
+        db.collection("balanceLogs").deleteMany({ uid }),
+        db.collection("notifications").deleteMany({ uid }),
+        db.collection("deposits").deleteMany({ uid }),
+        db.collection("withdrawals").deleteMany({ uid }),
+        db.collection("messages").deleteMany({ $or: [{ senderUid: uid }, { receiverUid: uid }] }),
+        db.collection("invitationCodes").deleteMany({ createdByUid: uid }),
+      ]);
+    } catch (cleanupError) {
+      console.error(`Related data cleanup failed for ${uid}:`, cleanupError?.message || cleanupError);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "User deleted successfully.",
+      firebaseDeleted,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, message: error.message || "Failed to delete user." },
       { status: 500 }
     );
   }

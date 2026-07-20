@@ -16,6 +16,10 @@ function Spinner({ size = 16 }) {
 
 const ITEMS_PER_PAGE = 10;
 
+// Maximum number of templates a task group can hold. This is the group's
+// capacity for templates, independent of a user's VIP-based task count.
+const GROUP_CAPACITY = 40;
+
 const DEFAULT_RATING_OPTIONS = [
   "Peace of mind and security, very good app.",
   "Convenient, easy, and simple.",
@@ -387,7 +391,7 @@ export default function TaskManagementPage() {
     } finally { setAssigningGroup(false); }
   };
 
-  const availableGroups = taskGroups.filter((g) => g.taskCount < 40);
+  const availableGroups = taskGroups.filter((g) => g.taskCount < GROUP_CAPACITY);
 
   if (loading) {
     return (
@@ -455,8 +459,8 @@ export default function TaskManagementPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {taskGroups.slice((groupsPage - 1) * ITEMS_PER_PAGE, groupsPage * ITEMS_PER_PAGE).map((g) => {
                   const used = g.taskCount || 0;
-                  const available = 40 - used;
-                  const pct = (used / 40) * 100;
+                  const available = GROUP_CAPACITY - used;
+                  const pct = (used / GROUP_CAPACITY) * 100;
                   return (
                     <div key={g._id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between mb-2">
@@ -468,7 +472,7 @@ export default function TaskManagementPage() {
                         <div className="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
                           <div className="h-full bg-[#E05305] rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
-                        <span className="text-xs text-slate-500 font-medium">{used}/30</span>
+                        <span className="text-xs text-slate-500 font-medium">{used}/{GROUP_CAPACITY}</span>
                       </div>
                     </div>
                   );
@@ -508,8 +512,8 @@ export default function TaskManagementPage() {
                 <option value="">— Select a group —</option>
                 {availableGroups.map((g) => {
                   const used = g.taskCount || 0;
-                  const slotAvail = 40 - used;
-                  return <option key={g._id} value={g._id}>{g.name} ({used}/30, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)</option>;
+                  const slotAvail = GROUP_CAPACITY - used;
+                  return <option key={g._id} value={g._id}>{g.name} ({used}/{GROUP_CAPACITY}, {slotAvail} slot{slotAvail !== 1 ? "s" : ""} available)</option>;
                 })}
               </select>
               {availableGroups.length === 0 && <p className="text-xs text-red-500 mt-1">All groups are full. Create a new group first.</p>}
@@ -770,9 +774,9 @@ export default function TaskManagementPage() {
                   <option value="">— No group —</option>
                   {taskGroups.map((g) => {
                     const used = g.taskCount || 0;
-                    const slotAvail = 40 - used;
+                    const slotAvail = GROUP_CAPACITY - used;
                     const isCurrentGroup = g._id === editTask.taskGroupId;
-                    return <option key={g._id} value={g._id} disabled={!isCurrentGroup && slotAvail <= 0}>{g.name} ({used}/30{isCurrentGroup ? "" : `, ${slotAvail} slots available`})</option>;
+                    return <option key={g._id} value={g._id} disabled={!isCurrentGroup && slotAvail <= 0}>{g.name} ({used}/{GROUP_CAPACITY}{isCurrentGroup ? "" : `, ${slotAvail} slots available`})</option>;
                   })}
                 </select>
               </div>

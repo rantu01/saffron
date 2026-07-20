@@ -21,6 +21,8 @@ export default function UserManagementPage() {
   const [pushAmount, setPushAmount] = useState("");
   const [pushDescription, setPushDescription] = useState("");
   const [pushLoading, setPushLoading] = useState(false);
+  const [deleteUser, setDeleteUser] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const searchTimerRef = useRef(null);
 
   const loadUsers = useCallback(async (searchQuery, pageNum) => {
@@ -105,6 +107,49 @@ export default function UserManagementPage() {
       return;
     }
     await Swal.fire({ icon: "success", title: "Referral code created", text: `${user.email || user.uid}: ${result.invitation.code}` });
+  };
+
+  const openDelete = (user) => {
+    setDeleteUser(user);
+  };
+
+  const closeDelete = () => {
+    if (deleteLoading) return;
+    setDeleteUser(null);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteUser) return;
+    const confirmed = await Swal.fire({
+      icon: "warning",
+      title: "Delete User?",
+      html: `Are you sure you want to permanently delete <b>${deleteUser.displayName || deleteUser.email || deleteUser.uid}</b>?<br/>This will remove the user from the database and Firebase Authentication.`,
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      confirmButtonColor: "#dc2626",
+      cancelButtonText: "Cancel",
+    });
+    if (!confirmed.isConfirmed) return;
+
+    setDeleteLoading(true);
+    try {
+      const res = await fetch(`/api/admin/users?uid=${encodeURIComponent(deleteUser.uid)}`, {
+        method: "DELETE",
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Deletion failed", text: result.message || "Please try again." });
+        return;
+      }
+      await Swal.fire({ icon: "success", title: "User deleted", text: result.message || "User removed successfully." });
+      setDeleteUser(null);
+      loadUsers(search, page);
+    } catch (err) {
+      console.error(err);
+      await Swal.fire({ icon: "error", title: "Error", text: "Network error, please try again." });
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   const createDemoAccount = async (user) => {
@@ -266,6 +311,7 @@ export default function UserManagementPage() {
                   )}
                   <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">Referral Code</button>
                   <button onClick={() => openBalancePush(user)} className="bg-slate-800 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-slate-900 transition">Balance Push</button>
+                  <button onClick={() => openDelete(user)} className="bg-red-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-red-700 transition">Delete</button>
                 </div>
               </div>
             </div>
@@ -406,6 +452,58 @@ export default function UserManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeDelete}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Delete User</h2>
+              <button
+                onClick={closeDelete}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <p className="text-sm text-slate-600">
+                Are you sure you want to permanently delete{" "}
+                <span className="font-semibold text-slate-900">{deleteUser.displayName || deleteUser.email || deleteUser.uid}</span>?
+              </p>
+              <div className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                This will delete the user from the database and Firebase Authentication, along with related data. This action cannot be undone.
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeDelete}
+                  disabled={deleteLoading}
+                  className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  disabled={deleteLoading}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+                >
+                  {deleteLoading ? "Deleting..." : "Delete User"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
