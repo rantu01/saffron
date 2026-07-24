@@ -95,6 +95,18 @@ export default function TaskManagementPage() {
   const [groupAssign, setGroupAssign] = useState({ groupId: "", assigneeUid: "" });
   const [selectedGroupTaskId, setSelectedGroupTaskId] = useState("");
 
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [modalGroupForm, setModalGroupForm] = useState({ name: "", description: "", vipLevel: "1" });
+
+  const VIP_LEVELS = [
+    { level: 1, name: "VIP 1", label: "Bronze", tasks: 20 },
+    { level: 2, name: "VIP 2", label: "Silver", tasks: 25 },
+    { level: 3, name: "VIP 3", label: "Gold", tasks: 30 },
+    { level: 4, name: "VIP 4", label: "Diamond", tasks: 40 },
+  ];
+
+  const selectedVip = VIP_LEVELS.find((v) => v.level === Number(modalGroupForm.vipLevel)) || VIP_LEVELS[0];
+
   const formatMoney = (val) => {
     const n = Number(val || 0);
     if (!Number.isFinite(n)) return "0.00";
@@ -252,6 +264,38 @@ export default function TaskManagementPage() {
       await loadReferenceData();
       setLoading(false);
     } finally { setCreatingGroup(false); }
+  };
+
+  const [creatingGroupFromModal, setCreatingGroupFromModal] = useState(false);
+  const handleCreateGroupFromModal = async (e) => {
+    e.preventDefault();
+    if (!modalGroupForm.name.trim()) {
+      await Swal.fire({ icon: "error", title: "Required", text: "Group name is required." });
+      return;
+    }
+    setCreatingGroupFromModal(true);
+    try {
+      const response = await fetch("/api/admin/task-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: modalGroupForm.name.trim(),
+          description: modalGroupForm.description,
+          vipLevel: Number(modalGroupForm.vipLevel),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not create group." });
+        return;
+      }
+      await Swal.fire({ icon: "success", title: "Group created", text: `${selectedVip.tasks} tasks have been created automatically.`, timer: 2000, showConfirmButton: false });
+      setModalGroupForm({ name: "", description: "", vipLevel: "1" });
+      setShowCreateGroupModal(false);
+      setLoading(true);
+      await loadReferenceData();
+      setLoading(false);
+    } finally { setCreatingGroupFromModal(false); }
   };
 
   const [creatingTask, setCreatingTask] = useState(false);
@@ -436,19 +480,19 @@ export default function TaskManagementPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Create Task Group</h2>
             </div>
-            <form onSubmit={handleCreateGroup} className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-wrap items-end gap-3">
               <div className="flex-1 min-w-[200px]">
                 <label className="text-xs font-medium text-slate-500 block mb-1">Group Name</label>
-                <input type="text" placeholder="e.g. App Store Optimization" value={groupForm.name} onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" required />
+                <input type="text" placeholder="e.g. App Store Optimization" value={groupForm.name} onChange={(e) => setGroupForm((p) => ({ ...p, name: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" />
               </div>
               <div className="flex-1 min-w-[200px]">
                 <label className="text-xs font-medium text-slate-500 block mb-1">Description (optional)</label>
                 <input type="text" placeholder="Brief description of the group" value={groupForm.description} onChange={(e) => setGroupForm((p) => ({ ...p, description: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" />
               </div>
-              <button type="submit" disabled={creatingGroup} className="bg-[#E05305] text-white rounded-lg px-5 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 shrink-0">
-                {creatingGroup && <Spinner />} Create Group
+              <button type="button" onClick={() => setShowCreateGroupModal(true)} className="bg-[#E05305] text-white rounded-lg px-5 py-2.5 font-medium hover:bg-[#c84a04] transition shrink-0">
+                Create Group
               </button>
-            </form>
+            </div>
           </div>
 
           {taskGroups.length > 0 ? (
@@ -754,6 +798,46 @@ export default function TaskManagementPage() {
               <p className="p-6 text-center text-slate-500">No tasks match the selected filters.</p>
             )}
             <Pagination page={tasksPage} totalPages={tasksTotalPages} total={tasksTotal} onPageChange={setTasksPage} />
+          </div>
+        </div>
+      )}
+
+      {showCreateGroupModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl mt-20 mb-10">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <h2 className="text-lg font-semibold">Create Task Group</h2>
+              <button onClick={() => { setShowCreateGroupModal(false); setModalGroupForm({ name: "", description: "", vipLevel: "1" }); }} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <form onSubmit={handleCreateGroupFromModal} className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Group Name</label>
+                <input type="text" placeholder="e.g. App Store Optimization" value={modalGroupForm.name} onChange={(e) => setModalGroupForm((p) => ({ ...p, name: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" required />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Description (optional)</label>
+                <input type="text" placeholder="Brief description of the group" value={modalGroupForm.description} onChange={(e) => setModalGroupForm((p) => ({ ...p, description: e.target.value }))} className="w-full border border-slate-200 rounded-lg bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-400" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">VIP Level</label>
+                <select value={modalGroupForm.vipLevel} onChange={(e) => setModalGroupForm((p) => ({ ...p, vipLevel: e.target.value }))} className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-white text-slate-900">
+                  {VIP_LEVELS.map((v) => (
+                    <option key={v.level} value={v.level}>{v.name} — {v.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Number of Tasks</label>
+                <input type="text" value={`${selectedVip.tasks} tasks`} className="w-full border border-slate-200 rounded-lg bg-slate-50 px-3 py-2.5 text-sm text-slate-600" readOnly />
+                <p className="text-xs text-slate-400 mt-1">This group is for {selectedVip.name} ({selectedVip.label}). {selectedVip.tasks} tasks with app names, amounts, and submission config will be created automatically.</p>
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button type="submit" disabled={creatingGroupFromModal} className="flex-1 bg-[#E05305] text-white rounded-lg px-4 py-2.5 font-medium hover:bg-[#c84a04] transition disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                  {creatingGroupFromModal && <Spinner />} Create Group
+                </button>
+                <button type="button" onClick={() => { setShowCreateGroupModal(false); setModalGroupForm({ name: "", description: "", vipLevel: "1" }); }} className="px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-800 border border-slate-200 rounded-lg">Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getVipTasksPerSet } from "@/lib/vipModel";
+import { generateTasksForGroup } from "@/lib/taskGenerator";
 
 export async function GET() {
   try {
@@ -43,7 +45,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, vipLevel } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -64,11 +66,20 @@ export async function POST(request) {
     };
 
     const result = await db.collection("taskGroups").insertOne(group);
+    const groupId = result.insertedId.toString();
+
+    if (vipLevel) {
+      const taskCount = getVipTasksPerSet(Number(vipLevel));
+      const tasksToCreate = generateTasksForGroup(groupId, taskCount);
+      if (tasksToCreate.length > 0) {
+        await db.collection("tasks").insertMany(tasksToCreate);
+      }
+    }
 
     return NextResponse.json({
       success: true,
       message: "Task group created successfully.",
-      group: { ...group, _id: result.insertedId.toString() },
+      group: { ...group, _id: groupId },
     });
   } catch (error) {
     return NextResponse.json(

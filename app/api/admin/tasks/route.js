@@ -30,7 +30,7 @@ export async function GET(request) {
       db
         .collection("tasks")
         .find(query)
-        .project({ appLogo: 0, submissionConfig: 0 })
+        .project({ submissionConfig: 0 })
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)

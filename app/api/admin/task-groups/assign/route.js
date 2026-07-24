@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
-import { NORMAL_COMMISSION_RATE, computeTaskProfit } from "@/lib/comboTaskModel";
+import { NORMAL_COMMISSION_RATE, computeTaskProfit, generateNormalTaskAmount } from "@/lib/comboTaskModel";
 import { getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
@@ -29,7 +29,7 @@ export async function POST(request) {
       );
     }
 
-    const assigneeUser = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1 } });
+    const assigneeUser = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1, availableBalance: 1 } });
     const assigneeVipTasks = Number(assigneeUser?.vipTasksPerSet || getVipTasksPerSet(assigneeUser?.vipLevel));
 
     const templateTasks = await db
@@ -141,7 +141,8 @@ export async function POST(request) {
       const position = index + 1;
       const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
 
-      const computedAmount = Number(t.totalAmount) || 0;
+      const userBalance = Number(assigneeUser?.availableBalance || 0);
+      const computedAmount = generateNormalTaskAmount(userBalance);
       const computedProfit = computeTaskProfit(computedAmount);
 
       return {

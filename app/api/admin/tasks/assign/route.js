@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { getVipTasksPerSet } from "@/lib/vipModel";
+import { generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
 
 export async function POST(request) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request) {
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    const userDoc = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1 } });
+    const userDoc = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1, vipTasksPerSet: 1, availableBalance: 1 } });
     const maxTasks = Number(userDoc?.vipTasksPerSet || getVipTasksPerSet(userDoc?.vipLevel));
 
     if (taskIds.length > maxTasks) {
@@ -61,14 +62,18 @@ export async function POST(request) {
       }, { status: 409 });
     }
 
+    const userBalance = Number(userDoc?.availableBalance || 0);
     const now = new Date();
-    const tasksToInsert = newTasks.map((t) => ({
-      appName: t.appName,
-      appLogo: t.appLogo || "",
-      description: t.description || "",
-      totalAmount: t.totalAmount,
-      profit: t.profit,
-      reward: t.profit,
+    const tasksToInsert = newTasks.map((t) => {
+      const amount = generateNormalTaskAmount(userBalance);
+      const profit = computeTaskProfit(amount);
+      return {
+        appName: t.appName,
+        appLogo: t.appLogo || "",
+        description: t.description || "",
+      totalAmount: amount,
+      profit,
+      reward: profit,
       submissionConfig: t.submissionConfig,
       isTemplate: false,
       parentTaskId: t._id.toString(),
@@ -79,7 +84,8 @@ export async function POST(request) {
       setNumber: 1,
       createdAt: now,
       updatedAt: now,
-    }));
+      };
+    });
 
     const result = await db.collection("tasks").insertMany(tasksToInsert);
 
