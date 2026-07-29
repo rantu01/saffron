@@ -611,11 +611,11 @@ export default function UserTasksPage() {
                       ? "Loading tasks..."
                       : "No pending tasks available"}
                 </p> */}
-                {nextTask && !nextTask.isComboTask && Number(taskStartAmount) > 0 && (
+                {/* {nextTask && !nextTask.isComboTask && Number(taskStartAmount) > 0 && (
                   <p className="text-[10px] text-slate-400 mt-0.5">
                     Required: ${formatMoney(taskStartAmount)}
                   </p>
-                )}
+                )} */}
                 {nextTask && nextTask.isComboTask && activeCombo && (
                   <>
                     <p className="text-[10px] text-amber-500 font-medium">Combined Task - Multiple Orders</p>
