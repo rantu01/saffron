@@ -3,7 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
-import { NORMAL_COMMISSION_RATE, computeTaskProfit, generateNormalTaskAmount } from "@/lib/comboTaskModel";
+import { computeTaskProfit, generateNormalTaskAmount } from "@/lib/comboTaskModel";
 import { getVipTasksPerSet } from "@/lib/vipModel";
 
 export async function POST(request) {
@@ -143,7 +143,8 @@ export async function POST(request) {
 
       const userBalance = Number(assigneeUser?.availableBalance || 0);
       const computedAmount = generateNormalTaskAmount(userBalance);
-      const computedProfit = computeTaskProfit(computedAmount);
+      const assigneeVipLevel = Number(assigneeUser?.vipLevel || 1);
+      const computedProfit = computeTaskProfit(computedAmount, assigneeVipLevel);
 
       return {
         appName: t.appName,

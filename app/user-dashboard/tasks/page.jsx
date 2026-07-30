@@ -460,7 +460,7 @@ export default function UserTasksPage() {
         await Swal.fire({
           icon: "info",
           title: "No new task set yet",
-          text: "Please contact the admin to receive your next task set.",
+          text: "Please contact the customer service to receive your next task set.",
         });
       }
     } catch (err) {
@@ -537,7 +537,7 @@ export default function UserTasksPage() {
                   href="/user-dashboard/chat"
                   className="mt-2 inline-block bg-[#E05305] text-white rounded-lg px-5 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
                 >
-                  Contact Admin
+                  Contact Customer Service
                 </a>
               </div>
             ) : (
@@ -787,7 +787,7 @@ export default function UserTasksPage() {
                 <div>
                   <span className="text-[9px] text-slate-400 block font-medium">Profit</span>
                   <span className="text-[#E05305] text-xs font-bold">
-                    USDC/T {formatMoney(selectedTask.profit || 0)}
+                    USDC/T {formatMoney(Number(selectedTask.totalAmount || selectedTask.requiredBalance || 0) * (currentTier.dailyProfit / 100))}
                   </span>
                 </div>
               </div>

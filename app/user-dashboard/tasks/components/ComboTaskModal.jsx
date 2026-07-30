@@ -140,7 +140,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
       if (data.allComplete) {
         await Swal.fire({
           icon: "success",
-          title: "Combined Task Complete!",
+          title: "Task Complete!",
           html: `
             <div style="text-align: center;">
               <p style="margin-bottom: 8px;">All ${comboData.orders.length} orders completed successfully!</p>
@@ -194,7 +194,7 @@ export default function ComboTaskModal({ combo, uid, userBalance, frozenBalance,
         <div className="bg-gradient-to-r from-orange-500 to-amber-500 p-3 text-white shrink-0">
           <div className="flex items-center gap-2 mb-0.5">
             <Layers className="w-4 h-4" />
-            <h2 className="text-base font-bold">Combined Task</h2>
+            <h2 className="text-base font-bold">Task</h2>
           </div>
           <p className="text-white/80 text-[10px]">Complete all linked orders sequentially</p>
         </div>
