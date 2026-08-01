@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { roundCurrency } from "@/lib/taskModel";
-import { getActiveComboTask, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
+import { getActiveComboTask } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
 import { evaluateVipEligibility, getVipTaskConfig, getVipTasksPerSet } from "@/lib/vipModel";
 
@@ -113,8 +113,7 @@ export async function POST(request) {
 
     const totalAmount = Number(task.totalAmount || 0);
     const vipConfig = getVipTaskConfig(Number(user.vipLevel || 1));
-    const effectiveRate = NORMAL_COMMISSION_RATE + vipConfig.profitIncrease / 100;
-    const profit = roundCurrency(totalAmount * effectiveRate);
+    const profit = roundCurrency(totalAmount * (vipConfig.profitIncrease / 100));
     // Only the profit is "earned". The task principal is reserved (frozen) while
     // the task is pending and returned to the wallet on completion — it is never
     // credited as earnings.

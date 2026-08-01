@@ -295,11 +295,11 @@ export default function RecordsPage() {
                   <div className="flex items-start justify-between mb-3">
                     <div className="pr-2">
                       <span className="inline-block mb-1 text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded">
-                        Combo Task
+                        Task
                       </span>
-                      <h3 className="text-base font-bold text-slate-900 leading-snug">
+                      {/* <h3 className="text-base font-bold text-slate-900 leading-snug">
                         {record.title}
-                      </h3>
+                      </h3> */}
                     </div>
                     <StatusBadge status={labelStatus} />
                   </div>
@@ -365,7 +365,7 @@ export default function RecordsPage() {
                       onClick={() => openCombo(record)}
                       className="w-full mt-2 bg-[#E05305] hover:bg-[#c84a04] text-white text-xs font-bold py-2 rounded-xl transition-colors"
                     >
-                      Work Combined Task
+                      Work with Task
                     </button>
                   )}
                 </div>
