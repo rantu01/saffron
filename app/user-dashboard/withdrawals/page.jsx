@@ -11,6 +11,7 @@ export default function WithdrawalsPage() {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ walletAddress: "", network: "TRC20", amount: "" });
     const [balance, setBalance] = useState(0);
+    const [savedWallet, setSavedWallet] = useState({ walletAddress: "", walletNetwork: "TRC20" });
 
     const formatMoney = (val) => {
         const n = Number(val || 0);
@@ -35,7 +36,15 @@ export default function WithdrawalsPage() {
                 const dashboardData = await dashboardRes.json();
 
                 if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals || []);
-                if (dashboardData.success) setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
+                if (dashboardData.success) {
+                    setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
+                    const boundAddress = dashboardData.dashboard?.walletAddress || "";
+                    const boundNetwork = dashboardData.dashboard?.walletNetwork || "TRC20";
+                    setSavedWallet({ walletAddress: boundAddress, walletNetwork: boundNetwork });
+                    if (boundAddress) {
+                        setForm((prev) => ({ ...prev, walletAddress: boundAddress, network: boundNetwork }));
+                    }
+                }
             } catch (err) {
                 console.error(err);
             } finally {

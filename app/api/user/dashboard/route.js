@@ -72,6 +72,8 @@ export async function GET(request) {
         accountStatus: user?.accountStatus || "active",
         accountType: user?.accountType || (user?.isDemoAccount ? "demo" : "main"),
         isDemoAccount: Boolean(user?.isDemoAccount || user?.accountType === "demo"),
+        walletAddress: user?.walletAddress || "",
+        walletNetwork: user?.walletNetwork || "",
         inviterUid: user?.inviterUid || "",
         inviterEmail: user?.inviterEmail || "",
         freezeReason: user?.freezeReason || null,
