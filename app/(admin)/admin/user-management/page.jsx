@@ -23,6 +23,10 @@ export default function UserManagementPage() {
   const [pushLoading, setPushLoading] = useState(false);
   const [deleteUser, setDeleteUser] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [changePasswordUser, setChangePasswordUser] = useState(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
   const searchTimerRef = useRef(null);
 
   const loadUsers = useCallback(async (searchQuery, pageNum) => {
@@ -116,6 +120,53 @@ export default function UserManagementPage() {
   const closeDelete = () => {
     if (deleteLoading) return;
     setDeleteUser(null);
+  };
+
+  const openChangePassword = (user) => {
+    setChangePasswordUser(user);
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
+  const closeChangePassword = () => {
+    if (passwordLoading) return;
+    setChangePasswordUser(null);
+  };
+
+  const submitChangePassword = async (e) => {
+    e.preventDefault();
+    if (!changePasswordUser) return;
+
+    if (newPassword.length < 6) {
+      await Swal.fire({ icon: "error", title: "Invalid password", text: "Password must be at least 6 characters." });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      await Swal.fire({ icon: "error", title: "Passwords do not match", text: "New password and confirm password must match." });
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const res = await fetch("/api/admin/users/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid: changePasswordUser.uid, newPassword }),
+      });
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        await Swal.fire({ icon: "error", title: "Failed", text: result.message || "Could not update password." });
+        return;
+      }
+      await Swal.fire({ icon: "success", title: "Password changed", timer: 1200, showConfirmButton: false });
+      setChangePasswordUser(null);
+    } catch (err) {
+      console.error(err);
+      await Swal.fire({ icon: "error", title: "Error", text: "Network error, please try again." });
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   const confirmDelete = async () => {
@@ -311,6 +362,7 @@ export default function UserManagementPage() {
                   )}
                   <button onClick={() => createReferralCodeForUser(user)} className="border border-[#E05305] text-[#E05305] rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-orange-50 transition">Referral Code</button>
                   <button onClick={() => openBalancePush(user)} className="bg-slate-800 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-slate-900 transition">Balance Push</button>
+                  <button onClick={() => openChangePassword(user)} className="bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700 transition">Change Password</button>
                   <button onClick={() => openDelete(user)} className="bg-red-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-red-700 transition">Delete</button>
                 </div>
               </div>
@@ -504,6 +556,79 @@ export default function UserManagementPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {changePasswordUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeChangePassword}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-slate-200 bg-white shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900">Change Password</h2>
+              <button
+                onClick={closeChangePassword}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={submitChangePassword} className="space-y-4 p-5">
+              <div className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                <span className="font-medium text-slate-900">{changePasswordUser.displayName || changePasswordUser.email || changePasswordUser.uid}</span>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">New Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter new password (min 6 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Confirm New Password</label>
+                <input
+                  type="password"
+                  placeholder="Re-enter new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeChangePassword}
+                  disabled={passwordLoading}
+                  className="flex-1 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {passwordLoading ? "Updating..." : "Change Password"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

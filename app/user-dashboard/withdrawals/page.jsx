@@ -11,7 +11,11 @@ export default function WithdrawalsPage() {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ walletAddress: "", network: "TRC20", amount: "" });
     const [balance, setBalance] = useState(0);
+<<<<<<< HEAD
     const [savedWallet, setSavedWallet] = useState({ walletAddress: "", walletNetwork: "TRC20" });
+=======
+    const [hasIncompleteTasks, setHasIncompleteTasks] = useState(false);
+>>>>>>> af12b546f761cdc7df8bb97112303d17148a2b47
 
     const formatMoney = (val) => {
         const n = Number(val || 0);
@@ -27,15 +31,18 @@ export default function WithdrawalsPage() {
             }
 
             try {
-                const [withdrawalsRes, dashboardRes] = await Promise.all([
+                const [withdrawalsRes, dashboardRes, taskSetsRes] = await Promise.all([
                     fetch(`/api/user/withdrawal?uid=${encodeURIComponent(user.uid)}`),
                     fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
+                    fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
                 ]);
 
                 const withdrawalsData = await withdrawalsRes.json();
                 const dashboardData = await dashboardRes.json();
+                const taskSetsData = await taskSetsRes.json();
 
                 if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals || []);
+<<<<<<< HEAD
                 if (dashboardData.success) {
                     setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
                     const boundAddress = dashboardData.dashboard?.walletAddress || "";
@@ -44,6 +51,15 @@ export default function WithdrawalsPage() {
                     if (boundAddress) {
                         setForm((prev) => ({ ...prev, walletAddress: boundAddress, network: boundNetwork }));
                     }
+=======
+                if (dashboardData.success) setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
+                if (taskSetsData.success) {
+                    const sets = taskSetsData.taskSets || [];
+                    const hasIncomplete = sets.some(
+                        (s) => (s.completedTasks || 0) < (s.totalTasks || 0)
+                    );
+                    setHasIncompleteTasks(hasIncomplete);
+>>>>>>> af12b546f761cdc7df8bb97112303d17148a2b47
                 }
             } catch (err) {
                 console.error(err);
@@ -130,14 +146,31 @@ export default function WithdrawalsPage() {
 
     return (
         <div>
+            {hasIncompleteTasks && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    You have active tasks that need to be completed before you can withdraw. Please finish all tasks in your current set first.
+                </div>
+            )}
+
             <div className="mb-6 flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold ">Withdrawals</h1>
                     <p className="text-sm  mt-1">Available Balance: ${formatMoney(balance)}</p>
                 </div>
                 <button
-                    onClick={() => setShowForm(!showForm)}
-                    className="rounded bg-[#E05305] px-4 py-2 text-white hover:bg-[#c84a04]"
+                    onClick={() => {
+                        if (hasIncompleteTasks) {
+                            Swal.fire({
+                                icon: "info",
+                                title: "Active tasks pending",
+                                text: "Please complete all tasks in your current set before making a withdrawal.",
+                                confirmButtonColor: "#E05305",
+                            });
+                            return;
+                        }
+                        setShowForm(!showForm);
+                    }}
+                    className={`rounded px-4 py-2 text-white ${hasIncompleteTasks ? "bg-slate-400 cursor-not-allowed" : "bg-[#E05305] hover:bg-[#c84a04]"}`}
                 >
                     {showForm ? "Cancel" : "New Withdrawal"}
                 </button>

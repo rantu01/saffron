@@ -64,6 +64,20 @@ export default function ClientLayout({ children }) {
 
   React.useEffect(() => {
     if (!user?.uid) return;
+    async function fetchProfile() {
+      try {
+        const res = await fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`);
+        const data = await res.json();
+        if (data?.success) setProfileData(data.user);
+      } catch {
+        // silent
+      }
+    }
+    fetchProfile();
+  }, [user?.uid]);
+
+  React.useEffect(() => {
+    if (!user?.uid) return;
     async function fetchUnread() {
       try {
         const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
@@ -90,7 +104,7 @@ export default function ClientLayout({ children }) {
         const profile = await profileRes.json();
         const ref = await refRes.json();
         const dash = await dashRes.json();
-        if (profile?.success) setProfileData(profile.profile);
+        if (profile?.success) setProfileData(profile.user);
         if (ref?.success) setRefCode(ref.referral.referralCode || '');
         if (dash?.success) setDashData(dash.dashboard);
       } catch (err) {
@@ -140,7 +154,7 @@ export default function ClientLayout({ children }) {
               Saffron Edge
             </p>
             <h1 className="mt-1 text-xl font-bold text-white">
-              Welcome{user?.displayName ? `, ${user.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}!
+              Welcome{profileData?.username ? `, ${profileData.username}` : user?.displayName ? `, ${user.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}!
             </h1>
           </div>
 
@@ -209,7 +223,7 @@ export default function ClientLayout({ children }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h2 className="text-white font-bold text-base truncate">
-                    {profileData?.displayName || user?.displayName || 'User'}
+                    {profileData?.username || profileData?.displayName || user?.displayName || 'User'}
                   </h2>
                   <div className="flex items-center gap-1.5 mt-1">
                     <span className="bg-[#FBBF24] text-slate-900 text-[9px] font-bold px-1.5 py-0.5 rounded">

@@ -70,7 +70,7 @@ export default function ProfilePage() {
       const res = await fetch('/api/auth/check-username', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: usernameValue }),
+        body: JSON.stringify({ username: usernameValue, uid: authUser.uid }),
       });
       const data = await res.json();
       if (!data.success) {

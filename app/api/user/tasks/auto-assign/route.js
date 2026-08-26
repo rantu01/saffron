@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions, roundCurrency } from "@/lib/taskModel";
-import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount, NORMAL_COMMISSION_RATE } from "@/lib/comboTaskModel";
+import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus } from "@/lib/taskSetModel";
 import { getVipTaskConfig } from "@/lib/vipModel";
 
@@ -203,7 +203,7 @@ export async function POST(request) {
 
       const taskProfile = buildTaskFinancialProfile(t, position, nextSetNumber, combinationPositions);
       const generatedAmount = generateNormalTaskAmount(userBalance);
-      const generatedProfit = roundCurrency(generatedAmount * (NORMAL_COMMISSION_RATE + vipProfitIncrease / 100));
+      const generatedProfit = roundCurrency(generatedAmount * (vipProfitIncrease / 100));
 
       return {
         appName: t.appName,

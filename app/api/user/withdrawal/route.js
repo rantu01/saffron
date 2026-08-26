@@ -23,7 +23,7 @@ export async function POST(request) {
       );
     }
 
-    await clientPromise;
+    const client = await clientPromise;
     const user = await getUserByUid(uid);
 
     if (!user) {
@@ -45,6 +45,19 @@ export async function POST(request) {
     if (Number(resolvedUser.comboDebt || 0) > 0) {
       return NextResponse.json(
         { success: false, message: "Cannot withdraw while you have outstanding debt. Please deposit to clear your debt first." },
+        { status: 400 }
+      );
+    }
+
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+    const incompleteSet = await db.collection("userTaskSets").findOne({
+      uid,
+      $expr: { $lt: ["$completedTasks", "$totalTasks"] },
+    });
+
+    if (incompleteSet) {
+      return NextResponse.json(
+        { success: false, message: "Cannot withdraw while you have an active task set. Please complete all tasks in the current set first." },
         { status: 400 }
       );
     }

@@ -4,7 +4,7 @@ import { checkUsernameExists } from "@/lib/userModel";
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { username } = body;
+    const { username, uid } = body;
 
     if (!username || typeof username !== "string" || !username.trim()) {
       return NextResponse.json(
@@ -13,7 +13,7 @@ export async function POST(request) {
       );
     }
 
-    const exists = await checkUsernameExists(username);
+    const exists = await checkUsernameExists(username, uid);
 
     return NextResponse.json({ success: true, available: !exists });
   } catch (error) {

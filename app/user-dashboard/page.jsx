@@ -11,6 +11,7 @@ export default function UserDashboardPage() {
   const [dashboard, setDashboard] = useState({ availableBalance: 0, frozenBalance: 0, tasks: [] });
   const [deposits, setDeposits] = useState([]);
   const [withdrawals, setWithdrawals] = useState([]);
+  const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   
@@ -71,15 +72,17 @@ export default function UserDashboardPage() {
 
       try {
         setError("");
-        const [dashboardRes, depositsRes, withdrawalsRes] = await Promise.all([
+        const [dashboardRes, depositsRes, withdrawalsRes, profileRes] = await Promise.all([
           fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/deposit?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/withdrawal?uid=${encodeURIComponent(user.uid)}`),
+          fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`),
         ]);
 
         const dashboardResult = await dashboardRes.json();
         const depositsResult = await depositsRes.json();
         const withdrawalsResult = await withdrawalsRes.json();
+        const profileResult = await profileRes.json();
 
         if (!dashboardRes.ok || !dashboardResult.success) {
           throw new Error(dashboardResult.message || "Failed to load dashboard.");
@@ -88,6 +91,9 @@ export default function UserDashboardPage() {
         setDashboard(dashboardResult.dashboard);
         setDeposits(depositsResult.deposits || []);
         setWithdrawals(withdrawalsResult.withdrawals || []);
+        if (profileResult?.success) {
+          setUsername(profileResult.user.username || "");
+        }
       } catch (err) {
         setError(err.message || "Failed to load dashboard.");
       } finally {
@@ -212,7 +218,7 @@ export default function UserDashboardPage() {
         <div>
           <p className="text-sm  font-medium uppercase tracking-wider">Welcome back</p>
           <h1 className="text-3xl font-bold  mt-0.5">
-            {user.displayName || user.email?.split('@')[0] || 'User'}!
+            {username || user.displayName || user.email?.split('@')[0] || 'User'}!
           </h1>
           <p className="text-sm  mt-1">Manage your accounts, balances and requests efficiently.</p>
         </div>

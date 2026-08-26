@@ -165,14 +165,18 @@ export default function TaskManagementPage() {
 
   const loadReferenceData = async () => {
     try {
-      const [usersRes, groupsRes] = await Promise.all([
-        fetch("/api/admin/users?limit=500"),
-        fetch("/api/admin/task-groups"),
-      ]);
-      const usersData = await usersRes.json();
-      const groupsData = await groupsRes.json();
-      setUsers(usersData.users || []);
-      setTaskGroups(groupsData.groups || []);
+      const usersRes = await fetch("/api/admin/users?limit=500");
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        if (usersData.success) setUsers(usersData.users || []);
+      }
+    } catch {}
+    try {
+      const groupsRes = await fetch("/api/admin/task-groups");
+      if (groupsRes.ok) {
+        const groupsData = await groupsRes.json();
+        if (groupsData.success) setTaskGroups(groupsData.groups || []);
+      }
     } catch {}
   };
 
