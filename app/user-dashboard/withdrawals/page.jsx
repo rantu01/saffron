@@ -11,11 +11,8 @@ export default function WithdrawalsPage() {
     const [showForm, setShowForm] = useState(false);
     const [form, setForm] = useState({ walletAddress: "", network: "TRC20", amount: "" });
     const [balance, setBalance] = useState(0);
-<<<<<<< HEAD
     const [savedWallet, setSavedWallet] = useState({ walletAddress: "", walletNetwork: "TRC20" });
-=======
     const [hasIncompleteTasks, setHasIncompleteTasks] = useState(false);
->>>>>>> af12b546f761cdc7df8bb97112303d17148a2b47
 
     const formatMoney = (val) => {
         const n = Number(val || 0);
@@ -42,7 +39,6 @@ export default function WithdrawalsPage() {
                 const taskSetsData = await taskSetsRes.json();
 
                 if (withdrawalsData.success) setWithdrawals(withdrawalsData.withdrawals || []);
-<<<<<<< HEAD
                 if (dashboardData.success) {
                     setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
                     const boundAddress = dashboardData.dashboard?.walletAddress || "";
@@ -51,15 +47,13 @@ export default function WithdrawalsPage() {
                     if (boundAddress) {
                         setForm((prev) => ({ ...prev, walletAddress: boundAddress, network: boundNetwork }));
                     }
-=======
-                if (dashboardData.success) setBalance(Number(dashboardData.dashboard?.availableBalance || 0));
+                }
                 if (taskSetsData.success) {
                     const sets = taskSetsData.taskSets || [];
                     const hasIncomplete = sets.some(
                         (s) => (s.completedTasks || 0) < (s.totalTasks || 0)
                     );
                     setHasIncompleteTasks(hasIncomplete);
->>>>>>> af12b546f761cdc7df8bb97112303d17148a2b47
                 }
             } catch (err) {
                 console.error(err);
