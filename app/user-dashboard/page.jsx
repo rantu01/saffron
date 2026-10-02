@@ -3,11 +3,13 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { readJsonSafe } from "@/lib/apiClient";
 import {
   Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight,
   CheckCircle2, Clock, AlertCircle, Activity,
   Calendar, Award, Target, BarChart3,
   Wallet, PlusCircle, Send, MessageCircle, Gift,
+  ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 
 const GOLD = "#FBBF24";
@@ -477,27 +479,21 @@ export default function UserDashboardPage() {
       }
       try {
         setError("");
-        const [dashboardRes, depositsRes, withdrawalsRes, profileRes, recordsRes] = await Promise.all([
+        const [dashboardRes, profileRes, recordsRes] = await Promise.all([
           fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/user/deposit?uid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/user/withdrawal?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/records?uid=${encodeURIComponent(user.uid)}`),
         ]);
 
-        const dashboardResult = await dashboardRes.json();
-        const depositsResult = await depositsRes.json();
-        const withdrawalsResult = await withdrawalsRes.json();
-        const profileResult = await profileRes.json();
-        const recordsResult = await recordsRes.json();
+        const dashboardResult = await readJsonSafe(dashboardRes);
+        const profileResult = await readJsonSafe(profileRes);
+        const recordsResult = await readJsonSafe(recordsRes);
 
         if (!dashboardRes.ok || !dashboardResult.success) {
           throw new Error(dashboardResult.message || "Failed to load dashboard.");
         }
 
         setDashboard(dashboardResult.dashboard);
-        setDeposits(depositsResult.deposits || []);
-        setWithdrawals(withdrawalsResult.withdrawals || []);
         if (profileResult?.success) {
           setProfile(profileResult.user);
         }
@@ -563,6 +559,13 @@ export default function UserDashboardPage() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Load error — surfaced instead of failing silently with a partial dashboard */}
+      {error && (
+        <div className="mx-4 mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs text-red-300">
+          {error}
         </div>
       )}
 

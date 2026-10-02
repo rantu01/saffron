@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test scripts/safe-json.test.mjs"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

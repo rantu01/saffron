@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { readJsonSafe } from "@/lib/apiClient";
 import Swal from "sweetalert2";
 
 function daysAgo(date) {
@@ -65,7 +66,7 @@ export default function BalanceHistoryPage() {
         if (endDate) params.set("endDate", endDate);
 
         const res = await fetch(`/api/user/balance-logs?${params}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
 
         if (cancelled) return;
         if (!res.ok || !data.success) throw new Error(data.message || "Failed to load history");

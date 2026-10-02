@@ -4,6 +4,7 @@ import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
+import { readJsonSafe } from '@/lib/apiClient';
 import UserSidebar from './components/Sidebar';
 import UserTopbar from './components/Topbar';
 import {
@@ -88,7 +89,7 @@ export default function ClientLayout({ children }) {
     async function fetchProfile() {
       try {
         const res = await fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
         if (data?.success) setProfileData(data.user);
       } catch {
         // silent
@@ -102,7 +103,7 @@ export default function ClientLayout({ children }) {
     async function fetchUnread() {
       try {
         const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
         if (data.success) setUnreadChat(data.unreadCount || 0);
       } catch {
         // silent
@@ -122,9 +123,9 @@ export default function ClientLayout({ children }) {
           fetch(`/api/user/referral?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
         ]);
-        const profile = await profileRes.json();
-        const ref = await refRes.json();
-        const dash = await dashRes.json();
+        const profile = await readJsonSafe(profileRes);
+        const ref = await readJsonSafe(refRes);
+        const dash = await readJsonSafe(dashRes);
         if (profile?.success) setProfileData(profile.user);
         if (ref?.success) setRefCode(ref.referral.referralCode || '');
         if (dash?.success) setDashData(dash.dashboard);
@@ -144,7 +145,7 @@ export default function ClientLayout({ children }) {
     async function checkRole() {
       try {
         const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
         if (res.ok && data?.success && data?.dashboard?.role === 'admin') {
           router.replace('/admin');
           return;
