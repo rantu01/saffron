@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
 import LiveChat from '@/app/Component/Common/LiveChat';
+import { readJsonSafe } from '@/lib/apiClient';
 import { MessageCircle, Bell } from 'lucide-react';
 
 export default function ChatPage() {
@@ -13,7 +14,7 @@ export default function ChatPage() {
     if (!user?.uid) return;
     try {
       const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (data.success) setUnreadCount(data.unreadCount || 0);
     } catch {
       // silent

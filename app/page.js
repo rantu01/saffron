@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
+import { readJsonSafe } from '@/lib/apiClient';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
 import { Loader2, ArrowRight, Sparkles } from 'lucide-react';
 import Navbar from './Component/Common/Navbar';
@@ -28,7 +29,7 @@ export default function RootPage() {
       if (!user?.uid) return setRole(null);
       try {
         const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
         if (mounted && data?.success) setRole(data.dashboard?.role || null);
       } catch (e) {
         if (mounted) setRole(null);
@@ -47,7 +48,7 @@ export default function RootPage() {
       let target = '/user-dashboard';
       try {
         const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(cred.user.uid)}`);
-        const data = await res.json();
+        const data = await readJsonSafe(res);
         if (data?.success && data.dashboard?.role === 'admin') target = '/admin';
       } catch (e) {}
       router.push(target);

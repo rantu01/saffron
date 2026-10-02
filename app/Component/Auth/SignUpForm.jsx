@@ -6,6 +6,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
+import { readJsonSafe } from '@/lib/apiClient';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
@@ -45,7 +46,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: usernameValue }),
       });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (data.success && !data.available) {
         setUsernameError('This username is already taken.');
       } else if (!data.success) {
@@ -81,7 +82,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: usernameValue }),
       });
-      const usernameCheckResult = await usernameCheckResponse.json();
+      const usernameCheckResult = await readJsonSafe(usernameCheckResponse);
       if (!usernameCheckResponse.ok || !usernameCheckResult.success) {
         throw new Error(usernameCheckResult.message || 'Failed to check username.');
       }
@@ -94,7 +95,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: formData.invitationCode }),
       });
-      const invitationCheckResult = await invitationCheckResponse.json();
+      const invitationCheckResult = await readJsonSafe(invitationCheckResponse);
       if (!invitationCheckResponse.ok || !invitationCheckResult.success) {
         throw new Error(invitationCheckResult.message || 'Invalid invitation code.');
       }
@@ -115,7 +116,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
           username: formData.username.trim(),
         }),
       });
-      const syncResult = await syncResponse.json();
+      const syncResult = await readJsonSafe(syncResponse);
       if (!syncResponse.ok || !syncResult.success) {
         throw new Error(syncResult.message || 'Failed to sync user data.');
       }
@@ -132,7 +133,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
 
       try {
         const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}`);
-        const dashData = await dashRes.json();
+        const dashData = await readJsonSafe(dashRes);
         const role = dashData?.dashboard?.role || 'user';
         const basePath = role === 'admin' ? '/admin' : '/user-dashboard';
         const queryParam = isNewUser ? '?welcome=true' : '';

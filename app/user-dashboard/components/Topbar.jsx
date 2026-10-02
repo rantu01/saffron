@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import NotificationBell from "@/app/Component/Common/NotificationBell";
+import { readJsonSafe } from "@/lib/apiClient";
 import { ArrowLeft } from "lucide-react";
 
 export default function UserTopbar({ onToggle }) {
@@ -25,7 +26,7 @@ export default function UserTopbar({ onToggle }) {
     async function load() {
       if (!user?.uid) return setProfile(null);
       const res = await fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`);
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (mounted && data?.success) setProfile(data.user);
     }
     load();
