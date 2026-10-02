@@ -11,6 +11,7 @@ import Navbar from './Component/Common/Navbar';
 import Footer from './Component/Home/Footer';
 import SignUpForm from '@/app/Component/Auth/SignUpForm';
 
+
 export default function RootPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
