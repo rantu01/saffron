@@ -22,7 +22,7 @@ export async function GET(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { uid, displayName, avatarUrl, phoneNumber, username } = body;
+    const { uid, displayName, avatarUrl, phoneNumber, username, walletAddress, walletNetwork } = body;
     if (!uid) return NextResponse.json({ success: false, message: 'uid required' }, { status: 400 });
 
     const client = await clientPromise;
@@ -32,6 +32,8 @@ export async function PATCH(request) {
     if (typeof displayName === 'string') update.displayName = displayName;
     if (typeof avatarUrl === 'string') update.avatarUrl = avatarUrl;
     if (typeof phoneNumber === 'string') update.phoneNumber = phoneNumber;
+    if (typeof walletAddress === 'string') update.walletAddress = walletAddress.trim();
+    if (typeof walletNetwork === 'string' && walletNetwork.trim()) update.walletNetwork = walletNetwork.trim();
 
     if (typeof username === 'string' && username.trim()) {
       const normalizedUsername = username.trim().toLowerCase();

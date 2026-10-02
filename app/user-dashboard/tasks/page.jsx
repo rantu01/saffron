@@ -279,8 +279,8 @@ export default function UserTasksPage() {
       return;
     }
 
-    // The $40 minimum only applies to the very first task session.
-    const MINIMUM_BALANCE = 40;
+    // The $20 minimum only applies to the very first task session.
+    const MINIMUM_BALANCE = 20;
     if (!firstTaskStarted && userBalance < MINIMUM_BALANCE) {
       Swal.fire({
         icon: "error",

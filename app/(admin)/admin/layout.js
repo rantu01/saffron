@@ -9,7 +9,7 @@ import DashboardTopbar from "./components/Topbar";
 import { AdminNotificationProvider, useAdminNotificationCounts } from "./components/AdminNotificationContext";
 import {
 	LayoutGrid, CheckSquare, Users, DollarSign, Send,
-	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText, MessageCircle, X, ChevronRight
+	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText, MessageCircle, X, ChevronRight, LogOut
 } from "lucide-react";
 
 const mobileNavItems = [
@@ -44,7 +44,7 @@ function Badge({ count }) {
 function AdminLayoutShell({ children }) {
 	const router = useRouter();
 	const pathname = usePathname();
-	const { user, loading } = useAuth();
+	const { user, loading, logout } = useAuth();
 	const [open, setOpen] = useState(false);
 	const [roleChecking, setRoleChecking] = useState(true);
 	const [isAdmin, setIsAdmin] = useState(false);
@@ -154,7 +154,7 @@ function AdminLayoutShell({ children }) {
 			{mobileMenuOpen && (
 				<div className="fixed inset-0 z-50 lg:hidden">
 					<div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-					<div className="fixed left-0 top-0 h-full w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
+					<div className="fixed left-0 top-0 h-screen w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
 						<div className="p-5">
 							<button
 								onClick={() => setMobileMenuOpen(false)}
@@ -198,6 +198,20 @@ function AdminLayoutShell({ children }) {
 										</Link>
 									);
 								})}
+							</div>
+
+							<div className="mt-6 pt-4 border-t border-slate-800">
+								<button
+									onClick={async () => {
+										setMobileMenuOpen(false);
+										await logout();
+										router.replace("/");
+									}}
+									className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-400 transition-colors hover:bg-red-400/10"
+								>
+									<LogOut size={18} />
+									<span>Log out</span>
+								</button>
 							</div>
 						</div>
 					</div>

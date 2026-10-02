@@ -9,7 +9,7 @@ import UserTopbar from './components/Topbar';
 import {
   AppWindowMac, ListChecks, Share2, User, DollarSign,
   CreditCard, Send, Wallet, History, LayoutDashboard, Grid3X3, FileText,
-  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, X, MessageCircle
+  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, ChevronDown, X, MessageCircle, Menu
 } from 'lucide-react';
 import LiveChat from '@/app/Component/Common/LiveChat';
 
@@ -31,22 +31,42 @@ const bottomNavItems = [
   { label: 'Home', href: '/user-dashboard', icon: LayoutDashboard },
   { label: 'Starting', href: '/user-dashboard/tasks', icon: Grid3X3 },
   { label: 'Records', href: '/user-dashboard/records', icon: FileText },
+  { label: 'More', href: '#', icon: Menu, action: 'drawer' },
 ];
 
-const drawerMenuItems = [
-  { label: 'Add Fund', href: '/user-dashboard/deposits', icon: DollarSign },
-  { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
-  { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
-  { label: 'Withdraw', href: '/user-dashboard/withdrawals', icon: ArrowUpFromLine },
-  { label: 'Personal Info', href: '/user-dashboard/profile', icon: User },
-  { label: 'Payments', href: '/user-dashboard/payments', icon: CreditCard },
-  { label: 'Transaction', href: '/user-dashboard/records', icon: CreditCard },
-  { label: 'Wallet Bind', href: '/user-dashboard/balance', icon: Wallet },
-  { label: 'Customer Service', href: '/user-dashboard/chat', icon: MessageCircle },
-  { label: 'Balance History', href: '/user-dashboard/balance-history', icon: History },
-  // { label: 'Language', href: '#', icon: Globe },
-  // { label: 'Customer Service', href: '#', icon: Headphones },
-  { label: 'Log out', href: '#', icon: LogOut },
+const drawerMenuSections = [
+  {
+    title: 'WORK',
+    items: [
+      { label: 'My Tasks', href: '/user-dashboard/tasks', icon: ListChecks },
+      { label: 'Starting', href: '/user-dashboard/tasks', icon: Grid3X3 },
+    ],
+  },
+  {
+    title: 'WALLET',
+    items: [
+      { label: 'Add Fund', href: '/user-dashboard/deposits', icon: DollarSign },
+      { label: 'Withdraw', href: '/user-dashboard/withdrawals', icon: ArrowUpFromLine },
+      { label: 'Payments', href: '/user-dashboard/payments', icon: CreditCard },
+      { label: 'Transactions', href: '/user-dashboard/records', icon: History },
+      { label: 'Wallet', href: '/user-dashboard/balance', icon: Wallet },
+    ],
+  },
+  {
+    title: 'ACCOUNT',
+    items: [
+      { label: 'Personal Info', href: '/user-dashboard/profile', icon: User },
+      { label: 'Security', href: '/user-dashboard/profile', icon: ArrowDownToLine },
+      { label: 'Referrals', href: '/user-dashboard/referrals', icon: Share2 },
+    ],
+  },
+  {
+    title: 'SUPPORT',
+    items: [
+      { label: 'Customer Service', href: '/user-dashboard/chat', icon: MessageCircle },
+      { label: 'Help Center', href: '/user-dashboard/chat', icon: Headphones },
+    ],
+  },
 ];
 
 export default function ClientLayout({ children }) {
@@ -57,6 +77,7 @@ export default function ClientLayout({ children }) {
   const [roleChecking, setRoleChecking] = React.useState(true);
   const isDashboard = pathname === '/user-dashboard';
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [expandedSection, setExpandedSection] = React.useState(null);
   const [profileData, setProfileData] = React.useState(null);
   const [refCode, setRefCode] = React.useState('');
   const [dashData, setDashData] = React.useState(null);
@@ -146,8 +167,8 @@ export default function ClientLayout({ children }) {
       <div className='min-h-screen flex flex-col md:max-w-2xl mx-auto'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
-        {/* MOBILE APP LAUNCHER - only on main dashboard */}
-        {isDashboard && (
+        {/* MOBILE APP LAUNCHER - hidden on dashboard (new design includes quick actions) */}
+        {isDashboard ? false : (
         <div className="bg-[#121212] px-4 pt-2 pb-6 ">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
@@ -200,9 +221,9 @@ export default function ClientLayout({ children }) {
 
       {/* MOBILE SLIDE-IN DRAWER */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-50 ">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed left-0 top-0 h-full w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
+          <div className="fixed left-0 top-0 h-screen w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
             <div className="p-5">
               {/* Close button */}
               <button
@@ -280,49 +301,69 @@ export default function ClientLayout({ children }) {
               </div>
 
               {/* Menu List */}
-              <div className="space-y-0.5">
-                {drawerMenuItems.map((item) => {
-                  const isLogout = item.label === 'Log out';
+              <div className="space-y-1 mb-6">
+                {drawerMenuSections.map((section) => {
+                  const isExpanded = expandedSection === section.title;
                   return (
-                    <div key={item.label}>
-                      {isLogout ? (
-                        <button
-                          onClick={async () => {
-                            setMobileMenuOpen(false);
-                            await logout();
-                            router.replace('/');
-                            router.refresh();
-                          }}
-                          className="w-full flex items-center justify-between py-2.5 px-1 rounded-lg hover:bg-slate-800/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <item.icon size={18} className="text-red-400" />
-                            <span className="text-sm font-medium text-red-400">{item.label}</span>
-                          </div>
-                          <ChevronRight size={14} className="text-red-400/60" />
-                        </button>
-                      ) : (
-                        <Link
-                          href={item.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center justify-between py-2.5 px-1 rounded-lg hover:bg-slate-800/50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3">
-                            <item.icon size={18} className="text-[#FBBF24]" />
-                            <span className="text-sm font-medium text-white">{item.label}</span>
-                            {item.label === 'Live Chat' && unreadChat > 0 && (
-                              <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
-                                {unreadChat > 99 ? "99+" : unreadChat}
-                              </span>
-                            )}
-                          </div>
-                          <ChevronRight size={14} className="text-slate-600" />
-                        </Link>
-                      )}
+                    <div key={section.title}>
+                      <button
+                        onClick={() => setExpandedSection(isExpanded ? null : section.title)}
+                        className="w-full flex items-center justify-between py-2 px-1 rounded-lg hover:bg-slate-800/50 transition-colors"
+                      >
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                          {section.title}
+                        </span>
+                        <ChevronDown
+                          size={14}
+                          className={`text-slate-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                        />
+                      </button>
+                      <div
+                        className={`overflow-hidden transition-all duration-200 ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}
+                      >
+                        <div className="space-y-0.5 pt-1">
+                          {section.items.map((item) => (
+                            <Link
+                              key={item.label}
+                              href={item.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="flex items-center justify-between py-2 px-1 rounded-lg hover:bg-slate-800/50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3">
+                                <item.icon size={18} className="text-[#FBBF24]" />
+                                <span className="text-sm font-medium text-white">{item.label}</span>
+                                {item.label === 'Customer Service' && unreadChat > 0 && (
+                                  <span className="flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+                                    {unreadChat > 99 ? "99+" : unreadChat}
+                                  </span>
+                                )}
+                              </div>
+                              <ChevronRight size={14} className="text-slate-600" />
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Log Out */}
+              <button
+                onClick={async () => {
+                  setMobileMenuOpen(false);
+                  await logout();
+                  router.replace('/');
+                  router.refresh();
+                }}
+                className="w-full flex items-center justify-between py-2.5 px-1 rounded-lg hover:bg-slate-800/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <LogOut size={18} className="text-red-400" />
+                  <span className="text-sm font-medium text-red-400">Log Out</span>
+                </div>
+                <ChevronRight size={14} className="text-red-400/60" />
+              </button>
             </div>
           </div>
         </div>
@@ -337,6 +378,18 @@ export default function ClientLayout({ children }) {
             const Icon = item.icon;
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             if (item.label === 'Home') {
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className={`flex flex-col items-center gap-0.5 px-4 py-1 ${isActive ? 'text-slate-900' : 'text-slate-700'}`}
+                >
+                  <Icon size={20} />
+                  <span className="text-[10px] font-semibold">{item.label}</span>
+                </Link>
+              );
+            }
+            if (item.action === 'drawer') {
               return (
                 <button
                   key={item.label}
