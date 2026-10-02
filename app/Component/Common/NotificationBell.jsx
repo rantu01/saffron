@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Bell } from "lucide-react";
+import { readJsonSafe } from "@/lib/apiClient";
 
 export default function NotificationBell({ uid }) {
   const [notifications, setNotifications] = useState([]);
@@ -18,8 +19,8 @@ export default function NotificationBell({ uid }) {
         fetch(`/api/notifications?uid=${encodeURIComponent(uid)}&limit=20`),
         fetch(`/api/notifications/unread-count?uid=${encodeURIComponent(uid)}`),
       ]);
-      const notifData = await notifRes.json();
-      const countData = await countRes.json();
+      const notifData = await readJsonSafe(notifRes);
+      const countData = await readJsonSafe(countRes);
       if (notifData.success) setNotifications(notifData.notifications || []);
       if (countData.success) setUnreadCount(countData.count || 0);
     } catch {

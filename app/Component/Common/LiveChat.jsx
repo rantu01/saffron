@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
+import { readJsonSafe } from '@/lib/apiClient';
 import { MessageCircle, X, Send, Loader2, ImagePlus } from 'lucide-react';
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
@@ -28,7 +29,7 @@ export default function LiveChat({ inline = false }) {
     if (!user?.uid) return;
     try {
       const res = await fetch(`/api/chat/unread-count?uid=${encodeURIComponent(user.uid)}`);
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (data.success) setUnreadCount(data.unreadCount || 0);
     } catch {
       // silent
@@ -60,7 +61,7 @@ export default function LiveChat({ inline = false }) {
         params.set('afterId', lastMessageIdRef.current);
       }
       const res = await fetch(`/api/chat/messages?${params}`);
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (data.success && data.messages?.length > 0) {
         setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m._id));
@@ -145,7 +146,7 @@ export default function LiveChat({ inline = false }) {
           imageUrl,
         }),
       });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (data.success) {
         setMessages((prev) => prev.map((m) => (m._id === tempId ? data.message : m)));
         lastMessageIdRef.current = data.message._id;
@@ -198,7 +199,7 @@ export default function LiveChat({ inline = false }) {
       formData.append('image', file);
       formData.append('uid', user.uid);
       const res = await fetch('/api/chat/upload-image', { method: 'POST', body: formData });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (!data.success) {
         setUploadError(data.message || 'Image upload failed.');
         setMessages((prev) => prev.filter((m) => m._id !== tempId));

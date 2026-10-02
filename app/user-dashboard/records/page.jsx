@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
+import { readJsonSafe } from "@/lib/apiClient";
 import { Star, Filter } from "lucide-react";
 import ComboTaskModal from "@/app/user-dashboard/tasks/components/ComboTaskModal";
 
@@ -96,8 +97,8 @@ export default function RecordsPage() {
         fetch(`/api/user/tasks/combo?uid=${encodeURIComponent(user.uid)}&setNumber=${record.setNumber}`),
         fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
       ]);
-      const comboData = await comboRes.json();
-      const dashData = await dashRes.json();
+      const comboData = await readJsonSafe(comboRes);
+      const dashData = await readJsonSafe(dashRes);
       if (comboData?.success && comboData?.combo) {
         setComboModalCombo(comboData.combo);
         setComboUserBalance(Number(dashData?.dashboard?.availableBalance || 0));
@@ -138,7 +139,7 @@ export default function RecordsPage() {
           ratingOption: submitRating,
         }),
       });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (!res.ok || !data.success) {
         Swal.fire({ icon: "error", title: "Failed", text: data.message || "Could not submit task." });
         return;
@@ -181,7 +182,7 @@ export default function RecordsPage() {
       const res = await fetch(
         `/api/user/records?uid=${encodeURIComponent(user.uid)}&status=${statusParam}`
       );
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (!res.ok || !data.success)
         throw new Error(data.message || "Failed to load records");
       setRecords(data.records || []);
