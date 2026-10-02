@@ -1,22 +1,462 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
-import VipMembership from "./components/VipMembership";
+import {
+  Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight,
+  CheckCircle2, Clock, AlertCircle, Activity,
+  Calendar, Award, Target, BarChart3,
+  Wallet, PlusCircle, Send, MessageCircle, Gift,
+} from "lucide-react";
 
+const GOLD = "#FBBF24";
+
+function formatMoney(val) {
+  const n = Number(val || 0);
+  if (!Number.isFinite(n)) return "0.00";
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatTime(dateString) {
+  if (!dateString) return "N/A";
+  const d = new Date(dateString);
+  const h = d.getHours().toString().padStart(2, "0");
+  const m = d.getMinutes().toString().padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function formatDateShort(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[d.getMonth()]} ${d.getDate()}`;
+}
+
+function getPeriodEarnings(tasks, period) {
+  if (!tasks?.length) return 0;
+  const now = new Date();
+  let cutoff;
+  if (period === "Today") {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === "7 Days") {
+    cutoff = new Date(now.getTime() - 7 * 86400000);
+  } else {
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  return tasks
+    .filter(t => t.status === "completed" && new Date(t.createdAt) >= cutoff)
+    .reduce((s, t) => s + Number(t.earnedAmount ?? t.reward ?? 0), 0);
+}
+
+/* ─── Circular Progress ─── */
+function CircularProgress({ percent, size = 110, strokeWidth = 8 }) {
+  const radius = Math.max(1, (size - strokeWidth) / 2);
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (percent / 100) * circumference;
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="transform -rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+        <circle
+          cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={GOLD} strokeWidth={strokeWidth}
+          strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.8s ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-2xl font-bold text-white leading-none">{Math.round(percent)}%</span>
+        <span className="text-[10px] text-slate-400 mt-1">complete</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Earnings Chart ─── */
+function EarningsChart({ data, width = 340, height = 160 }) {
+  if (!data || data.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-36 text-slate-500 text-xs">
+        No data available
+      </div>
+    );
+  }
+  const max = Math.max(...data.map(d => d.value), 1);
+  const min = Math.min(...data.map(d => d.value), 0);
+  const range = max - min || 1;
+  const pad = { top: 10, right: 10, bottom: 28, left: 42 };
+  const cw = width - pad.left - pad.right;
+  const ch = height - pad.top - pad.bottom;
+  const pts = data.map((d, i) => ({
+    x: pad.left + (i / Math.max(data.length - 1, 1)) * cw,
+    y: pad.top + ch - ((d.value - min) / range) * ch * 0.85 - ch * 0.05,
+  }));
+  const linePath = pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+  const areaPath = `${linePath} L${pts[pts.length - 1].x},${pad.top + ch} L${pts[0].x},${pad.top + ch} Z`;
+
+  return (
+    <div className="w-full" style={{ maxWidth: width }}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full" style={{ maxWidth: width, height: "auto" }}>
+        <defs>
+          <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={GOLD} stopOpacity="0.25" />
+            <stop offset="100%" stopColor={GOLD} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
+          const y = pad.top + ch * (1 - r);
+          return (
+            <g key={i}>
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+              <text x={pad.left - 5} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="Arial, sans-serif">
+                ${Math.round(max * r + min * (1 - r))}
+              </text>
+            </g>
+          );
+        })}
+        {data.map((d, i) => {
+          if (data.length > 10 && i % 2 !== 0) return null;
+          const x = pad.left + (i / Math.max(data.length - 1, 1)) * cw;
+          return (
+            <text key={i} x={x} y={height - 5} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="7" fontFamily="Arial, sans-serif">
+              {d.label}
+            </text>
+          );
+        })}
+        <path d={areaPath} fill="url(#cg)" />
+        <path d={linePath} fill="none" stroke={GOLD} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="2.5" fill={GOLD} stroke="#121212" strokeWidth="1.5" />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+/* ─── User Account Card ─── */
+function UserAccountCard({ profile, user }) {
+  const displayName = profile?.username || profile?.displayName || user?.displayName || user?.email?.split("@")[0] || "User";
+  const email = user?.email || "";
+  const initials = displayName.charAt(0).toUpperCase();
+  const accountId = profile?.referralCode || user?.uid?.slice(0, 10) || "----";
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center gap-3.5">
+      <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex-shrink-0 flex items-center justify-center text-slate-900 font-bold text-lg">
+        {profile?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profile.avatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          initials
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <h2 className="text-sm font-bold text-white truncate">{displayName}</h2>
+        <p className="text-[11px] text-slate-400 truncate">{email}</p>
+        <div className="flex items-center gap-1.5 mt-1">
+          <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Active
+          </span>
+          <span className="text-[9px] text-slate-500 font-mono">{accountId}</span>
+        </div>
+      </div>
+      <ChevronRight size={16} className="text-slate-500 flex-shrink-0" />
+    </div>
+  );
+}
+
+/* ─── System Status ─── */
+function SystemStatus() {
+  return (
+    <div className="mx-4 mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="text-[11px] font-medium text-emerald-400">All systems operational</span>
+      </div>
+      <ChevronRight size={14} className="text-emerald-400/50" />
+    </div>
+  );
+}
+
+/* ─── Balance Card ─── */
+function BalanceCard({ balance, onToggleVisible, isVisible }) {
+  const todayChange = 12.50;
+  const changePercent = 2.4;
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-[#1a1a1a] via-[#161616] to-[#121212] p-5 relative overflow-hidden">
+      <div className="absolute -top-8 -right-8 w-40 h-40 bg-amber-500/[0.07] rounded-full" />
+      <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/[0.05] rounded-full" />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Available Balance</span>
+          <button onClick={onToggleVisible} className="p-1 rounded-lg hover:bg-white/5 transition-colors">
+            {isVisible ? <Eye size={16} className="text-slate-400" /> : <EyeOff size={16} className="text-slate-400" />}
+          </button>
+        </div>
+        <div className="text-3xl font-bold text-white mt-1 tracking-tight">
+          {isVisible ? `$${formatMoney(balance)}` : "••••••"}
+        </div>
+        <div className="flex items-center gap-1.5 mt-2">
+          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-400">
+            <TrendingUp size={12} /> +{formatMoney(todayChange)} today
+          </span>
+          <span className="text-[10px] font-medium text-emerald-400">
+            (+{changePercent}%)
+          </span>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-900 font-bold text-sm py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98]">
+            Add Fund
+          </button>
+          <button className="flex-1 border border-white/10 hover:border-white/20 text-white font-medium text-sm py-3 rounded-xl transition-colors bg-white/[0.03]">
+            History
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Stats Cards ─── */
+function StatsCards({ tasks }) {
+  const today = getPeriodEarnings(tasks, "Today");
+  const week = getPeriodEarnings(tasks, "7 Days");
+  const month = getPeriodEarnings(tasks, "30 Days");
+
+  const stats = [
+    { label: "Today", value: `$${formatMoney(today)}`, change: "+0%", positive: true, icon: Wallet, color: "text-amber-400", bg: "bg-amber-400/10" },
+    { label: "Week", value: `$${formatMoney(week)}`, change: "+0%", positive: true, icon: Calendar, color: "text-blue-400", bg: "bg-blue-400/10" },
+    { label: "Month", value: `$${formatMoney(month)}`, change: "+0%", positive: true, icon: Award, color: "text-purple-400", bg: "bg-purple-400/10" },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2 mt-4 px-4">
+      {stats.map((stat, i) => {
+        const Icon = stat.icon;
+        return (
+          <div key={i} className="rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</span>
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${stat.bg}`}>
+                <Icon size={12} className={stat.color} />
+              </div>
+            </div>
+            <div className="text-base font-bold text-white">{stat.value}</div>
+            <div className={`text-[10px] font-medium mt-0.5 ${stat.positive ? "text-emerald-400" : "text-red-400"}`}>
+              {stat.change}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Quick Actions ─── */
+function QuickActions({ onNavigate }) {
+  const actions = [
+    { label: "My Tasks", desc: "View tasks", icon: Target, href: "/user-dashboard/tasks" },
+    { label: "Add Fund", desc: "Deposit", icon: PlusCircle, href: "/user-dashboard/deposits" },
+    { label: "Withdraw", desc: "Withdraw", icon: Send, href: "/user-dashboard/withdrawals" },
+    { label: "Support", desc: "Help", icon: MessageCircle, href: "/user-dashboard/chat" },
+  ];
+
+  return (
+    <div className="mt-4 px-4">
+      <div className="grid grid-cols-4 gap-2">
+        {actions.map((action, i) => {
+          const Icon = action.icon;
+          return (
+            <button
+              key={i}
+              onClick={() => onNavigate(action.href)}
+              className="rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3 flex flex-col items-center gap-1.5 hover:border-amber-500/20 transition-colors active:scale-[0.97]"
+            >
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <Icon size={16} className="text-amber-400" />
+              </div>
+              <span className="text-[10px] font-semibold text-white text-center leading-tight">{action.label}</span>
+              <span className="text-[9px] text-slate-500 text-center leading-tight">{action.desc}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Task Progress Card ─── */
+function TaskProgressCard({ tasks }) {
+  const completedCount = tasks?.filter(t => t.status === "completed").length || 0;
+  const totalCount = tasks?.length || 0;
+  const percent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+            <Target size={16} className="text-amber-400" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Today's Task Progress</h3>
+            <p className="text-[10px] text-slate-400">{completedCount} of {totalCount} completed</p>
+          </div>
+        </div>
+        <ChevronRight size={16} className="text-slate-500" />
+      </div>
+      <div className="flex items-center gap-5">
+        <CircularProgress percent={percent} size={90} strokeWidth={7} />
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] text-slate-400">Progress</span>
+            <span className="text-[11px] font-bold text-amber-400">{Math.round(percent)}%</span>
+          </div>
+          <div className="w-full h-2 bg-white/[0.06] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-400 transition-all duration-700"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+          <div className="flex items-center gap-3 mt-3">
+            <div className="flex items-center gap-1">
+              <CheckCircle2 size={12} className="text-emerald-400" />
+              <span className="text-[10px] text-emerald-400 font-medium">{completedCount} done</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Clock size={12} className="text-amber-400" />
+              <span className="text-[10px] text-amber-400 font-medium">{totalCount - completedCount} left</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button className="w-full mt-4 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-white text-xs font-semibold py-2.5 rounded-xl transition-colors">
+        Continue Tasks
+      </button>
+    </div>
+  );
+}
+
+/* ─── Earnings Overview ─── */
+function EarningsOverview({ tasks }) {
+  const [filter, setFilter] = useState("Today");
+
+  const completedTasks = tasks?.filter(t => t.status === "completed") || [];
+  const chartData = useMemo(() => {
+    if (!completedTasks.length) return [{ label: "No", value: 0 }];
+    const now = new Date();
+    let cutoff;
+    if (filter === "Today") {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (filter === "7 Days") {
+      cutoff = new Date(now.getTime() - 7 * 86400000);
+    } else {
+      cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+    const filtered = completedTasks.filter(t => new Date(t.createdAt) >= cutoff);
+    const last7 = filtered.slice(0, 7).reverse();
+    if (!last7.length) return [{ label: "No", value: 0 }];
+    return last7.map(t => ({
+      label: formatDateShort(t.createdAt),
+      value: Number(t.earnedAmount || t.reward || 0),
+    }));
+  }, [completedTasks, filter]);
+
+  const filters = ["Today", "7 Days", "30 Days"];
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold text-white">Earnings Overview</h3>
+          <BarChart3 size={14} className="text-amber-400" />
+        </div>
+        <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+          {filters.map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${
+                filter === f ? "bg-amber-500/20 text-amber-400" : "text-slate-400 hover:text-slate-300"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex justify-center">
+        <EarningsChart data={chartData} />
+      </div>
+    </div>
+  );
+}
+
+/* ─── Recent Activity ─── */
+function RecentActivity({ records }) {
+  const activities = records?.slice(0, 5) || [];
+
+  return (
+    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-bold text-white">Recent Activity</h3>
+          <Activity size={14} className="text-amber-400" />
+        </div>
+        <span className="text-[11px] text-amber-400 font-medium cursor-pointer hover:text-amber-300">
+          View all →
+        </span>
+      </div>
+      <div className="space-y-1">
+        {activities.length === 0 ? (
+          <div className="text-center py-6 text-slate-500 text-xs">No recent activity</div>
+        ) : (
+          activities.map((record, i) => {
+            const isPositive = record.profit >= 0 || record.status === "completed";
+            return (
+              <div key={i} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-white/[0.03] transition-colors">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
+                }`}>
+                  {isPositive ? (
+                    <ArrowUpRight size={14} className="text-emerald-400" />
+                  ) : (
+                    <ArrowDownRight size={14} className="text-red-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-white truncate">{record.title || "Task"}</p>
+                  <p className="text-[10px] text-slate-400">{record.status || "pending"}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className={`text-[11px] font-bold ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+                    {isPositive ? "+" : "-"} ${formatMoney(Math.abs(record.profit || record.totalAmount || 0))}
+                  </p>
+                  <p className="text-[9px] text-slate-500">{formatTime(record.createdAt)}</p>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Dashboard Page ─── */
 export default function UserDashboardPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
+  const searchParams = useSearchParams();
+
   const [dashboard, setDashboard] = useState({ availableBalance: 0, frozenBalance: 0, tasks: [] });
-  const [deposits, setDeposits] = useState([]);
-  const [withdrawals, setWithdrawals] = useState([]);
-  const [username, setUsername] = useState("");
+  const [profile, setProfile] = useState(null);
+  const [records, setRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  
-  // Welcome bonus toast
-  const searchParams = useSearchParams();
+  const [balanceVisible, setBalanceVisible] = useState(true);
   const [showWelcomeToast, setShowWelcomeToast] = useState(false);
 
   useEffect(() => {
@@ -29,60 +469,27 @@ export default function UserDashboardPage() {
     }
   }, [searchParams]);
 
-  // Search state for Ad Accounts / Tasks
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const formatMoney = (val) => {
-    const n = Number(val || 0);
-    if (!Number.isFinite(n)) return '0.00';
-    return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const formatRelativeTime = (dateString) => {
-    if (!dateString) return "N/A";
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffMs = now - date;
-    const diffSec = Math.floor(diffMs / 1000);
-    if (diffSec < 60) return "Less than a minute ago";
-    const diffMin = Math.floor(diffSec / 60);
-    if (diffMin < 60) return `${diffMin} minute${diffMin > 1 ? "s" : ""} ago`;
-    const diffHr = Math.floor(diffMin / 60);
-    if (diffHr < 24) return `${diffHr} hour${diffHr > 1 ? "s" : ""} ago`;
-    const diffDay = Math.floor(diffHr / 24);
-    if (diffDay < 30) return `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
-    return date.toLocaleDateString();
-  };
-
-  const getCurrentMonthRange = () => {
-    const now = new Date();
-    const month = now.toLocaleString("en-US", { month: "short" });
-    const year = now.getFullYear();
-    const start = `${month} 01`;
-    const end = `${month} ${new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()}, ${year}`;
-    return `${start} - ${end}`;
-  };
-
   useEffect(() => {
     async function loadDashboard() {
       if (!user?.uid) {
         setIsLoading(false);
         return;
       }
-
       try {
         setError("");
-        const [dashboardRes, depositsRes, withdrawalsRes, profileRes] = await Promise.all([
+        const [dashboardRes, depositsRes, withdrawalsRes, profileRes, recordsRes] = await Promise.all([
           fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/deposit?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/withdrawal?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`),
+          fetch(`/api/user/records?uid=${encodeURIComponent(user.uid)}`),
         ]);
 
         const dashboardResult = await dashboardRes.json();
         const depositsResult = await depositsRes.json();
         const withdrawalsResult = await withdrawalsRes.json();
         const profileResult = await profileRes.json();
+        const recordsResult = await recordsRes.json();
 
         if (!dashboardRes.ok || !dashboardResult.success) {
           throw new Error(dashboardResult.message || "Failed to load dashboard.");
@@ -92,7 +499,10 @@ export default function UserDashboardPage() {
         setDeposits(depositsResult.deposits || []);
         setWithdrawals(withdrawalsResult.withdrawals || []);
         if (profileResult?.success) {
-          setUsername(profileResult.user.username || "");
+          setProfile(profileResult.user);
+        }
+        if (recordsResult?.success) {
+          setRecords(recordsResult.records || []);
         }
       } catch (err) {
         setError(err.message || "Failed to load dashboard.");
@@ -106,70 +516,20 @@ export default function UserDashboardPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
-        {/* Header skeleton */}
-        <div className="mb-8">
-          <div className="h-3 w-24 bg-slate-200 rounded mb-2" />
-          <div className="h-8 w-48 bg-slate-200 rounded mb-2" />
-          <div className="h-4 w-72 bg-slate-200 rounded" />
-        </div>
-
-        {/* 4 stat cards skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-3 w-24 bg-slate-200 rounded" />
-                <div className="h-9 w-9 bg-slate-200 rounded-lg" />
-              </div>
-              <div className="h-8 w-28 bg-slate-200 rounded mb-3" />
-              <div className="h-5 w-20 bg-slate-200 rounded" />
+      <div className="min-h-screen bg-[#121212]">
+        <div className="max-w-lg mx-auto px-4 py-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-20 bg-[#1a1a1a] rounded-2xl" />
+            <div className="h-12 bg-[#1a1a1a] rounded-xl" />
+            <div className="h-32 bg-[#1a1a1a] rounded-2xl" />
+            <div className="grid grid-cols-3 gap-2">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-20 bg-[#1a1a1a] rounded-xl" />
+              ))}
             </div>
-          ))}
-        </div>
-
-        {/* Table skeleton */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10">
-          <div className="p-5 border-b border-slate-100">
-            <div className="h-5 w-48 bg-slate-200 rounded mb-1" />
-            <div className="h-3 w-64 bg-slate-200 rounded" />
+            <div className="h-44 bg-[#1a1a1a] rounded-2xl" />
+            <div className="h-48 bg-[#1a1a1a] rounded-2xl" />
           </div>
-          <div className="p-5 border-b border-slate-100 bg-slate-50/60">
-            <div className="h-8 w-64 bg-slate-200 rounded-lg" />
-          </div>
-          <div className="p-5 space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex items-center gap-4">
-                <div className="h-4 w-32 bg-slate-200 rounded" />
-                <div className="h-4 w-24 bg-slate-200 rounded" />
-                <div className="h-5 w-16 bg-slate-200 rounded-full" />
-                <div className="h-4 w-20 bg-slate-200 rounded ml-auto" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom grid skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-5 w-32 bg-slate-200 rounded" />
-                <div className="h-3 w-16 bg-slate-200 rounded" />
-              </div>
-              <div className="space-y-3">
-                {[...Array(2)].map((_, j) => (
-                  <div key={j} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
-                    <div>
-                      <div className="h-4 w-20 bg-slate-200 rounded mb-1" />
-                      <div className="h-3 w-24 bg-slate-200 rounded" />
-                    </div>
-                    <div className="h-5 w-16 bg-slate-200 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     );
@@ -177,295 +537,69 @@ export default function UserDashboardPage() {
 
   if (!user) {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-10 text-center">
-        <h1 className="text-2xl font-bold text-slate-900">User Dashboard</h1>
-        <p className="mt-2 text-slate-600">Please login to view your dashboard.</p>
+      <div className="min-h-screen bg-[#121212] flex items-center justify-center">
+        <p className="text-slate-400">Please login to view your dashboard.</p>
       </div>
     );
   }
 
-  // Calculate dynamic data safely
-  const completedTasks = (dashboard.tasks || []).filter(t => t.status === 'completed');
-  const totalEarned = completedTasks.reduce((s, t) => s + Number(t.earnedAmount ?? t.reward ?? 0), 0);
-
-  // Filter tasks or mock ad-accounts based on search
-  const filteredTasks = (dashboard.tasks || []).filter(task => 
-    task.title?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const balance = Number(dashboard.availableBalance || 0);
+  const accountStatus = dashboard.accountStatus || "active";
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 min-h-screen relative">
+    <div className="min-h-screen bg-[#121212] pb-20">
       {/* Welcome Bonus Toast */}
       {showWelcomeToast && (
-        <div className="fixed top-4 right-4 z-50 animate-slide-down">
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl shadow-lg px-5 py-4 flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div className="fixed top-4 left-4 right-4 z-50 animate-slide-down">
+          <div className="bg-emerald-500/15 border border-emerald-500/25 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <Gift size={16} />
             </div>
             <div>
-              <p className="text-sm font-bold text-emerald-900">Welcome! You've received a $5 signup bonus.</p>
-              <p className="text-xs text-emerald-700 mt-0.5">Check your balance to see the credit.</p>
+              <p className="text-xs font-bold text-emerald-400">Welcome! You've received a $5 signup bonus.</p>
+              <p className="text-[10px] text-emerald-300/70 mt-0.5">Check your balance to see the credit.</p>
             </div>
-            <button onClick={() => setShowWelcomeToast(false)} className="text-emerald-400 hover:text-emerald-600 ml-2">
+            <button onClick={() => setShowWelcomeToast(false)} className="text-emerald-400/50 hover:text-emerald-400 ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
       )}
 
-      {/* Header section from image */}
-      <div className="mb-8 flex flex-col gap-4">
-        <div>
-          <p className="text-sm  font-medium uppercase tracking-wider">Welcome back</p>
-          <h1 className="text-3xl font-bold  mt-0.5">
-            {username || user.displayName || user.email?.split('@')[0] || 'User'}!
-          </h1>
-          <p className="text-sm  mt-1">Manage your accounts, balances and requests efficiently.</p>
-        </div>
-        {error && <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg border border-red-200 text-sm">{error}</div>}
-      </div>
+      {/* User Account Card */}
+      <UserAccountCard profile={profile} user={user} />
 
-      {/* Top 4 Stats Cards (Matching the image layout structure but white background) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-10">
-        
-        {/* Card 1: Wallet Balance */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
+      {/* System Status */}
+      <SystemStatus />
+
+      {/* Balance Card */}
+      <BalanceCard balance={balance} onToggleVisible={() => setBalanceVisible(v => !v)} isVisible={balanceVisible} />
+
+      {/* Stats Cards */}
+      <StatsCards tasks={dashboard.tasks} />
+
+      {/* Quick Actions */}
+      <QuickActions onNavigate={(href) => router.push(href)} />
+
+      {/* Task Progress */}
+      <TaskProgressCard tasks={dashboard.tasks} />
+
+      {/* Earnings Overview */}
+      <EarningsOverview tasks={dashboard.tasks} />
+
+      {/* Recent Activity */}
+      <RecentActivity records={records} />
+
+      {/* Account Freeze Alert */}
+      {accountStatus === "frozen" && (
+        <div className="mx-4 mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 flex items-center gap-3 text-xs text-red-300">
+          <AlertCircle size={16} className="shrink-0" />
           <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Wallet Balance</span>
-              <span className="p-2 bg-blue-50 rounded-lg text-blue-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-slate-900 mt-4">${formatMoney(dashboard.availableBalance)}</div>
-            {Number(dashboard.frozenBalance) > 0 && (
-              <div className="flex items-center gap-1 mt-1">
-                <span className="text-xs text-amber-500 font-medium">Frozen in Combo:</span>
-                <span className="text-sm font-bold text-amber-500">${formatMoney(dashboard.frozenBalance)}</span>
-              </div>
-            )}
-          </div>
-          <div className="mt-4 text-xs font-medium text-blue-600 bg-blue-50/50 py-1.5 px-3 rounded-md w-max">
-            Available USD
-          </div>
-        </div>
-
-        
-
-        {/* Card 3: Completed / Total Earnings */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Earned</span>
-              <span className="p-2 bg-purple-50 rounded-lg text-purple-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-slate-900 mt-4">${formatMoney(totalEarned)}</div>
-          </div>
-          <div className="mt-4 text-xs font-medium text-purple-600 bg-purple-50/50 py-1.5 px-3 rounded-md w-max">
-            {getCurrentMonthRange()}
-          </div>
-        </div>
-
-        {/* Card 4: Remaining Budget (Special high priority card like image) */}
-        <div className="bg-white rounded-2xl border-2 border-amber-500/30 p-6 shadow-sm flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-5 -mt-5"></div>
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-amber-600 uppercase tracking-wider">Remaining Tasks / Budget</span>
-              <span className="p-2 bg-amber-50 rounded-lg text-amber-600">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-              </span>
-            </div>
-            <div className="text-3xl font-bold text-slate-900 mt-4">
-              {dashboard.tasks ? dashboard.tasks.length - completedTasks.length : 0} <span className="text-lg text-slate-400 font-normal">Left</span>
-            </div>
-          </div>
-          <div className="mt-4 text-xs font-semibold text-amber-700 bg-amber-50 py-1.5 px-3 rounded-md w-max">
-            Remaining Actions
-          </div>
-        </div>
-      </div>
-
-      {/* VIP Membership Section */}
-      <VipMembership balance={dashboard.availableBalance || 0} level={dashboard.vipLevel} />
-
-      {/* Account Freeze / Alert Notice */}
-      {dashboard.accountStatus === 'frozen' && (
-        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3 text-sm text-red-700">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-          <div>
-            <span className="font-semibold">Account Frozen:</span> {dashboard.freezeReason || 'Balance requirement not met.'}
+            <span className="font-semibold">Account Frozen:</span> {dashboard.freezeReason || "Balance requirement not met."}
             {dashboard.freezeThreshold > 0 && ` Minimum balance required: $${formatMoney(dashboard.freezeThreshold)}`}
           </div>
         </div>
       )}
-
-      {/* Main Section: Data Table Area (Exactly like the image structure but clean white) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-10">
-        
-        {/* Table Header Controls */}
-        <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Your Dynamic Accounts / Tasks</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Real-time status updates and balance management</p>
-          </div>
-          <button onClick={() => router.push("/user-dashboard/deposits")} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm px-4 py-2.5 rounded-xl transition shadow-sm self-start sm:self-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            Request New Account
-          </button>
-        </div>
-
-        {/* Search and Filters Bar */}
-        <div className="px-5 py-4 bg-slate-50/60 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="relative w-full sm:max-w-xs">
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-            </span>
-            <input 
-              type="text" 
-              placeholder="Search accounts or tasks..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-            />
-          </div>
-          <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 px-3 py-2 rounded-lg hover:bg-slate-50 transition shadow-sm w-full sm:w-auto justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-            Status Filter
-          </button>
-        </div>
-
-        {/* Data Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
-                <th className="py-4 px-6">Name / Title</th>
-                <th className="py-4 px-6">Account ID / ID</th>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6">Reward / Budget</th>
-                <th className="py-4 px-6">Last Refreshed</th>
-                <th className="py-4 px-6 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
-              {filteredTasks.length ? (
-                filteredTasks.map((task) => {
-                  const reward = Number(task.earnedAmount ?? task.reward ?? 0);
-                  const progressPct = task.reward > 0 ? Math.min(Math.round((reward / Number(task.reward)) * 100), 100) : 0;
-                  return (
-                  <tr key={task._id} className="hover:bg-slate-50/50 transition">
-                    <td className="py-4 px-6 font-semibold text-slate-900 max-w-xs truncate">
-                      {task.title || "Untitled Task"}
-                    </td>
-                    <td className="py-4 px-6 font-mono text-xs text-blue-600 hover:underline cursor-pointer">
-                      {task._id ? task._id.substring(0, 15) : "-"}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${
-                        task.status === 'completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {task.status || 'active'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="font-bold text-slate-900">${formatMoney(reward)}</div>
-                      {task.reward > 0 && (
-                        <div className="w-20 bg-slate-100 h-1.5 rounded-full mt-1.5 overflow-hidden">
-                          <div className="bg-red-500 h-full rounded-full" style={{ width: `${progressPct}%` }}></div>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-xs text-slate-400">
-                      {formatRelativeTime(task.updatedAt || task.createdAt)}
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => router.push("/user-dashboard/deposits")} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition shadow-sm">
-                          Top Up
-                        </button>
-                        <button className="text-slate-400 hover:text-slate-600 p-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" /></svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="6" className="py-8 text-center text-slate-500">No matching accounts or tasks found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Bottom Grid for History Logs */}
-      <div className="grid grid-cols-1 gap-8">
-        
-        {/* Recent Deposits log box */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">Recent Fund</h3>
-            <span onClick={() => router.push("/user-dashboard/deposits")} className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">View All</span>
-          </div>
-          <div className="space-y-3">
-            {deposits.length ? (
-              deposits.slice(0, 3).map((deposit) => (
-                <div key={deposit._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 transition hover:bg-slate-100/50">
-                  <div>
-                    <p className="font-bold text-slate-900">${formatMoney(deposit.amount)}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{new Date(deposit.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                    deposit.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
-                    deposit.status === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-                  }`}>
-                    {deposit.status}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500 py-2">No deposits registered yet.</p>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Withdrawals log box */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-900">Recent Withdrawals</h3>
-            <span onClick={() => router.push("/user-dashboard/withdrawals")} className="text-xs text-blue-600 font-medium cursor-pointer hover:underline">View All</span>
-          </div>
-          <div className="space-y-3">
-            {withdrawals.length ? (
-              withdrawals.slice(0, 3).map((withdrawal) => (
-                <div key={withdrawal._id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 transition hover:bg-slate-100/50">
-                  <div>
-                    <p className="font-bold text-slate-900">${formatMoney(withdrawal.amount)}</p>
-                    <p className="text-[11px] font-mono text-slate-400 mt-0.5 truncate max-w-[180px]">
-                      {withdrawal.walletAddress}
-                    </p>
-                  </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                    withdrawal.status === 'approved' ? 'bg-emerald-50 text-emerald-700' :
-                    withdrawal.status === 'pending' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
-                  }`}>
-                    {withdrawal.status}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500 py-2">No withdrawals registered yet.</p>
-            )}
-          </div>
-        </div>
-
-      </div>
     </div>
   );
 }
