@@ -6,6 +6,7 @@ import Link from "next/link";
 import AuthProvider, { useAuth } from "@/app/Component/Auth/AuthProvider";
 import DashboardSidebar from "./components/Sidebar";
 import DashboardTopbar from "./components/Topbar";
+import RealtimeToasts from "@/app/Component/Common/RealtimeToasts";
 import { AdminNotificationProvider, useAdminNotificationCounts } from "./components/AdminNotificationContext";
 import {
 	LayoutGrid, CheckSquare, Users, DollarSign, Send,
@@ -108,6 +109,7 @@ function AdminLayoutShell({ children }) {
 
 	return (
 		<div className="min-h-screen lg:bg-[#F8F5F1] bg-[#121212] lg:text-slate-900 text-white">
+			<RealtimeToasts />
 			<DashboardSidebar open={open} onClose={() => setOpen(false)} />
 
 			<div className="min-h-screen lg:pl-72">

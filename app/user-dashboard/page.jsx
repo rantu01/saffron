@@ -206,14 +206,7 @@ function BalanceCard({ balance, onToggleVisible, isVisible }) {
             (+{changePercent}%)
           </span>
         </div>
-        <div className="mt-4 flex gap-2">
-          <button className="flex-1 bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-slate-900 font-bold text-sm py-3 rounded-xl transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98]">
-            Add Fund
-          </button>
-          <button className="flex-1 border border-white/10 hover:border-white/20 text-white font-medium text-sm py-3 rounded-xl transition-colors bg-white/[0.03]">
-            History
-          </button>
-        </div>
+        
       </div>
     </div>
   );

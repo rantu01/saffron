@@ -511,13 +511,13 @@ export default function UserTasksPage() {
       {/* Main Content - fills remaining space, scrollable internally if needed */}
       <div className="flex-1 flex flex-col gap-2 overflow-hidden min-h-0 px-1">
         {/* Screenshot Carousel */}
-        <div className="shrink-0">
+        {/* <div className="shrink-0">
           <ScreenshotCarousel />
-        </div>
+        </div> */}
         {/* Compact Floating Icons */}
-        <div className="shrink-0">
+        {/* <div className="shrink-0">
           <FloatingAppIcons />
-        </div>
+        </div> */}
 
         {/* Title */}
         <div className="shrink-0">

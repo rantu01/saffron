@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
+import { getDashboardPath } from '@/app/Component/Auth/getDashboardPath';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import SignUpForm from '@/app/Component/Auth/SignUpForm';
@@ -52,8 +53,7 @@ export default function SaffronEdgeAuth() {
         const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}`);
         const dashData = await dashRes.json();
         const role = dashData?.dashboard?.role || 'user';
-        const basePath = role === 'admin' ? '/admin' : '/user-dashboard';
-        router.push(basePath);
+        router.push(getDashboardPath(role));
       } catch {
         router.push('/user-dashboard');
       }

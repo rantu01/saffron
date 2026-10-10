@@ -3,31 +3,37 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ListChecks, User, CreditCard, AppWindowMac, DollarSign, Send, ChevronDown, Share2 } from "lucide-react";
+import { ListChecks, User, CreditCard, AppWindowMac, DollarSign, Send, ChevronDown, Share2, MessageCircle, Bell } from "lucide-react";
+import { useUserNotifications } from "./UserNotificationContext";
+import { useLanguage } from "./LanguageContext";
+import LanguageSelector from "./LanguageSelector";
 
 const navigation = [
-    { label: "Dashboard", href: "/user-dashboard", icon: AppWindowMac },
-    // { label: "Ad Account", href: "/user-dashboard/ad-account", icon: ListChecks },
-    { label: "My Tasks", href: "/user-dashboard/tasks", icon: ListChecks },
-    // { label: "Referrals", href: "/user-dashboard/referrals", icon: Share2 },
-    // { label: "Withdrawals", href: "/user-dashboard/withdrawals", icon: Send },
-    { label: "Profile", href: "/user-dashboard/profile", icon: User },
-    { label: "Records", href: "/user-dashboard/records", icon: User },
+    { key: "sidebar.dashboard", href: "/user-dashboard", icon: AppWindowMac },
+    // { key: "nav.adAccount", href: "/user-dashboard/ad-account", icon: ListChecks },
+    { key: "nav.myTasks", href: "/user-dashboard/tasks", icon: ListChecks },
+    // { key: "nav.referrals", href: "/user-dashboard/referrals", icon: Share2 },
+    // { key: "nav.withdrawals", href: "/user-dashboard/withdrawals", icon: Send },
+    { key: "nav.customerService", href: "/user-dashboard/chat", icon: MessageCircle, badgeKey: "unreadChat" },
+    { key: "nav.profile", href: "/user-dashboard/profile", icon: User },
+    { key: "nav.records", href: "/user-dashboard/records", icon: User },
 ];
 
 const paymentChildren = [
-    { label: "Add Fund", href: "/user-dashboard/deposits" },
-    { label: "Fund History", href: "/user-dashboard/payments" },
-    { label: "Withdrawals", href: "/user-dashboard/withdrawals", icon: Send },
+    { key: "nav.addFund", href: "/user-dashboard/deposits" },
+    { key: "sidebar.fundHistory", href: "/user-dashboard/payments" },
+    { key: "nav.withdrawals", href: "/user-dashboard/withdrawals", icon: Send },
 ];
 
 const balanceChildren = [
-    { label: "Balance Overview", href: "/user-dashboard/balance" },
-    { label: "Balance History", href: "/user-dashboard/balance-history" },
+    { key: "sidebar.balanceOverview", href: "/user-dashboard/balance" },
+    { key: "nav.balanceHistory", href: "/user-dashboard/balance-history" },
 ];
 
 export default function UserSidebar({ open, onClose }) {
     const pathname = usePathname();
+    const { unreadChat, unreadNotifications } = useUserNotifications();
+    const { t } = useLanguage();
     const [paymentsOpen, setPaymentsOpen] = useState(
         pathname.startsWith("/user-dashboard/deposits") || pathname.startsWith("/user-dashboard/payments")
     );
@@ -47,7 +53,7 @@ export default function UserSidebar({ open, onClose }) {
                     <Link href="/">
                         <div>
                             <p className="text-xs uppercase tracking-[0.35em] text-[#E05305]">Saffron Edge</p>
-                            <h2 className="mt-1 text-lg font-semibold">Your Dashboard</h2>
+                            <h2 className="mt-1 text-lg font-semibold">{t("sidebar.yourDashboard")}</h2>
                         </div>
                     </Link>
                 </div>
@@ -57,6 +63,7 @@ export default function UserSidebar({ open, onClose }) {
                         {navigation.map((item) => {
                             const active = pathname === item.href;
                             const Icon = item.icon;
+                            const badgeCount = item.badgeKey === "unreadChat" ? unreadChat : 0;
 
                             return (
                                 <Link
@@ -68,10 +75,20 @@ export default function UserSidebar({ open, onClose }) {
                                         }`}
                                     onClick={handleNavClick}
                                 >
-                                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-white/10" : "bg-white/5"}`}>
+                                    <span className={`relative flex h-9 w-9 items-center justify-center rounded-xl ${active ? "bg-white/10" : "bg-white/5"}`}>
                                         <Icon size={18} />
+                                        {badgeCount > 0 && (
+                                            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full leading-none">
+                                                {badgeCount > 99 ? "99+" : badgeCount}
+                                            </span>
+                                        )}
                                     </span>
-                                    <span>{item.label}</span>
+                                    <span>{t(item.key)}</span>
+                                    {badgeCount > 0 && (
+                                        <span className="ml-auto flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                                            {badgeCount > 99 ? "99+" : badgeCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}
@@ -88,7 +105,7 @@ export default function UserSidebar({ open, onClose }) {
                                 <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${paymentsActive ? "bg-white/10" : "bg-white/5"}`}>
                                     <ListChecks size={18} />
                                 </span>
-                                <span className="flex-1 text-left">Payments</span>
+                                <span className="flex-1 text-left">{t("sidebar.payments")}</span>
                                 <ChevronDown
                                     size={16}
                                     className={`transition-transform duration-200 ${paymentsOpen ? "rotate-0" : "-rotate-90"}`}
@@ -114,7 +131,7 @@ export default function UserSidebar({ open, onClose }) {
                                                         }`}
                                                 >
                                                     <span className={`h-1.5 w-1.5 rounded-full ${childActive ? "bg-[#E05305]" : "bg-slate-300"}`} />
-                                                    {child.label}
+                                                    {t(child.key)}
                                                 </Link>
                                             );
                                         })}
@@ -135,7 +152,7 @@ export default function UserSidebar({ open, onClose }) {
                                 <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${balanceActive ? "bg-white/10" : "bg-white/5"}`}>
                                     <CreditCard size={18} />
                                 </span>
-                                <span className="flex-1 text-left">Balance</span>
+                                <span className="flex-1 text-left">{t("sidebar.balance")}</span>
                                 <ChevronDown
                                     size={16}
                                     className={`transition-transform duration-200 ${balanceOpen ? "rotate-0" : "-rotate-90"}`}
@@ -161,7 +178,7 @@ export default function UserSidebar({ open, onClose }) {
                                                         }`}
                                                 >
                                                     <span className={`h-1.5 w-1.5 rounded-full ${childActive ? "bg-[#E05305]" : "bg-slate-300"}`} />
-                                                    {child.label}
+                                                    {t(child.key)}
                                                 </Link>
                                             );
                                         })}
@@ -169,13 +186,34 @@ export default function UserSidebar({ open, onClose }) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Language */}
+                        <LanguageSelector variant="light" />
                     </div>
                 </nav>
 
                 <div className="border-t border-slate-200 px-6 py-5">
+                    {(unreadChat > 0 || unreadNotifications > 0) && (
+                        <Link
+                            href="/user-dashboard/chat"
+                            className="mb-3 flex items-center gap-3 rounded-lg bg-red-50 border border-red-100 px-3 py-2.5 hover:bg-red-100/70 transition-colors"
+                        >
+                            <span className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-red-500/10">
+                                <Bell size={16} className="text-red-500" />
+                                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-4 px-1 text-[9px] font-bold text-white bg-red-500 rounded-full">
+                                    {(unreadChat + unreadNotifications) > 99 ? "99+" : (unreadChat + unreadNotifications)}
+                                </span>
+                            </span>
+                            <span className="text-xs font-semibold text-red-600">
+                                {unreadChat > 0
+                                    ? `${unreadChat} unread message${unreadChat > 1 ? "s" : ""}`
+                                    : `${unreadNotifications} new notification${unreadNotifications > 1 ? "s" : ""}`}
+                            </span>
+                        </Link>
+                    )}
                     <div className="rounded-lg bg-white p-3">
-                        <p className="text-sm text-slate-700">Need help?</p>
-                        <p className="mt-1 text-xs text-slate-500">Contact support for account help.</p>
+                        <p className="text-sm text-slate-700">{t("sidebar.needHelp")}</p>
+                        <p className="mt-1 text-xs text-slate-500">{t("sidebar.contactSupport")}</p>
                     </div>
                 </div>
             </aside>

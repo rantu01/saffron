@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { useAdminNotificationCounts } from "@/app/(admin)/admin/components/AdminNotificationContext";
+import { playNotificationSound } from "@/app/Component/Common/notificationSound";
+import { pushRealtimeToast } from "@/app/Component/Common/RealtimeToasts";
 import { MessageCircle, Send, Loader2, Search, ChevronLeft, ImagePlus, X } from "lucide-react";
 
 const ITEMS_PER_PAGE = 20;
@@ -51,12 +53,6 @@ export default function AdminChatPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 5000);
-    return () => clearInterval(interval);
-  }, [fetchConversations]);
-
   const fetchMessages = useCallback(async (convId, afterId) => {
     try {
       const params = new URLSearchParams({ conversationId: convId });
@@ -77,6 +73,72 @@ export default function AdminChatPage() {
       return afterId;
     }
   }, []);
+
+  useEffect(() => {
+    fetchConversations();
+    const interval = setInterval(fetchConversations, 5000);
+    return () => clearInterval(interval);
+  }, [fetchConversations]);
+
+  // Realtime SSE: instant incoming user messages with sound + toast.
+  // REST polling above remains as fallback.
+  const selectedConvRef = useRef(null);
+  useEffect(() => {
+    selectedConvRef.current = selectedConv;
+  }, [selectedConv]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("EventSource" in window)) return;
+    let stopped = false;
+    let es = null;
+    function connect() {
+      if (stopped) return;
+      try {
+        const params = new URLSearchParams({ role: "admin" });
+        if (user?.uid) params.set("uid", user.uid);
+        es = new EventSource(`/api/realtime/stream?${params.toString()}`);
+        es.addEventListener("chat-message", (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            if (payload?.senderRole === "admin") return; // own echo
+            // Only the other party's messages notify (never the sender's own).
+            if (payload?.senderUid && user?.uid && payload.senderUid === user.uid) return;
+            playNotificationSound();
+            const open = selectedConvRef.current;
+            if (open && payload?.conversationId === open.conversationId) {
+              // Pull the full message into the open thread + mark read
+              fetchMessages(open.conversationId, lastMessageIdRef.current).then((lastId) => {
+                if (lastId) lastMessageIdRef.current = lastId;
+              });
+              fetch("/api/chat/read", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ conversationId: open.conversationId, byUid: user?.uid }),
+              }).catch(() => {});
+            } else {
+              pushRealtimeToast({
+                title: `New message from ${payload?.senderName || "user"}`,
+                message: payload?.preview || "",
+                kind: "chat",
+                href: "/admin/chat",
+              });
+            }
+            fetchConversations();
+            refreshCounts();
+          } catch {}
+        });
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          setTimeout(() => { if (!stopped) connect(); }, 5000);
+        };
+      } catch {}
+    }
+    connect();
+    return () => {
+      stopped = true;
+      try { es?.close(); } catch {}
+    };
+  }, [user?.uid, fetchConversations, fetchMessages, refreshCounts]);
 
   const openConversation = async (conv) => {
     setSelectedConv(conv);

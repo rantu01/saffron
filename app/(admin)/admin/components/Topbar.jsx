@@ -31,12 +31,15 @@ export default function DashboardTopbar({ onToggle }) {
                         )}
                         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p>
                     </div>
+                    <div className="flex items-center gap-2">
+                    <NotificationBell uid={user?.uid} dark />
                     <button
                         onClick={handleLogout}
                         className="rounded-lg border border-red-400/30 px-3 py-1.5 text-xs font-medium text-red-400 hover:border-red-400/60"
                     >
                         Logout
                     </button>
+                    </div>
                 </div>
 
                 {/* Desktop topbar — original clean style */}

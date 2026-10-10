@@ -4,6 +4,8 @@ import { updateDepositStatus, getDepositById } from "@/lib/depositModel";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { evaluateVipEligibility } from "@/lib/vipModel";
 import { createBalanceLog } from "@/lib/balanceLog";
+import { createNotification } from "@/lib/notificationModel";
+import { publishRealtime } from "@/lib/realtimeHub";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendDepositApproved, sendDepositRejected } from "@/lib/whatsappService";
 
@@ -152,6 +154,20 @@ export async function PATCH(request) {
     }
 
     const result = await updateDepositStatus(depositId, status, approverUid, rejectionReason);
+
+    try {
+      await createNotification({
+        uid: deposit.uid,
+        type: status === "approved" ? "deposit_approved" : "deposit_rejected",
+        title: status === "approved" ? "Deposit Approved" : "Deposit Rejected",
+        message:
+          status === "approved"
+            ? `Your deposit of $${deposit.amount} has been approved.`
+            : `Your deposit of $${deposit.amount} was rejected.${rejectionReason ? ` Reason: ${rejectionReason}` : ""}`,
+        metadata: { depositId, amount: deposit.amount },
+      }).catch(() => null);
+      publishRealtime("counts-changed", { reason: `deposit_${status}` });
+    } catch {}
 
     const wsSettings = await getWhatsAppSettings();
     if (wsSettings?.enabled && user?.phoneNumber) {

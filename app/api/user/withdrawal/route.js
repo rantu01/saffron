@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createWithdrawal, getWithdrawalsByUid } from "@/lib/withdrawalModel";
+import { publishRealtime } from "@/lib/realtimeHub";
 import clientPromise from "@/lib/mongodb";
 import { canUserWithdraw, getUserByUid, resolveFrozenBalanceState } from "@/lib/userModel";
 
@@ -70,6 +71,11 @@ export async function POST(request) {
     }
 
     const withdrawal = await createWithdrawal(uid, email, walletAddress, numAmount, network);
+
+    try {
+      publishRealtime("counts-changed", { reason: "withdrawal_created" });
+      publishRealtime("notification", { forAdmin: true, type: "withdrawal_created", title: "New withdrawal request", preview: `${email} requested $${numAmount}` });
+    } catch {}
 
     return NextResponse.json({ success: true, withdrawal });
   } catch (error) {

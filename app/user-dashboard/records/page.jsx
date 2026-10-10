@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import Swal from "sweetalert2";
-import { Star, Filter } from "lucide-react";
+import { Star, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import ComboTaskModal from "@/app/user-dashboard/tasks/components/ComboTaskModal";
 
 const TABS = ["All", "Submission", "Completed", "Pending"];
+const ITEMS_PER_PAGE = 10;
 
 function formatDate(date) {
   if (!date) return "";
@@ -56,6 +57,21 @@ export default function RecordsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const listTopRef = useRef(null);
+
+  const totalPages = Math.max(1, Math.ceil(records.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRecords = records.slice(
+    (safePage - 1) * ITEMS_PER_PAGE,
+    safePage * ITEMS_PER_PAGE
+  );
+
+  const goToPage = (next) => {
+    const clamped = Math.min(Math.max(1, next), totalPages);
+    setPage(clamped);
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const [submitRecord, setSubmitRecord] = useState(null);
   const [submitRating, setSubmitRating] = useState("");
@@ -238,7 +254,7 @@ export default function RecordsPage() {
           {TABS.map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => { setActiveTab(tab); setPage(1); }}
               className={`px-5 py-2 rounded-full text-sm font-bold transition-all duration-200 whitespace-nowrap ${
                 activeTab === tab
                   ? "bg-orange-500 text-white shadow-md shadow-orange-500/30"
@@ -279,8 +295,8 @@ export default function RecordsPage() {
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {records.map((record) => {
+        <div className="space-y-4" ref={listTopRef}>
+          {pagedRecords.map((record) => {
             const labelStatus =
               record.status.charAt(0).toUpperCase() +
               record.status.slice(1);
@@ -447,6 +463,30 @@ export default function RecordsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {!isLoading && !error && totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <button
+            onClick={() => goToPage(safePage - 1)}
+            disabled={safePage <= 1}
+            className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-bold bg-white border border-gray-200 text-slate-700 shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-orange-500 hover:text-orange-500"
+          >
+            <ChevronLeft size={16} />
+            Previous
+          </button>
+          <span className="text-xs font-medium text-slate-500 whitespace-nowrap">
+            Page {safePage} of {totalPages} ({records.length} record{records.length === 1 ? "" : "s"})
+          </span>
+          <button
+            onClick={() => goToPage(safePage + 1)}
+            disabled={safePage >= totalPages}
+            className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-bold bg-white border border-gray-200 text-slate-700 shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:border-orange-500 hover:text-orange-500"
+          >
+            Next
+            <ChevronRight size={16} />
+          </button>
         </div>
       )}
 

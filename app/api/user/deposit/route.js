@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createDeposit, getDepositsByUid } from "@/lib/depositModel";
+import { publishRealtime } from "@/lib/realtimeHub";
 
 export async function POST(request) {
   try {
@@ -22,6 +23,11 @@ export async function POST(request) {
     }
 
     const deposit = await createDeposit(uid, email, numAmount, screenshot);
+
+    try {
+      publishRealtime("counts-changed", { reason: "deposit_created" });
+      publishRealtime("notification", { forAdmin: true, type: "deposit_created", title: "New deposit request", preview: `${email} requested $${numAmount}` });
+    } catch {}
 
     return NextResponse.json({ success: true, deposit });
   } catch (error) {

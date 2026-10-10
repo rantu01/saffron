@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAllWithdrawals, updateWithdrawalStatus, getWithdrawalById } from "@/lib/withdrawalModel";
 import { canUserWithdraw, debitUserBalance, getUserByUid, resolveFrozenBalanceState } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
+import { createNotification } from "@/lib/notificationModel";
+import { publishRealtime } from "@/lib/realtimeHub";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendWithdrawalApproved, sendWithdrawalRejected } from "@/lib/whatsappService";
 
@@ -96,6 +98,20 @@ export async function PATCH(request) {
     }
 
     const result = await updateWithdrawalStatus(withdrawalId, status, approverUid, rejectionReason);
+
+    try {
+      await createNotification({
+        uid: withdrawal.uid,
+        type: status === "approved" ? "withdrawal_approved" : "withdrawal_rejected",
+        title: status === "approved" ? "Withdrawal Approved" : "Withdrawal Rejected",
+        message:
+          status === "approved"
+            ? `Your withdrawal of $${withdrawal.amount} has been approved.`
+            : `Your withdrawal of $${withdrawal.amount} was rejected.${rejectionReason ? ` Reason: ${rejectionReason}` : ""}`,
+        metadata: { withdrawalId, amount: withdrawal.amount },
+      }).catch(() => null);
+      publishRealtime("counts-changed", { reason: `withdrawal_${status}` });
+    } catch {}
 
     const wsSettings = await getWhatsAppSettings();
     if (wsSettings?.enabled) {

@@ -46,6 +46,9 @@ export default function UserTopbar({ onToggle }) {
             {/* <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">Saffron Edge</p> */}
           </div>
           <div className="flex items-center gap-2">
+            <div className="[&>div>button]:!text-white [&_svg]:!text-white">
+              <NotificationBell uid={user?.uid} dark />
+            </div>
             {profile?.referralCode && (
               <div className="flex items-center gap-1 rounded-lg border border-[#FBBF24]/30 bg-[#FBBF24]/10 px-2 py-1">
                 <span className="text-[9px] font-semibold uppercase tracking-wider text-[#FBBF24]">Ref</span>

@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
 import { MessageCircle, X, Send, Loader2, ImagePlus } from 'lucide-react';
+import { playNotificationSound } from './notificationSound';
+import { pushRealtimeToast } from './RealtimeToasts';
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -38,7 +40,7 @@ export default function LiveChat({ inline = false }) {
   useEffect(() => {
     if (!user?.uid) return;
     fetchUnread();
-    unreadPollRef.current = setInterval(fetchUnread, 5000);
+    unreadPollRef.current = setInterval(fetchUnread, 15000);
     return () => {
       if (unreadPollRef.current) clearInterval(unreadPollRef.current);
     };
@@ -47,6 +49,12 @@ export default function LiveChat({ inline = false }) {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  // Track whether the chat window is open for realtime handler decisions
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   useEffect(() => {
     scrollToBottom();
@@ -76,6 +84,62 @@ export default function LiveChat({ inline = false }) {
       setLoadingMessages(false);
     }
   }, [user?.uid]);
+
+  // Realtime SSE: instant incoming admin replies + unread badge + sound.
+  // Polling above remains as a fallback.
+  useEffect(() => {
+    if (!user?.uid || typeof window === 'undefined' || !('EventSource' in window)) return;
+    let stopped = false;
+    let es = null;
+    function connect() {
+      if (stopped) return;
+      try {
+        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(user.uid)}`);
+        es.addEventListener('counts', (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (typeof data.unreadChat === 'number' && !openRef.current) {
+              setUnreadCount(data.unreadChat);
+            }
+          } catch {}
+        });
+        es.addEventListener('chat-message', (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            // Only the other party's messages notify (never the sender's own).
+            if (payload?.senderRole === 'user') return; // own echo — already rendered
+            if (payload?.senderUid && payload.senderUid === user.uid) return;
+            playNotificationSound();
+            if (openRef.current) {
+              fetchMessages();
+              fetch('/api/chat/read', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversationId: user.uid, byUid: user.uid }),
+              }).catch(() => {});
+            } else {
+              setUnreadCount((c) => c + 1);
+              pushRealtimeToast({
+                title: 'New reply from Customer Service',
+                message: payload?.preview || '',
+                kind: 'chat',
+              });
+              fetchUnread();
+            }
+          } catch {}
+        });
+        es.onerror = () => {
+          try { es.close(); } catch {}
+          setTimeout(() => { if (!stopped) connect(); }, 5000);
+        };
+      } catch {}
+    }
+    connect();
+    return () => {
+      stopped = true;
+      try { es?.close(); } catch {}
+    };
+  }, [user?.uid, fetchMessages, fetchUnread]);
 
   useEffect(() => {
     if (!open || !user?.uid) return;
