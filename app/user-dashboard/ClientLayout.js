@@ -13,9 +13,10 @@ import RealtimeToasts from '@/app/Component/Common/RealtimeToasts';
 import {
   AppWindowMac, ListChecks, Share2, User, DollarSign,
   CreditCard, Send, Wallet, History, LayoutDashboard, Grid3X3, FileText,
-  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, ChevronDown, X, MessageCircle, Menu
+  ArrowDownToLine, ArrowUpFromLine, Globe, Headphones, LogOut, Copy, ChevronRight, ChevronDown, X, MessageCircle, Menu, Settings
 } from 'lucide-react';
 import LiveChat from '@/app/Component/Common/LiveChat';
+import { normalizeRole } from '@/lib/roles';
 
 const mobileNavItems = [
   // { key: 'nav.dashboard', href: '/user-dashboard', icon: AppWindowMac },
@@ -88,6 +89,9 @@ function ClientLayoutInner({ children }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
+  // Force popup open via sessionStorage (Gear button always works)
+  // The popup component reads sessionStorage.maintenance_popup_force
+  // We set this when the Gear button is clicked
   const [open, setOpen] = React.useState(false);
   const [roleChecking, setRoleChecking] = React.useState(true);
   const isDashboard = pathname === '/user-dashboard';
@@ -146,9 +150,9 @@ function ClientLayoutInner({ children }) {
     }
     async function checkRole() {
       try {
-        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
+        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || '')}`);
         const data = await res.json();
-        if (res.ok && data?.success && data?.dashboard?.role === 'admin') {
+        if (res.ok && data?.success && normalizeRole(data?.dashboard?.role) === 'admin') {
           router.replace('/admin');
           return;
         }
@@ -169,6 +173,19 @@ function ClientLayoutInner({ children }) {
       <UserSidebar open={open} onClose={() => setOpen(false)} />
       <div className='min-h-screen flex flex-col md:max-w-2xl mx-auto'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
+
+        {/* SITE MAINTENANCE GEAR BUTTON - fixed bottom-right on dashboard */}
+        {isDashboard && (
+          <div className="fixed bottom-18 right-6 z-40">
+            <button
+              onClick={() => window.dispatchEvent(new Event('maintenance-popup:open'))}
+              className="relative w-10 h-10 rounded-full bg-amber-600/20 border border-amber-600 p-1.5 flex items-center justify-center hover:bg-amber-600/30 hover:border-amber-600 transition-colors shadow-lg shadow-amber-500/20"
+              aria-label="Site maintenance"
+            >
+              <Settings size={20} className="text-amber-400" />
+            </button>
+          </div>
+        )}
 
         {/* MOBILE APP LAUNCHER - hidden on dashboard (new design includes quick actions) and on records */}
         {isDashboard || isRecordsPage ? false : (

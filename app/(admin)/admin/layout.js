@@ -12,6 +12,7 @@ import {
 	LayoutGrid, CheckSquare, Users, DollarSign, Send,
 	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText, MessageCircle, X, ChevronRight, LogOut
 } from "lucide-react";
+import { normalizeRole } from "@/lib/roles";
 
 const mobileNavItems = [
 	{ label: "Overview", href: "/admin", icon: LayoutGrid },
@@ -75,9 +76,9 @@ function AdminLayoutShell({ children }) {
 			}
 
 			try {
-				const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
+				const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || '')}`);
 				const data = await res.json();
-				const hasAdminRole = Boolean(res.ok && data?.success && data?.dashboard?.role === "admin");
+				const hasAdminRole = Boolean(res.ok && data?.success && normalizeRole(data?.dashboard?.role) === "admin");
 
 				if (mounted) {
 					setIsAdmin(hasAdminRole);
@@ -101,7 +102,7 @@ function AdminLayoutShell({ children }) {
 		return () => {
 			mounted = false;
 		};
-	}, [loading, router, user?.uid]);
+	}, [loading, router, user?.uid, user?.email]);
 
 	if (loading || roleChecking || !isAdmin) {
 		return <div className="min-h-screen lg:bg-[#F8F5F1] bg-[#121212]" />;

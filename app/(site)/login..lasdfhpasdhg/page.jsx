@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   signInWithEmailAndPassword,
+  signOut,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
 import { getDashboardPath } from '@/app/Component/Auth/getDashboardPath';
@@ -20,6 +21,7 @@ export default function SaffronEdgeAuth() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage('');
     setIsSubmitting(true);
 
@@ -41,6 +43,12 @@ export default function SaffronEdgeAuth() {
         throw new Error(syncResult.message || 'Failed to sync user data.');
       }
 
+      const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}&email=${encodeURIComponent(userCredential.user.email || '')}`);
+      const dashData = await dashRes.json();
+      if (!dashRes.ok || !dashData?.success) {
+        throw new Error(dashData?.message || 'Failed to load your account.');
+      }
+
       await Swal.fire({
         icon: 'success',
         title: 'Login successful',
@@ -49,21 +57,18 @@ export default function SaffronEdgeAuth() {
         showConfirmButton: false,
       });
 
-      try {
-        const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}`);
-        const dashData = await dashRes.json();
-        const role = dashData?.dashboard?.role || 'user';
-        router.push(getDashboardPath(role));
-      } catch {
-        router.push('/user-dashboard');
-      }
+      router.replace(getDashboardPath(dashData.dashboard?.role));
     } catch (error) {
       console.error('Auth error', error);
+      await signOut(auth).catch((signOutError) => {
+        console.error('Failed to clear authentication after login error', signOutError);
+      });
       let message = error.message || 'Authentication failed.';
       if (error.code === 'auth/invalid-credential') {
         message = 'Invalid credentials. Please check and try again.';
       }
 
+      setErrorMessage(message);
       await Swal.fire({
         icon: 'error',
         title: 'Authentication error',

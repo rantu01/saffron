@@ -29,7 +29,7 @@ export default function RootPage() {
     let mounted = true;
     async function redirectByRole() {
       try {
-        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`);
+        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || "")}`);
         const data = await res.json();
         const role = data?.success ? data.dashboard?.role || "user" : "user";
         if (mounted) router.replace(getDashboardPath(role));
@@ -41,7 +41,7 @@ export default function RootPage() {
     return () => {
       mounted = false;
     };
-  }, [loading, user?.uid, router]);
+  }, [loading, user?.uid, user?.email, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-white">
