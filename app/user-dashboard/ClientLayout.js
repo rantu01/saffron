@@ -177,7 +177,7 @@ function ClientLayoutInner({ children }) {
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
         {/* SITE MAINTENANCE GEAR BUTTON - fixed bottom-right on dashboard */}
-        {isDashboard && (
+        {/* {isDashboard && (
           <div className="fixed bottom-18 right-6 z-40">
             <button
               onClick={() => window.dispatchEvent(new Event('maintenance-popup:open'))}
@@ -187,7 +187,7 @@ function ClientLayoutInner({ children }) {
               <Settings size={20} className="text-amber-400" />
             </button>
           </div>
-        )}
+        )} */}
 
         {/* MOBILE APP LAUNCHER - hidden on dashboard (new design includes quick actions) and on records */}
         {isDashboard || isRecordsPage ? false : (
