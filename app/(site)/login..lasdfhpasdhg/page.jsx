@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
 import { getDashboardPath } from '@/app/Component/Auth/getDashboardPath';
+import { getAuthorizedRole } from '@/app/Component/Auth/getAuthorizedRole';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import SignUpForm from '@/app/Component/Auth/SignUpForm';
@@ -43,11 +44,7 @@ export default function SaffronEdgeAuth() {
         throw new Error(syncResult.message || 'Failed to sync user data.');
       }
 
-      const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}&email=${encodeURIComponent(userCredential.user.email || '')}`);
-      const dashData = await dashRes.json();
-      if (!dashRes.ok || !dashData?.success) {
-        throw new Error(dashData?.message || 'Failed to load your account.');
-      }
+      const role = await getAuthorizedRole(userCredential.user);
 
       await Swal.fire({
         icon: 'success',
@@ -57,7 +54,7 @@ export default function SaffronEdgeAuth() {
         showConfirmButton: false,
       });
 
-      router.replace(getDashboardPath(dashData.dashboard?.role));
+      router.replace(getDashboardPath(role));
     } catch (error) {
       console.error('Auth error', error);
       await signOut(auth).catch((signOutError) => {
@@ -145,31 +142,36 @@ export default function SaffronEdgeAuth() {
           </p>
 
           <div className="space-y-4">
-            {/* Input: Password */}
-            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Password</span>
-              <input
-                type="password"
-                name="password"
-                placeholder="Type Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
-              />
-            </div>
-
             {/* Input: Email */}
             <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <span className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</span>
+              <label htmlFor="login-email" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</label>
               <input
+                id="login-email"
                 type="email"
                 name="email"
                 placeholder="your@email.com"
+                autoComplete="email"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none placeholder-gray-400"
+                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A00] placeholder-gray-400"
+              />
+            </div>
+
+            {/* Input: Password */}
+            <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
+              <label htmlFor="login-password" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Password</label>
+              <input
+                id="login-password"
+                type="password"
+                name="password"
+                placeholder="Type Password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-transparent text-gray-800 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7A00] placeholder-gray-400"
               />
             </div>
           </div>
@@ -182,7 +184,7 @@ export default function SaffronEdgeAuth() {
           </div>
 
           {errorMessage && (
-            <p className="text-red-400 text-sm mt-4">{errorMessage}</p>
+            <p id="login-error" role="alert" className="text-red-400 text-sm mt-4">{errorMessage}</p>
           )}
 
           {/* Action Buttons */}
@@ -190,7 +192,8 @@ export default function SaffronEdgeAuth() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-[#EF5A24] hover:bg-[#d94e1f] text-white font-bold py-3 rounded-lg transition-all transform active:scale-95 shadow-md shadow-orange-600/20"
+              aria-busy={isSubmitting}
+              className="w-full bg-[#EF5A24] hover:bg-[#d94e1f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] text-white font-bold py-3 rounded-lg transition-all transform active:scale-95 shadow-md shadow-orange-600/20"
             >
               {isSubmitting ? 'Please wait...' : 'Login Now'}
             </button>
@@ -198,7 +201,7 @@ export default function SaffronEdgeAuth() {
               type="button"
               disabled={isSubmitting}
               onClick={() => setIsLoginView(false)}
-              className="w-full bg-purple-900/40 hover:bg-purple-900/60 text-orange-400 font-bold py-2 rounded-lg border border-purple-500/30 text-sm transition-all"
+              className="w-full bg-purple-900/40 hover:bg-purple-900/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] text-orange-400 font-bold py-2 rounded-lg border border-purple-500/30 text-sm transition-all"
             >
               Register Now
             </button>

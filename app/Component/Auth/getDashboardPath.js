@@ -1,12 +1,22 @@
 import { normalizeRole } from "@/lib/roles";
 
 /**
- * Single source of truth for role -> dashboard mapping.
- * Mirrors the existing role/permission configuration used across
- * the login page, signup form, and dashboard layout guards:
- *  - admin             -> /admin
- *  - user (and any other role, e.g. training) -> /user-dashboard
+ * Map MongoDB user roles to dashboard paths.
+ * - admin              -> /admin
+ * - training           -> /user-dashboard (training dashboard)
+ * - any other role     -> /user-dashboard
+ *
+ * This ensures that:
+ * - Admin users are redirected to the Admin Dashboard.
+ * - Other users are redirected based on their MongoDB role.
+ * - Users cannot access dashboards that do not match their assigned roles.
  */
 export function getDashboardPath(role) {
-  return normalizeRole(role) === "admin" ? "/admin" : "/user-dashboard";
+  const normalizedRole = normalizeRole(role);
+  if (normalizedRole === "admin") {
+    return "/admin";
+  }
+  // For other roles (user, training, etc.), redirect to user dashboard
+  // The specific dashboard can be determined by the application's role-based routing
+  return "/user-dashboard";
 }

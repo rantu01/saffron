@@ -13,6 +13,7 @@ import {
 	History, Share2, BarChart3, LayoutDashboard, Grid3X3, FileText, MessageCircle, X, ChevronRight, LogOut
 } from "lucide-react";
 import { normalizeRole } from "@/lib/roles";
+import { getAuthorizedRole } from "@/app/Component/Auth/getAuthorizedRole";
 
 const mobileNavItems = [
 	{ label: "Overview", href: "/admin", icon: LayoutGrid },
@@ -76,9 +77,8 @@ function AdminLayoutShell({ children }) {
 			}
 
 			try {
-				const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || '')}`);
-				const data = await res.json();
-				const hasAdminRole = Boolean(res.ok && data?.success && normalizeRole(data?.dashboard?.role) === "admin");
+				const role = await getAuthorizedRole(user);
+				const hasAdminRole = normalizeRole(role) === "admin";
 
 				if (mounted) {
 					setIsAdmin(hasAdminRole);

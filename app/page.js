@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import { getDashboardPath } from "@/app/Component/Auth/getDashboardPath";
+import { getAuthorizedRole } from "@/app/Component/Auth/getAuthorizedRole";
 import { Loader2 } from "lucide-react";
 
 /**
@@ -29,12 +30,10 @@ export default function RootPage() {
     let mounted = true;
     async function redirectByRole() {
       try {
-        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || "")}`);
-        const data = await res.json();
-        const role = data?.success ? data.dashboard?.role || "user" : "user";
+        const role = await getAuthorizedRole(user);
         if (mounted) router.replace(getDashboardPath(role));
       } catch {
-        if (mounted) router.replace("/user-dashboard");
+        if (mounted) router.replace("/login");
       }
     }
     redirectByRole();

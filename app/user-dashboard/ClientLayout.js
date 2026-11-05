@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import LiveChat from '@/app/Component/Common/LiveChat';
 import { normalizeRole } from '@/lib/roles';
+import { getAuthorizedRole } from '@/app/Component/Auth/getAuthorizedRole';
 
 const mobileNavItems = [
   // { key: 'nav.dashboard', href: '/user-dashboard', icon: AppWindowMac },
@@ -150,14 +151,15 @@ function ClientLayoutInner({ children }) {
     }
     async function checkRole() {
       try {
-        const res = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}&email=${encodeURIComponent(user.email || '')}`);
-        const data = await res.json();
-        if (res.ok && data?.success && normalizeRole(data?.dashboard?.role) === 'admin') {
+        const role = await getAuthorizedRole(user);
+        if (normalizeRole(role) === 'admin') {
           router.replace('/admin');
           return;
         }
       } catch (err) {
         console.error('Role check failed:', err);
+        router.replace('/');
+        return;
       }
       setRoleChecking(false);
     }

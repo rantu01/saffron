@@ -7,6 +7,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebaseClient';
 import { getDashboardPath } from '@/app/Component/Auth/getDashboardPath';
+import { getAuthorizedRole } from '@/app/Component/Auth/getAuthorizedRole';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
@@ -132,9 +133,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
       });
 
       try {
-        const dashRes = await fetch(`/api/user/dashboard?uid=${encodeURIComponent(userCredential.user.uid)}`);
-        const dashData = await dashRes.json();
-        const role = dashData?.dashboard?.role || 'user';
+        const role = await getAuthorizedRole(userCredential.user);
         const basePath = getDashboardPath(role);
         const queryParam = isNewUser ? '?welcome=true' : '';
         router.push(`${basePath}${queryParam}`);
