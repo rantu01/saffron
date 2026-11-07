@@ -3,19 +3,14 @@ import clientPromise from "@/lib/mongodb";
 import { getActiveComboTask, activateComboFreeze } from "@/lib/comboTaskModel";
 import { evaluateVipEligibility } from "@/lib/vipModel";
 import { normalizeRole } from "@/lib/roles";
-
+import { requireFirebaseAuth } from "@/lib/apiAuth";
+ 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const uid = authContext.uid;
     const email = searchParams.get("email")?.trim().toLowerCase();
-
-    if (!uid) {
-      return NextResponse.json(
-        { success: false, message: "uid is required." },
-        { status: 400 }
-      );
-    }
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
@@ -27,23 +22,22 @@ export async function GET(request) {
 
     // Raise a pending VIP upgrade request if the user now qualifies for a higher
     // level (admin approval still required; the level is never auto-unlocked).
-    await evaluateVipEligibility(userUid).catch(() => {});
+    // It is independent of the dashboard reads, so let it run concurrently.
+    const vipCheck = evaluateVipEligibility(userUid).catch(() => {});
 
-    const tasks = await db
-      .collection("tasks")
-      .find({ assigneeUid: userUid })
-      .sort({ createdAt: -1 })
-      .toArray();
+    const [tasks, currentSetProgress] = await Promise.all([
+      db
+        .collection("tasks")
+        .find({ assigneeUid: userUid })
+        .sort({ createdAt: -1 })
+        .toArray(),
+      db
+        .collection("userTaskSets")
+        .findOne({ uid: userUid }, { sort: { setNumber: -1 } }),
+      vipCheck,
+    ]);
 
-    const latestSet = await db
-      .collection("userTaskSets")
-      .find({ uid: userUid })
-      .sort({ setNumber: -1 })
-      .limit(1)
-      .toArray();
-
-    const currentSetNumber = latestSet.length > 0 ? latestSet[0].setNumber : 1;
-    const currentSetProgress = latestSet.length > 0 ? latestSet[0] : null;
+    const currentSetNumber = currentSetProgress?.setNumber || 1;
     const currentPosition = currentSetProgress ? Number(currentSetProgress.currentPosition || 0) : 0;
 
     let activeCombo = await getActiveComboTask(userUid, currentSetNumber);
@@ -92,9 +86,13 @@ export async function GET(request) {
       },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to load dashboard." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

@@ -1,23 +1,23 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const requestedUid = searchParams.get("uid");
+    const isAdmin = authContext.user?.role === "admin" || authContext.user?.role === "Admin";
+    const uid = isAdmin && requestedUid ? requestedUid : authContext.uid;
     const type = searchParams.get("type") || "all";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-
-    if (!uid) {
-      return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
-    }
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     const query = {};
-    if (uid && uid !== "all") query.uid = uid;
+    query.uid = uid;
     if (type && type !== "all") query.type = type;
     if (startDate || endDate) {
       query.createdAt = {};
@@ -56,9 +56,13 @@ export async function GET(request) {
       },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
     return NextResponse.json(
-      { success: false, message: error.message || "Export failed" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

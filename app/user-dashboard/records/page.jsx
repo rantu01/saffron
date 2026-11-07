@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 import { Star, Filter, ChevronLeft, ChevronRight } from "lucide-react";
 import ComboTaskModal from "@/app/user-dashboard/tasks/components/ComboTaskModal";

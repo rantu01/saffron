@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { playNotificationSound } from "./notificationSound";
+import { getAuthToken } from "@/lib/clientAuth";
 
 /**
  * Shared SSE client hook.
@@ -73,7 +74,7 @@ export default function useRealtimeFeed({ uid, role, onChatMessage, onNotificati
     if (role !== "admin" && !uid) return;
     let stopped = false;
 
-    function connect() {
+    async function connect() {
       if (stopped) return;
       try {
         if (esRef.current) {
@@ -82,6 +83,8 @@ export default function useRealtimeFeed({ uid, role, onChatMessage, onNotificati
         }
         const params = new URLSearchParams({ role });
         if (uid) params.set("uid", uid);
+        const token = await getAuthToken();
+        if (token) params.set("token", token);
         const es = new EventSource(`/api/realtime/stream?${params.toString()}`);
         esRef.current = es;
 

@@ -19,8 +19,14 @@ const TYPE_OPTIONS = [
   { value: "deposit", label: "Deposits" },
   { value: "withdrawal", label: "Withdrawals" },
   { value: "task_earnings", label: "Task Earnings" },
+  { value: "task_frozen", label: "Task Frozen" },
+  { value: "task_cancellation", label: "Task Cancellation" },
   { value: "referral_commission", label: "Referral Commission" },
+  { value: "training_bonus", label: "Training Bonus" },
   { value: "balance_push", label: "Balance Push" },
+  { value: "admin_adjustment", label: "Admin Adjustment" },
+  { value: "combo_freeze", label: "Combo Freeze" },
+  { value: "combo_release", label: "Combo Release" },
 ];
 
 export default function AdminBalanceLogsPage() {
@@ -86,8 +92,14 @@ export default function AdminBalanceLogsPage() {
       deposit: { label: "CREDIT", class: "bg-blue-50 text-blue-600" },
       withdrawal: { label: "DEBIT", class: "bg-red-50 text-red-600" },
       task_earnings: { label: "EARNED", class: "bg-emerald-50 text-emerald-600" },
+      task_frozen: { label: "FROZEN", class: "bg-amber-50 text-amber-600" },
+      task_cancellation: { label: "CANCEL", class: "bg-rose-50 text-rose-600" },
       referral_commission: { label: "REFERRAL", class: "bg-purple-50 text-purple-600" },
+      training_bonus: { label: "TRAINING", class: "bg-indigo-50 text-indigo-600" },
       balance_push: { label: "PUSH", class: "bg-slate-100 text-slate-700" },
+      admin_adjustment: { label: "ADJUST", class: "bg-orange-50 text-orange-600" },
+      combo_freeze: { label: "COMBO FREEZE", class: "bg-cyan-50 text-cyan-600" },
+      combo_release: { label: "COMBO RELEASE", class: "bg-teal-50 text-teal-600" },
     };
     return map[type] || { label: type, class: "bg-slate-100 text-slate-600" };
   };
@@ -144,6 +156,7 @@ export default function AdminBalanceLogsPage() {
                   <th className="py-4 px-6">Amount</th>
                   <th className="py-4 px-6">Balance</th>
                   <th className="py-4 px-6">Description</th>
+                  <th className="py-4 px-6">Reference / Actor</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
@@ -172,6 +185,13 @@ export default function AdminBalanceLogsPage() {
                         ${formatMoney(log.balanceBefore)} → ${formatMoney(log.balanceAfter)}
                       </td>
                       <td className="py-4 px-6 text-slate-600 max-w-xs truncate">{log.description}</td>
+                      <td className="py-4 px-6 text-xs text-slate-500 font-mono">
+                        {log.referenceId ? <div>ref: {String(log.referenceId).slice(0, 16)}</div> : null}
+                        {log.referenceType ? <div className="text-slate-400">{log.referenceType}</div> : null}
+                        {log.metadata?.actorUid || log.metadata?.approverUid ? (
+                          <div className="text-slate-400">actor: {(log.metadata.actorUid || log.metadata.approverUid).slice(0, 12)}</div>
+                        ) : null}
+                      </td>
                     </tr>
                   );
                 })}

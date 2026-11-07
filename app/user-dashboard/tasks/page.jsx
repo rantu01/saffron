@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 import { Crown, Star, Trophy, Loader2 } from "lucide-react";
 import ScreenshotCarousel from "./components/ScreenshotCarousel";
@@ -10,6 +11,7 @@ import ComboTaskModal from "./components/ComboTaskModal";
 
 export default function UserTasksPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const [assignedTasks, setAssignedTasks] = useState([]);
   const [setProgress, setSetProgress] = useState(null);
   const [allTaskSets, setAllTaskSets] = useState([]);
@@ -521,7 +523,7 @@ export default function UserTasksPage() {
 
         {/* Title */}
         <div className="shrink-0">
-          <h1 className="text-lg font-bold ">My Tasks</h1>
+          <h1 className="text-lg font-bold ">{t("tasks.title")}</h1>
           <p className="text-[10px] ">Complete tasks one at a time</p>
         </div>
 

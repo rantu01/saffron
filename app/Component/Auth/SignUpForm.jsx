@@ -105,6 +105,23 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
       const derivedName = email.split('@')[0] || 'User';
       await updateProfile(userCredential.user, { displayName: derivedName });
 
+      // Resolve the currently published terms version (if any) so acceptance
+      // is recorded server-side against a real version, not just the checkbox.
+      let acceptedTermsVersion = null;
+      try {
+        const termsRes = await fetch('/api/terms/active');
+        const termsData = await termsRes.json();
+        if (termsRes.ok && termsData?.success && termsData.version?.version) {
+          acceptedTermsVersion = termsData.version.version;
+        }
+      } catch {
+        // Non-fatal: proceed; server will skip recording if no version.
+      }
+
+      if (acceptedTermsVersion && !formData.agreeToTerms) {
+        throw new Error('You must accept the Terms & Conditions to register.');
+      }
+
       const syncResponse = await fetch('/api/auth/sync-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,6 +132,7 @@ export default function SignUpForm({ onLoginClick, onClose, inline = false }) {
           phoneNumber: formData.phoneNumber,
           invitationCode: formData.invitationCode,
           username: formData.username.trim(),
+          acceptedTermsVersion: formData.agreeToTerms ? acceptedTermsVersion : null,
         }),
       });
       const syncResult = await syncResponse.json();

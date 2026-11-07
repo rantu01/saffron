@@ -3,11 +3,16 @@ import { createWithdrawal, getWithdrawalsByUid } from "@/lib/withdrawalModel";
 import { publishRealtime } from "@/lib/realtimeHub";
 import clientPromise from "@/lib/mongodb";
 import { canUserWithdraw, getUserByUid, resolveFrozenBalanceState } from "@/lib/userModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { uid, email, walletAddress, network, amount } = body;
+    const { walletAddress, network, amount } = body;
+    const uid = authContext.uid;
+    const email = authContext.user?.email || body.email;
 
     if (!uid || !email || !walletAddress || !amount) {
       return NextResponse.json(
@@ -17,9 +22,9 @@ export async function POST(request) {
     }
 
     const numAmount = Number(amount);
-    if (numAmount <= 0) {
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Amount must be greater than 0" },
+        { success: false, message: "Amount must be a valid number greater than 0" },
         { status: 400 }
       );
     }
@@ -79,17 +84,24 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, withdrawal });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create withdrawal:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to create withdrawal" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json(
@@ -102,9 +114,16 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, withdrawals });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch withdrawals:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch withdrawals" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

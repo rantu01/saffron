@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
     const formData = await request.formData();
     const file = formData.get("avatar");
-    const uid = formData.get("uid");
+    const uid = authContext.uid;
 
-    if (!file || !uid) {
-      return NextResponse.json({ success: false, message: "File and uid required" }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ success: false, message: "File required" }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
@@ -26,6 +28,10 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, avatarUrl });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Upload failed" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

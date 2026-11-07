@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import { RefreshCw, DollarSign, TrendingUp, Target, Wallet, AlertTriangle, CheckCircle, XCircle, BarChart3 } from "lucide-react";
 
 export default function AdAccountsPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const [adAccounts, setAdAccounts] = useState([]);
   const [summary, setSummary] = useState({ total: 0, active: 0, totalBudget: 0, totalSpent: 0, remainingBudget: 0 });
   const [isLoading, setIsLoading] = useState(true);
@@ -100,7 +102,7 @@ export default function AdAccountsPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Your Ad Accounts</h1>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{t("adAccount.title")}</h1>
           {error && <p className="text-sm text-red-600 mt-1">{error}</p>}
         </div>
         <button

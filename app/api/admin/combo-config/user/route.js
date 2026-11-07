@@ -6,9 +6,13 @@ import {
   saveUserComboSettings,
   deleteUserComboSettings,
 } from "@/lib/comboTaskModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const uid = searchParams.get("uid");
     if (!uid) {
@@ -130,15 +134,25 @@ export async function GET(request) {
       },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to load user combo details:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to load user combo details" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { uid, settings } = body;
     if (!uid || !settings) {
@@ -153,15 +167,25 @@ export async function POST(request) {
       settings: saved,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to save user combo settings:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to save user combo settings" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function DELETE(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const uid = searchParams.get("uid");
     if (!uid) {
@@ -172,9 +196,16 @@ export async function DELETE(request) {
 
     return NextResponse.json({ success: true, message: "Per-user combo settings removed." });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to remove user combo settings:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to remove user combo settings" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

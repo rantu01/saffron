@@ -11,9 +11,11 @@ import { getAuthorizedRole } from '@/app/Component/Auth/getAuthorizedRole';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import SignUpForm from '@/app/Component/Auth/SignUpForm';
+import { useLanguage } from '@/components/LanguageContext';
 
 export default function SaffronEdgeAuth() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [isLoginView, setIsLoginView] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -135,7 +137,7 @@ export default function SaffronEdgeAuth() {
         {/* Dynamic Form Interface */}
         <form onSubmit={handleSubmit} className="w-full flex-grow flex flex-col justify-center">
           <h2 className="text-2xl font-bold text-[#FF7A00] mb-1">
-            Login
+            {t("auth.signIn")}
           </h2>
           <p className="text-gray-400 text-xs mb-6">
             Please login to access more content
@@ -144,7 +146,7 @@ export default function SaffronEdgeAuth() {
           <div className="space-y-4">
             {/* Input: Email */}
             <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <label htmlFor="login-email" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Email</label>
+              <label htmlFor="login-email" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">{t("auth.email")}</label>
               <input
                 id="login-email"
                 type="email"
@@ -161,7 +163,7 @@ export default function SaffronEdgeAuth() {
 
             {/* Input: Password */}
             <div className="bg-white rounded-md flex items-center px-4 py-2.5 shadow-inner">
-              <label htmlFor="login-password" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">Password</label>
+              <label htmlFor="login-password" className="text-[#FF7A00] text-xs font-bold w-24 block border-r border-gray-200 mr-2">{t("auth.password")}</label>
               <input
                 id="login-password"
                 type="password"
@@ -179,7 +181,7 @@ export default function SaffronEdgeAuth() {
           {/* Forgot Password Link */}
           <div className="text-center mt-4">
             <a href="#" className="text-xs text-gray-400 underline hover:text-white transition">
-              Forgot password?
+              {t("auth.forgotPassword")}
             </a>
           </div>
 
@@ -195,7 +197,7 @@ export default function SaffronEdgeAuth() {
               aria-busy={isSubmitting}
               className="w-full bg-[#EF5A24] hover:bg-[#d94e1f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A00] text-white font-bold py-3 rounded-lg transition-all transform active:scale-95 shadow-md shadow-orange-600/20"
             >
-              {isSubmitting ? 'Please wait...' : 'Login Now'}
+              {isSubmitting ? 'Please wait...' : t("auth.signIn")}
             </button>
             <button
               type="button"

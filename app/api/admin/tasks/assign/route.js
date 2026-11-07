@@ -3,9 +3,13 @@ import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { getVipTasksPerSet } from "@/lib/vipModel";
 import { generateNormalTaskAmount, computeTaskProfit } from "@/lib/comboTaskModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { taskIds, assigneeUid, assigneeEmail } = body;
 
@@ -99,9 +103,16 @@ export async function POST(request) {
       duplicates: duplicateIds.map((t) => ({ _id: t._id.toString(), appName: t.appName })),
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Task assignment failed:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Task assignment failed." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

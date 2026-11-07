@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAdAccountsByUid, createAdAccount } from "@/lib/adAccountModel";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
@@ -29,14 +30,24 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to fetch ad accounts" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch ad accounts:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { uid, email, name, accountId, budget, status } = body;
+    const { email, name, accountId, budget, status } = body;
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
@@ -46,6 +57,13 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, adAccount });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to create ad account" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create ad account:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 const ALLOWED_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
+
     const formData = await request.formData();
     const file = formData.get("image");
-    const uid = formData.get("uid");
 
-    if (!file || !uid) {
-      return NextResponse.json({ success: false, message: "Image file and uid are required." }, { status: 400 });
+    if (!file) {
+      return NextResponse.json({ success: false, message: "Image file is required." }, { status: 400 });
     }
 
     if (typeof file === "string" || !file.type || !ALLOWED_TYPES.includes(file.type.toLowerCase())) {
@@ -43,6 +46,10 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, imageUrl });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Image upload failed." }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

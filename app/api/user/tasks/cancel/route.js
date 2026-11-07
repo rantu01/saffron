@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { debitUserBalance, getUserByUid } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { getActiveComboTask } from "@/lib/comboTaskModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 function round2(value) {
   return Math.round(Number(value || 0) * 100) / 100;
@@ -11,11 +12,14 @@ function round2(value) {
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { taskId, uid, mode } = body;
+    const authContext = await requireFirebaseAuth(request);
 
-    if (!taskId || !uid) {
-      return NextResponse.json({ success: false, message: "taskId and uid required" }, { status: 400 });
+    const body = await request.json();
+    const { taskId, mode } = body;
+    const uid = authContext.uid;
+
+    if (!taskId) {
+      return NextResponse.json({ success: false, message: "taskId required" }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -161,9 +165,18 @@ export async function POST(request) {
       balanceAfter,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to cancel task:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to cancel task." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getWhatsAppSettings, updateWhatsAppSettings, getNotificationLogs } from "@/lib/whatsappSettingsModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const settings = await getWhatsAppSettings();
     const safe = settings
       ? {
@@ -20,12 +24,22 @@ export async function GET() {
 
     return NextResponse.json({ success: true, settings: safe });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("WhatsApp settings error:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }
 
 export async function PUT(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { enabled, phoneNumberId, businessAccountId, accessToken, notifyOnDeposit, notifyOnWithdrawal, notifyOnTaskComplete, notifyOnBalanceFreeze } = body;
 
@@ -56,6 +70,13 @@ export async function PUT(request) {
 
     return NextResponse.json({ success: true, settings: safe });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("WhatsApp settings error:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

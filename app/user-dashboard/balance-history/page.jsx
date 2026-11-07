@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 
 function daysAgo(date) {
@@ -35,6 +36,7 @@ const TYPE_OPTIONS = [
 
 export default function BalanceHistoryPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const [logs, setLogs] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -124,7 +126,7 @@ export default function BalanceHistoryPage() {
   if (!user) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold text-slate-900">Balance History</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t("balanceHistory.title")}</h1>
         <p className="mt-2 text-slate-600">Please login to view transaction history.</p>
       </div>
     );
@@ -134,7 +136,7 @@ export default function BalanceHistoryPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 min-h-screen">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold  tracking-tight">Balance History</h1>
+          <h1 className="text-3xl font-bold  tracking-tight">{t("balanceHistory.title")}</h1>
           <p className="text-sm  mt-1">View your account balance transaction history</p>
         </div>
         <button

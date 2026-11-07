@@ -3,14 +3,20 @@ import clientPromise from "@/lib/mongodb";
 import { updateDepositStatus, getDepositById } from "@/lib/depositModel";
 import { creditUserBalance, getUserByUid } from "@/lib/userModel";
 import { evaluateVipEligibility } from "@/lib/vipModel";
+import { roundCurrency } from "@/lib/taskModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { createNotification } from "@/lib/notificationModel";
 import { publishRealtime } from "@/lib/realtimeHub";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendDepositApproved, sendDepositRejected } from "@/lib/whatsappService";
+import { requireAdminUser, requireFirebaseAuth } from "@/lib/apiAuth";
+import { createActivityLog } from "@/lib/activityLog";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -42,17 +48,27 @@ export async function GET(request) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch deposits:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch deposits" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function PATCH(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
-    const { depositId, status, approverUid, rejectionReason } = body;
+    const { depositId, status, rejectionReason } = body;
 
     if (!depositId || !status) {
       return NextResponse.json(
@@ -67,6 +83,9 @@ export async function PATCH(request) {
         { status: 400 }
       );
     }
+
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
     const deposit = await getDepositById(depositId);
     if (!deposit) {
@@ -84,76 +103,151 @@ export async function PATCH(request) {
       );
     }
 
+    // Wrap the claim + balance mutation in a transaction so a partial failure
+    // cannot leave the deposit approved but the balance uncredited.
+    const session = client.startSession();
+    let result = null;
     let updatedUser = user;
+    let balanceBefore = Number(user.availableBalance || 0);
+    const comboDebt = Number(user.comboDebt || 0);
+    let transactionError = null;
 
-    if (status === "approved") {
-      const client = await clientPromise;
-      const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
-      const balanceBefore = Number(user.availableBalance || 0);
-      const comboDebt = Number(user.comboDebt || 0);
+    try {
+      await session.withTransaction(async () => {
+        result = await updateDepositStatus(depositId, status, authContext.uid, rejectionReason, session);
+        if (!result) {
+          throw new Error("ALREADY_PROCESSED");
+        }
 
-      if (comboDebt > 0) {
-        const debtCleared = Math.min(comboDebt, deposit.amount);
-        const remaining = roundCurrency(deposit.amount - debtCleared);
-        const newDebt = roundCurrency(comboDebt - debtCleared);
+        if (status === "approved") {
+          balanceBefore = Number(user.availableBalance || 0);
 
-        await db.collection("users").updateOne(
-          { uid: deposit.uid },
-          {
-            $inc: { availableBalance: remaining, totalEarned: deposit.amount },
-            $set: { comboDebt: newDebt, updatedAt: new Date() },
-          }
-        );
+          if (comboDebt > 0) {
+            const debtCleared = Math.min(comboDebt, deposit.amount);
+            const remaining = roundCurrency(deposit.amount - debtCleared);
+            const newDebt = roundCurrency(comboDebt - debtCleared);
 
-        if (newDebt === 0) {
-          const userAfter = await getUserByUid(deposit.uid);
-          const frozenBalance = Number(userAfter?.frozenBalance || 0);
-          if (frozenBalance > 0) {
             await db.collection("users").updateOne(
               { uid: deposit.uid },
               {
-                $inc: { availableBalance: frozenBalance },
-                $set: { frozenBalance: 0, updatedAt: new Date() },
+                $inc: { availableBalance: remaining, totalEarned: deposit.amount },
+                $set: { comboDebt: newDebt, updatedAt: new Date() },
+              },
+              { session }
+            );
+
+            if (newDebt === 0) {
+              const userAfter = await getUserByUid(deposit.uid, session);
+              const frozenBalance = Number(userAfter?.frozenBalance || 0);
+              if (frozenBalance > 0) {
+                await db.collection("users").updateOne(
+                  { uid: deposit.uid },
+                  {
+                    $inc: { availableBalance: frozenBalance },
+                    $set: { frozenBalance: 0, updatedAt: new Date() },
+                  },
+                  { session }
+                );
               }
-            );
+
+              const waitingCombo = await db.collection("comboTasks").findOne(
+                { uid: deposit.uid, status: "waiting_balance" },
+                { session }
+              );
+              if (waitingCombo) {
+                await db.collection("comboTasks").updateOne(
+                  { _id: waitingCombo._id },
+                  { $set: { status: "pending", updatedAt: new Date() } },
+                  { session }
+                );
+              }
+            }
+          } else {
+            await creditUserBalance(deposit.uid, deposit.amount, { autoResolveFreeze: true, session });
+
+            // Combined Task fund freeze: if a pending combo has a frozen amount
+            // that the new deposit satisfies (same amount or covering), release
+            // the corresponding frozen balance. Claimed atomically to prevent
+            // duplicate unfreeze.
+            try {
+              let remaining = Number(deposit.amount || 0);
+              const pendingCombos = await db.collection("comboTasks").find(
+                { uid: deposit.uid, balanceFrozen: true, frozenReleased: { $ne: true } },
+                { session }
+              ).toArray();
+              for (const combo of pendingCombos) {
+                const frozenAmt = Number(combo.frozenAmount || 0);
+                if (frozenAmt <= 0 || frozenAmt > remaining + 0.0001) continue;
+                const claimed = await db.collection("comboTasks").findOneAndUpdate(
+                  { _id: combo._id, balanceFrozen: true, frozenReleased: { $ne: true } },
+                  { $set: { frozenReleased: true, updatedAt: new Date() } },
+                  { session, returnDocument: "after" }
+                );
+                if (!claimed) continue;
+                await db.collection("users").updateOne(
+                  { uid: deposit.uid },
+                  { $inc: { availableBalance: frozenAmt, frozenBalance: -frozenAmt }, $set: { updatedAt: new Date() } },
+                  { session }
+                );
+                remaining = roundCurrency(remaining - frozenAmt);
+                await createBalanceLog({
+                  uid: deposit.uid,
+                  email: deposit.email || user.email,
+                  type: "combo_release",
+                  amount: frozenAmt,
+                  balanceBefore: 0,
+                  balanceAfter: 0,
+                  description: `Combined task frozen balance released by deposit of $${deposit.amount}`,
+                  referenceId: String(combo._id),
+                  referenceType: "combo_task",
+                  metadata: { depositId, frozenAmount: frozenAmt },
+                  session,
+                });
+              }
+            } catch (e) {
+              // Non-fatal within transaction? Keep as best-effort.
+            }
           }
 
-          const waitingCombo = await db.collection("comboTasks").findOne({
+          updatedUser = await getUserByUid(deposit.uid, session);
+
+          await createBalanceLog({
             uid: deposit.uid,
-            status: "waiting_balance",
+            email: deposit.email || user.email,
+            type: "deposit",
+            amount: deposit.amount,
+            balanceBefore,
+            balanceAfter: Number(updatedUser?.availableBalance || 0),
+            description: `Deposit approved: $${deposit.amount}${comboDebt > 0 ? ` ($${Math.min(comboDebt, deposit.amount)} applied to debt)"` : ""}`,
+            referenceId: depositId,
+            referenceType: "deposit",
+            metadata: { approverUid: authContext.uid, comboDebtBefore: comboDebt },
+            session,
           });
-          if (waitingCombo) {
-            await db.collection("comboTasks").updateOne(
-              { _id: waitingCombo._id },
-              { $set: { status: "pending", updatedAt: new Date() } }
-            );
-          }
         }
-      } else {
-        await creditUserBalance(deposit.uid, deposit.amount, { autoResolveFreeze: true });
+      });
+    } catch (err) {
+      if (err?.message === "ALREADY_PROCESSED") {
+        await session.endSession();
+        return NextResponse.json(
+          { success: false, message: "This deposit has already been processed." },
+          { status: 409 }
+        );
       }
+      transactionError = err;
+    } finally {
+      await session.endSession().catch(() => {});
+    }
 
-      updatedUser = await getUserByUid(deposit.uid);
+    if (transactionError) {
+      throw transactionError;
+    }
 
+    if (status === "approved") {
       // Raise a pending VIP upgrade request if the deposit pushed the user over
       // a tier threshold (admin approval still required).
       await evaluateVipEligibility(deposit.uid).catch(() => {});
-
-      await createBalanceLog({
-        uid: deposit.uid,
-        email: deposit.email || user.email,
-        type: "deposit",
-        amount: deposit.amount,
-        balanceBefore,
-        balanceAfter: Number(updatedUser?.availableBalance || 0),
-        description: `Deposit approved: $${deposit.amount}${comboDebt > 0 ? ` ($${Math.min(comboDebt, deposit.amount)} applied to debt)"` : ""}`,
-        referenceId: depositId,
-        referenceType: "deposit",
-        metadata: { approverUid, comboDebtBefore: comboDebt },
-      });
     }
-
-    const result = await updateDepositStatus(depositId, status, approverUid, rejectionReason);
 
     try {
       await createNotification({
@@ -179,11 +273,38 @@ export async function PATCH(request) {
       }
     }
 
-    return NextResponse.json({ success: true, deposit: result.value });
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: status === "approved" ? "deposit.approve" : "deposit.reject",
+        targetType: "deposit",
+        targetId: depositId,
+        targetSnapshot: { uid: deposit?.uid, amount: deposit?.amount },
+        before: { status: "pending" },
+        after: { status },
+        reason: rejectionReason || "",
+        metadata: { depositId },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
+
+    return NextResponse.json({ success: true, deposit: result });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to update deposit:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to update deposit" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 function generateCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -12,8 +13,11 @@ function generateCode() {
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { uid, email, displayName } = body;
+    const { email, displayName } = body;
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
@@ -83,9 +87,16 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, invitation });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to generate code:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to generate code" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 import Link from "next/link";
 
@@ -9,6 +10,7 @@ const ITEMS_PER_PAGE = 15;
 
 export default function DepositsPage() {
     const { user, loading } = useAuth();
+    const { t } = useLanguage();
     const [deposits, setDeposits] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -148,7 +150,7 @@ export default function DepositsPage() {
             {/* Top Header Section */}
             <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold  tracking-tight">Payment History</h1>
+                    <h1 className="text-2xl font-bold  tracking-tight">{t("payments.title")}</h1>
                     <p className="text-sm  mt-1">View your account top-up history and transaction status</p>
                 </div>
 

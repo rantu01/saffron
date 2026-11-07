@@ -7,11 +7,15 @@ import { roundCurrency } from "@/lib/taskModel";
 import { getActiveComboTask } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
 import { evaluateVipEligibility, getVipTaskConfig, getVipTasksPerSet } from "@/lib/vipModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { taskId, uid, feedback, ratingOption } = body;
+    const { taskId, feedback, ratingOption } = body;
+    const uid = authContext.uid;
 
     if (!taskId || !uid) {
       return NextResponse.json({ success: false, message: "taskId and uid required" }, { status: 400 });
@@ -112,7 +116,7 @@ export async function POST(request) {
     }
 
     const totalAmount = Number(task.totalAmount || 0);
-    const vipConfig = getVipTaskConfig(Number(user.vipLevel || 1));
+    const vipConfig = await getVipTaskConfig(Number(user.vipLevel || 1));
     const profit = roundCurrency(totalAmount * (vipConfig.profitIncrease / 100));
     // Only the profit is "earned". The task principal is reserved (frozen) while
     // the task is pending and returned to the wallet on completion — it is never
@@ -129,120 +133,182 @@ export async function POST(request) {
     if (feedback !== undefined) updateFields.feedback = feedback;
     if (ratingOption !== undefined) updateFields.ratingOption = ratingOption;
 
-    await db.collection("tasks").updateOne(
-      { _id: task._id },
-      { $set: updateFields }
-    );
-
-    // Return the reserved principal to Main Balance and credit only the profit.
-    const frozenAmount = Number(task.frozenAmount || 0);
-    const balanceBefore = Number(user.availableBalance || 0);
+    // Wrap the claim + balance mutations in a transaction so a partial failure
+    // cannot leave the task completed but the balance uncredited.
+    const session = client.startSession();
+    let claimedTask = null;
     let frozenBalanceAfter = Number(user.frozenBalance || 0);
+    let balanceAfter = Number(user.availableBalance || 0);
+    let setComplete = false;
+    let updatedSet = null;
+    let inviterShareAmount = 0;
+    let inviterTargetUid = null;
+    let inviterBeforeBalance = 0;
+    let inviterAfterBalance = 0;
+    let hadFrozenPrincipal = false;
+    let frozenAmount = Number(task.frozenAmount || 0);
+    let transactionError = null;
 
-    if (frozenAmount > 0) {
-      await db.collection("users").updateOne(
-        { uid },
-        {
-          $inc: {
-            availableBalance: frozenAmount,
-            frozenBalance: -frozenAmount,
-          },
-          $set: { firstTaskStarted: true, updatedAt: new Date() },
+    try {
+      await session.withTransaction(async () => {
+        claimedTask = await db.collection("tasks").findOneAndUpdate(
+          { _id: task._id, status: task.status },
+          { $set: updateFields },
+          { returnDocument: "after", session }
+        );
+
+        if (!claimedTask) {
+          throw new Error("ALREADY_PROCESSED");
         }
-      );
-      await db.collection("tasks").updateOne(
-        { _id: task._id },
-        { $set: { frozenAmount: 0, startedWithoutSubmit: false, updatedAt: new Date() } }
-      );
-      frozenBalanceAfter = roundCurrency(frozenBalanceAfter - frozenAmount);
-    } else {
-      await db.collection("users").updateOne(
-        { uid },
-        { $set: { firstTaskStarted: true, updatedAt: new Date() } }
-      );
+
+        // Return the reserved principal to Main Balance and credit only the profit.
+        if (frozenAmount > 0) {
+          await db.collection("users").updateOne(
+            { uid },
+            {
+              $inc: {
+                availableBalance: frozenAmount,
+                frozenBalance: -frozenAmount,
+              },
+              $set: { firstTaskStarted: true, updatedAt: new Date() },
+            },
+            { session }
+          );
+          await db.collection("tasks").updateOne(
+            { _id: task._id },
+            { $set: { frozenAmount: 0, startedWithoutSubmit: false, updatedAt: new Date() } },
+            { session }
+          );
+          frozenBalanceAfter = roundCurrency(Number(user.frozenBalance || 0) - frozenAmount);
+          hadFrozenPrincipal = true;
+        } else {
+          await db.collection("users").updateOne(
+            { uid },
+            { $set: { firstTaskStarted: true, updatedAt: new Date() } },
+            { session }
+          );
+        }
+
+        // Credit only the profit (this updates totalEarned and resolves any account
+        // freeze state). The principal has already been returned above.
+        await creditUserBalance(uid, profit, { autoResolveFreeze: true, session });
+        const userAfterTask = await getUserByUid(uid, session);
+        balanceAfter = Number(userAfterTask?.availableBalance || 0);
+
+        const balanceBefore = Number(user.availableBalance || 0);
+
+        await createBalanceLog({
+          uid,
+          email: user?.email || "",
+          type: "task_earnings",
+          amount: profit,
+          balanceBefore,
+          balanceAfter,
+          description: `Task completed: ${task.appName || task.title || "Task"} (profit $${profit})`,
+          referenceId: String(task._id),
+          referenceType: "task",
+          metadata: { totalAmount, profit, appName: task.appName },
+          session,
+        });
+
+        // Referral profit sharing: 20% of profit goes to the inviter or parent (for training accounts)
+        const isDemo = user?.isDemoAccount || user?.accountType === "demo" || user?.accountType === "training";
+        const targetUid = user.accountType === "training" ? (user.parentUid || user.inviterUid) : user.inviterUid;
+        if (isDemo && targetUid && profit > 0) {
+          const sharePercent = Number(user?.demoProfitSharePercent || 20);
+          const shareAmount = roundCurrency(profit * sharePercent / 100);
+
+          if (shareAmount > 0) {
+            const inviterBefore = await getUserByUid(targetUid, session);
+            const inviterBalBefore = Number(inviterBefore?.availableBalance || 0);
+
+            await creditUserBalance(targetUid, shareAmount, { autoResolveFreeze: true, session });
+
+            const inviterAfter = await getUserByUid(targetUid, session);
+            const inviterBalAfter = Number(inviterAfter?.availableBalance || 0);
+
+            await db.collection("users").updateOne(
+              { uid },
+              { $inc: { totalDemoProfitShared: shareAmount }, $set: { updatedAt: new Date() } },
+              { session }
+            );
+
+            await createBalanceLog({
+              uid: targetUid,
+              email: inviterBefore?.email || "",
+              type: "referral_commission",
+              amount: shareAmount,
+              balanceBefore: inviterBalBefore,
+              balanceAfter: inviterBalAfter,
+              description: `Referral commission (20% of $${profit} profit from ${user.email || uid})`,
+              referenceId: String(task._id),
+              referenceType: "task",
+              metadata: { sourceUid: uid, sourceEmail: user.email, profit, sharePercent, taskApp: task.appName },
+              session,
+            });
+
+            await db.collection("notifications").insertOne({
+              uid: targetUid,
+              type: "referral_commission",
+              title: "Referral Commission Received!",
+              message: `You earned $${shareAmount.toFixed(2)} commission from your referral's task profit.`,
+              isRead: false,
+              metadata: { amount: shareAmount, sourceUid: uid, sourceEmail: user.email },
+              createdAt: new Date(),
+            }, { session }).catch(() => {});
+
+            inviterShareAmount = shareAmount;
+            inviterTargetUid = targetUid;
+            inviterBeforeBalance = inviterBalBefore;
+            inviterAfterBalance = inviterBalAfter;
+          }
+        }
+
+        // Update task set progress if using set system
+        const updatedSetDoc = await db.collection("userTaskSets").findOneAndUpdate(
+          { uid, setNumber: task.setNumber || 1 },
+          { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
+          { returnDocument: "after", session }
+        ).catch(() => null);
+
+        updatedSet = updatedSetDoc;
+        setComplete = updatedSet
+          ? (updatedSet.completedTasks || 0) >= (updatedSet.totalTasks || getVipTasksPerSet(user.vipLevel))
+          : false;
+
+        if (setComplete && updatedSet) {
+          await markSetCompletedToday(uid, updatedSet.setNumber);
+        }
+      });
+    } catch (err) {
+      if (err?.message === "ALREADY_PROCESSED") {
+        await session.endSession().catch(() => {});
+        return NextResponse.json(
+          { success: false, message: "Task has already been processed." },
+          { status: 409 }
+        );
+      }
+      transactionError = err;
+    } finally {
+      await session.endSession().catch(() => {});
     }
 
-    // Credit only the profit (this updates totalEarned and resolves any account
-    // freeze state). The principal has already been returned above.
-    await creditUserBalance(uid, profit, { autoResolveFreeze: true });
-    const userAfterTask = await getUserByUid(uid);
-    const balanceAfter = Number(userAfterTask?.availableBalance || 0);
+    if (transactionError) {
+      throw transactionError;
+    }
+
+    if (!claimedTask) {
+      return NextResponse.json(
+        { success: false, message: "Task has already been processed." },
+        { status: 409 }
+      );
+    }
 
     // Check VIP eligibility (creates a pending admin request if qualified).
     await evaluateVipEligibility(uid).catch(() => {});
 
-    await createBalanceLog({
-      uid,
-      email: user?.email || "",
-      type: "task_earnings",
-      amount: profit,
-      balanceBefore,
-      balanceAfter,
-      description: `Task completed: ${task.appName || task.title || "Task"} (profit $${profit})`,
-      referenceId: String(task._id),
-      referenceType: "task",
-      metadata: { totalAmount, profit, appName: task.appName },
-    });
-
-    // Referral profit sharing: 20% of profit goes to the inviter or parent (for training accounts)
-    const isDemo = user?.isDemoAccount || user?.accountType === "demo" || user?.accountType === "training";
-    const targetUid = user.accountType === "training" ? (user.parentUid || user.inviterUid) : user.inviterUid;
-    if (isDemo && targetUid && profit > 0) {
-      const sharePercent = Number(user?.demoProfitSharePercent || 20);
-      const shareAmount = roundCurrency(profit * sharePercent / 100);
-
-      if (shareAmount > 0) {
-        const inviterBefore = await getUserByUid(targetUid);
-        const inviterBalBefore = Number(inviterBefore?.availableBalance || 0);
-
-        await creditUserBalance(targetUid, shareAmount, { autoResolveFreeze: true });
-
-        const inviterAfter = await getUserByUid(user.inviterUid);
-        const inviterBalAfter = Number(inviterAfter?.availableBalance || 0);
-
-        await db.collection("users").updateOne(
-          { uid },
-          { $inc: { totalDemoProfitShared: shareAmount }, $set: { updatedAt: new Date() } }
-        );
-
-        await createBalanceLog({
-          uid: targetUid,
-          email: inviterBefore?.email || "",
-          type: "referral_commission",
-          amount: shareAmount,
-          balanceBefore: inviterBalBefore,
-          balanceAfter: inviterBalAfter,
-          description: `Referral commission (20% of $${profit} profit from ${user.email || uid})`,
-          referenceId: String(task._id),
-          referenceType: "task",
-          metadata: { sourceUid: uid, sourceEmail: user.email, profit, sharePercent, taskApp: task.appName },
-        });
-
-        await db.collection("notifications").insertOne({
-          uid: targetUid,
-          type: "referral_commission",
-          title: "Referral Commission Received!",
-          message: `You earned $${shareAmount.toFixed(2)} commission from your referral's task profit.`,
-          isRead: false,
-          metadata: { amount: shareAmount, sourceUid: uid, sourceEmail: user.email },
-          createdAt: new Date(),
-        }).catch(() => {});
-      }
-    }
-
-    // Update task set progress if using set system
-    const updatedSet = await db.collection("userTaskSets").findOneAndUpdate(
-      { uid, setNumber: task.setNumber || 1 },
-      { $inc: { completedTasks: 1, currentPosition: 1 }, $set: { updatedAt: new Date() } },
-      { returnDocument: "after" }
-    ).catch(() => null);
-
-    const setComplete = updatedSet?.value
-      ? (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || getVipTasksPerSet(user.vipLevel))
-      : false;
-
-    if (setComplete && updatedSet?.value) {
-      await markSetCompletedToday(uid, updatedSet.value.setNumber);
+    if (setComplete && updatedSet) {
+      // already marked
     }
 
     return NextResponse.json({
@@ -256,7 +322,16 @@ export async function POST(request) {
       balanceAfter,
     });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || 'Failed to complete task' }, { status: 500 });
+    const status =
+      error instanceof Error && 'status' in error && typeof error.status === 'number'
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error('Failed to complete task:', error);
+    }
+
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }
 

@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const assigneeUid = searchParams.get("assigneeUid");
     const filterType = searchParams.get("filterType") || "all";
@@ -47,15 +51,25 @@ export async function GET(request) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch tasks:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch tasks." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { appName, appLogo, totalAmount, description, submissionConfig, taskGroupId } = body;
 
@@ -107,9 +121,16 @@ export async function POST(request) {
       task: { ...task, _id: result.insertedId },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Task creation failed:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Task creation failed." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

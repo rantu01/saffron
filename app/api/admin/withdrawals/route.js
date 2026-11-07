@@ -1,34 +1,49 @@
 import { NextResponse } from "next/server";
-import { getAllWithdrawals, updateWithdrawalStatus, getWithdrawalById } from "@/lib/withdrawalModel";
+import { getWithdrawalsPage, updateWithdrawalStatus, getWithdrawalById, reopenWithdrawalStatus } from "@/lib/withdrawalModel";
 import { canUserWithdraw, debitUserBalance, getUserByUid, resolveFrozenBalanceState } from "@/lib/userModel";
 import { createBalanceLog } from "@/lib/balanceLog";
 import { createNotification } from "@/lib/notificationModel";
 import { publishRealtime } from "@/lib/realtimeHub";
 import { getWhatsAppSettings } from "@/lib/whatsappSettingsModel";
 import { sendWithdrawalApproved, sendWithdrawalRejected } from "@/lib/whatsappService";
+import { requireAdminUser, requireFirebaseAuth } from "@/lib/apiAuth";
+import { createActivityLog } from "@/lib/activityLog";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
+    const page = searchParams.get("page") || "1";
+    const limit = searchParams.get("limit") || "50";
 
-    const withdrawals = await getAllWithdrawals();
-    
-    const filtered = status ? withdrawals.filter(w => w.status === status) : withdrawals;
+    const result = await getWithdrawalsPage({ status, page, limit });
 
-    return NextResponse.json({ success: true, withdrawals: filtered });
+    return NextResponse.json({ success: true, withdrawals: result.withdrawals, total: result.total, page: result.page, limit: result.limit });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch withdrawals:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch withdrawals" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function PATCH(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
-    const { withdrawalId, status, approverUid, rejectionReason } = body;
+    const { withdrawalId, status, rejectionReason } = body;
 
     if (!withdrawalId || !status) {
       return NextResponse.json(
@@ -52,7 +67,12 @@ export async function PATCH(request) {
       );
     }
 
+    const client = await clientPromise;
+    const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+
     let updatedUser = null;
+    let result;
+    let transactionError = null;
 
     if (status === "approved") {
       const user = await getUserByUid(withdrawal.uid);
@@ -79,25 +99,73 @@ export async function PATCH(request) {
         );
       }
 
-      const balanceBefore = Number(resolvedUser.availableBalance || 0);
-      await debitUserBalance(withdrawal.uid, withdrawal.amount, { autoResolveFreeze: false });
-      updatedUser = await getUserByUid(withdrawal.uid);
+      const session = client.startSession();
+      try {
+        await session.withTransaction(async () => {
+          result = await updateWithdrawalStatus(withdrawalId, status, authContext.uid, rejectionReason, session);
+          if (!result) {
+            throw new Error("ALREADY_PROCESSED");
+          }
 
-      await createBalanceLog({
-        uid: withdrawal.uid,
-        email: withdrawal.email || user.email,
-        type: "withdrawal",
-        amount: -Math.abs(withdrawal.amount),
-        balanceBefore,
-        balanceAfter: Number(updatedUser?.availableBalance || 0),
-        description: `Withdrawal approved: $${withdrawal.amount}`,
-        referenceId: withdrawalId,
-        referenceType: "withdrawal",
-        metadata: { approverUid, walletAddress: withdrawal.walletAddress },
-      });
+          const balanceBefore = Number(resolvedUser.availableBalance || 0);
+          const debitedUser = await debitUserBalance(withdrawal.uid, withdrawal.amount, {
+            autoResolveFreeze: false,
+            requireSufficientBalance: true,
+            session,
+          });
+
+          if (!debitedUser) {
+            throw new Error("INSUFFICIENT_BALANCE");
+          }
+
+          updatedUser = await getUserByUid(withdrawal.uid, session);
+
+          await createBalanceLog({
+            uid: withdrawal.uid,
+            email: withdrawal.email || user.email,
+            type: "withdrawal",
+            amount: -Math.abs(withdrawal.amount),
+            balanceBefore,
+            balanceAfter: Number(updatedUser?.availableBalance || 0),
+            description: `Withdrawal approved: $${withdrawal.amount}`,
+            referenceId: withdrawalId,
+            referenceType: "withdrawal",
+            metadata: { approverUid: authContext.uid, walletAddress: withdrawal.walletAddress },
+            session,
+          });
+        });
+      } catch (err) {
+        if (err?.message === "ALREADY_PROCESSED") {
+          await session.endSession().catch(() => {});
+          return NextResponse.json(
+            { success: false, message: "This withdrawal has already been processed." },
+            { status: 409 }
+          );
+        }
+        if (err?.message === "INSUFFICIENT_BALANCE") {
+          await session.endSession().catch(() => {});
+          return NextResponse.json(
+            { success: false, message: "Insufficient user balance" },
+            { status: 400 }
+          );
+        }
+        transactionError = err;
+      } finally {
+        await session.endSession().catch(() => {});
+      }
+
+      if (transactionError) {
+        throw transactionError;
+      }
+    } else {
+      result = await updateWithdrawalStatus(withdrawalId, status, authContext.uid, rejectionReason);
+      if (!result) {
+        return NextResponse.json(
+          { success: false, message: "This withdrawal has already been processed." },
+          { status: 409 }
+        );
+      }
     }
-
-    const result = await updateWithdrawalStatus(withdrawalId, status, approverUid, rejectionReason);
 
     try {
       await createNotification({
@@ -126,11 +194,38 @@ export async function PATCH(request) {
       }
     }
 
-    return NextResponse.json({ success: true, withdrawal: result.value });
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: status === "approved" ? "withdrawal.approve" : "withdrawal.reject",
+        targetType: "withdrawal",
+        targetId: withdrawalId,
+        targetSnapshot: { uid: withdrawal?.uid, amount: withdrawal?.amount },
+        before: { status: "pending" },
+        after: { status },
+        reason: rejectionReason || "",
+        metadata: { withdrawalId },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
+
+    return NextResponse.json({ success: true, withdrawal: result });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to update withdrawal:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to update withdrawal" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

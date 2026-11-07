@@ -3,9 +3,15 @@ import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
 import { getVipTasksPerSet } from "@/lib/vipModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
+
+const DB_NAME = process.env.MONGODB_DB_NAME || "saffron";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { uid, setNumber = 1, tasks } = body;
 
@@ -19,7 +25,7 @@ export async function POST(request) {
     const combinationPositions = generateCombinationPositions();
 
     const client = await clientPromise;
-    const db = client.db("saffron");
+    const db = client.db(DB_NAME);
 
     const userDoc = await db.collection("users").findOne({ uid }, { projection: { vipLevel: 1, vipTasksPerSet: 1 } });
     const expectedTasks = Number(userDoc?.vipTasksPerSet || getVipTasksPerSet(userDoc?.vipLevel));
@@ -63,15 +69,25 @@ export async function POST(request) {
       taskCount: result.insertedIds.length,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create task set:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to create task set" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const uid = searchParams.get("uid");
     const setNumber = searchParams.get("setNumber");
@@ -84,7 +100,7 @@ export async function GET(request) {
     }
 
     const client = await clientPromise;
-    const db = client.db("saffron");
+    const db = client.db(DB_NAME);
 
     const query = { assigneeUid: uid };
     if (setNumber) query.setNumber = Number(setNumber);
@@ -97,9 +113,16 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, tasks });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch tasks:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch tasks" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

@@ -32,7 +32,7 @@ export async function POST(request) {
     return NextResponse.json({ success: true, message: "Invitation code is valid." });
   } catch (error) {
     return NextResponse.json(
-      { success: false, message: error.message || "Validation failed." },
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
       { status: 500 }
     );
   }

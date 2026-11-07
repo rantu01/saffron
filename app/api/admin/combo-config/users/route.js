@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getComboConfig } from "@/lib/comboTaskModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -130,9 +134,16 @@ export async function GET(request) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch users:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch users." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

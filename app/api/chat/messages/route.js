@@ -3,6 +3,8 @@ import { sendMessage, getMessages, getNewMessages } from "@/lib/chatModel";
 import { createNotification } from "@/lib/notificationModel";
 import { publishRealtime } from "@/lib/realtimeHub";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth, ApiError } from "@/lib/apiAuth";
+import { normalizeRole } from "@/lib/roles";
 
 async function getAdminUids() {
   try {
@@ -21,6 +23,9 @@ async function getAdminUids() {
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    const isAdmin = normalizeRole(authContext.user?.role) === "admin";
+
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get("conversationId");
     const afterId = searchParams.get("afterId");
@@ -33,6 +38,10 @@ export async function GET(request) {
       );
     }
 
+    if (!isAdmin && conversationId !== authContext.uid) {
+      throw new ApiError(403, "You can only read your own conversation.");
+    }
+
     let messages;
     if (afterId) {
       messages = await getNewMessages({ conversationId, afterId });
@@ -42,24 +51,39 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, messages });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch messages." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { conversationId, senderUid, senderRole, senderName, message, imageUrl } = body;
+    const authContext = await requireFirebaseAuth(request);
+    const isAdmin = normalizeRole(authContext.user?.role) === "admin";
 
-    if (!conversationId || !senderUid || !senderRole) {
+    const body = await request.json();
+    const { senderName, message, imageUrl } = body;
+    let conversationId = body.conversationId;
+
+    if (!isAdmin) {
+      conversationId = authContext.uid;
+    }
+
+    if (!conversationId) {
       return NextResponse.json(
-        { success: false, message: "conversationId, senderUid, and senderRole are required." },
+        { success: false, message: "conversationId is required." },
         { status: 400 }
       );
     }
+
+    const senderUid = authContext.uid;
+    const senderRole = isAdmin ? "admin" : "user";
 
     if (!imageUrl && !message?.trim()) {
       return NextResponse.json(
@@ -130,9 +154,13 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, message: msg }, { status: 201 });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to send message." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

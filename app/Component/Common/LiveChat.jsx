@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
 import { MessageCircle, X, Send, Loader2, ImagePlus } from 'lucide-react';
+import { getAuthToken } from '@/lib/clientAuth';
 import { playNotificationSound } from './notificationSound';
 import { pushRealtimeToast } from './RealtimeToasts';
 
@@ -91,10 +92,12 @@ export default function LiveChat({ inline = false }) {
     if (!user?.uid || typeof window === 'undefined' || !('EventSource' in window)) return;
     let stopped = false;
     let es = null;
-    function connect() {
+    async function connect() {
       if (stopped) return;
       try {
-        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(user.uid)}`);
+        const token = await getAuthToken();
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(user.uid)}${tokenParam}`);
         es.addEventListener('counts', (e) => {
           try {
             const data = JSON.parse(e.data);

@@ -10,29 +10,47 @@ function generateCode(length = 8) {
   return result;
 }
 
-export async function GET() {
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
+
+export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
-    const invitations = await db
-      .collection("invitationCodes")
-      .find({})
-      .sort({ createdAt: -1 })
-      .limit(100)
-      .toArray();
+    const { searchParams } = new URL(request.url);
+    const page = Math.max(1, Number(searchParams.get("page") || "1"));
+    const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit") || "100")));
+    const skip = (page - 1) * limit;
 
-    return NextResponse.json({ success: true, invitations });
+    const [invitations, total] = await Promise.all([
+      db.collection("invitationCodes").find({}).sort({ createdAt: -1 }).skip(skip).limit(limit).toArray(),
+      db.collection("invitationCodes").countDocuments({}),
+    ]);
+
+    return NextResponse.json({ success: true, invitations, total, page, limit });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch invitation codes:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch invitation codes." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json().catch(() => ({}));
     const createdByUid = typeof body.createdByUid === "string" ? body.createdByUid : "";
     const createdByEmail = typeof body.createdByEmail === "string" ? body.createdByEmail : "";
@@ -91,9 +109,16 @@ export async function POST(request) {
       message: "Invitation code generated.",
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to generate invitation code:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to generate invitation code." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

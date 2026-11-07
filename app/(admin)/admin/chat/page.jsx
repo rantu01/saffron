@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { getAuthToken } from "@/lib/clientAuth";
 import { useAdminNotificationCounts } from "@/app/(admin)/admin/components/AdminNotificationContext";
 import { playNotificationSound } from "@/app/Component/Common/notificationSound";
 import { pushRealtimeToast } from "@/app/Component/Common/RealtimeToasts";
@@ -91,11 +92,13 @@ export default function AdminChatPage() {
     if (typeof window === "undefined" || !("EventSource" in window)) return;
     let stopped = false;
     let es = null;
-    function connect() {
+    async function connect() {
       if (stopped) return;
       try {
         const params = new URLSearchParams({ role: "admin" });
         if (user?.uid) params.set("uid", user.uid);
+        const token = await getAuthToken();
+        if (token) params.set("token", token);
         es = new EventSource(`/api/realtime/stream?${params.toString()}`);
         es.addEventListener("chat-message", (e) => {
           try {

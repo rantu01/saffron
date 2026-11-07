@@ -4,11 +4,15 @@ import { ObjectId } from "mongodb";
 import { completeComboOrder, creditComboCommission } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus, markSetCompletedToday } from "@/lib/taskSetModel";
 import { evaluateVipEligibility, getVipTasksPerSet } from "@/lib/vipModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { comboId, uid } = body;
+    const { comboId } = body;
+    const uid = authContext.uid;
 
     if (!comboId || !uid) {
       return NextResponse.json({ success: false, message: "comboId and uid required" }, { status: 400 });
@@ -107,7 +111,7 @@ export async function POST(request) {
             { returnDocument: "after" }
           );
 
-          if (updatedSet?.value && (updatedSet.value.completedTasks || 0) >= (updatedSet.value.totalTasks || getVipTasksPerSet(comboVipLevel))) {
+          if (updatedSet && (updatedSet.completedTasks || 0) >= (updatedSet.totalTasks || getVipTasksPerSet(comboVipLevel))) {
             await markSetCompletedToday(uid, combo.setNumber);
           }
         }
@@ -131,9 +135,18 @@ export async function POST(request) {
       nextOrder: result.nextOrder,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to complete combo order:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to complete order" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

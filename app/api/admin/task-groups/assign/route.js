@@ -5,9 +5,14 @@ import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions } from "@/lib/taskModel";
 import { computeTaskProfit, generateNormalTaskAmount } from "@/lib/comboTaskModel";
 import { getVipTasksPerSet } from "@/lib/vipModel";
+import { requireAdminUser, requireFirebaseAuth } from "@/lib/apiAuth";
+import { createActivityLog } from "@/lib/activityLog";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { groupId, assigneeUid, assigneeEmail } = body;
 
@@ -109,7 +114,16 @@ export async function POST(request) {
       .findOne({ uid: assigneeUid }, { sort: { setNumber: -1 } });
     const nextSetNumber = (lastSet?.setNumber || 0) + 1;
 
-    const DAILY_GROUP_LIMIT = 3;
+    // Resolve the daily group limit from the user's VIP level (centralized config),
+    // falling back to the approved VIP matrix default.
+    let dailyGroupLimit = 3;
+    try {
+      const assigneeUser = await db.collection("users").findOne({ uid: assigneeUid }, { projection: { vipLevel: 1 } });
+      const { getVipTaskConfig } = await import("@/lib/vipModel");
+      const cfg = await getVipTaskConfig(Number(assigneeUser?.vipLevel || 1));
+      if (cfg && cfg.dailyGroupLimit) dailyGroupLimit = Number(cfg.dailyGroupLimit);
+    } catch (e) {}
+    const DAILY_GROUP_LIMIT = dailyGroupLimit;
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
@@ -194,6 +208,24 @@ export async function POST(request) {
       .collection("groupAssignments")
       .countDocuments({ assigneeUid, assignedAt: { $gte: startOfToday } });
 
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: "taskgroup.assign",
+        targetType: "taskGroup",
+        targetId: groupId,
+        targetSnapshot: { groupId, groupName: group.name, assigneeUid },
+        before: null,
+        after: { assigneeUid, setNumber: nextSetNumber, count: insertedTasks.length },
+        reason: "",
+        metadata: { groupId, assigneeUid },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
+
     return NextResponse.json({
       success: true,
       message: `Group "${group.name}" assigned with ${insertedTasks.length} tasks.`,
@@ -204,9 +236,18 @@ export async function POST(request) {
       dailyLimit: DAILY_GROUP_LIMIT,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to group assignment:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Group assignment failed." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

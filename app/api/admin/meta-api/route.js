@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { getMetaSettings, updateMetaSettings } from "@/lib/metaSettingsModel";
 import { testConnection } from "@/lib/metaApiService";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const settings = await getMetaSettings();
     const safe = settings ? {
       businessManagerId: settings.businessManagerId || "",
@@ -15,12 +19,25 @@ export async function GET() {
     } : null;
     return NextResponse.json({ success: true, settings: safe });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch meta settings:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }
 
 export async function PUT(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { businessManagerId, appId, accessToken, autoSpendCapUpdate, autoSyncEnabled } = body;
 
@@ -33,13 +50,34 @@ export async function PUT(request) {
 
     const result = await updateMetaSettings(updates);
 
+    const safe = result
+      ? {
+          businessManagerId: result.businessManagerId || "",
+          appId: result.appId || "",
+          autoSpendCapUpdate: result.autoSpendCapUpdate || false,
+          autoSyncEnabled: result.autoSyncEnabled || false,
+          updatedAt: result.updatedAt || null,
+          hasAccessToken: Boolean(result.accessToken),
+        }
+      : null;
+
     if (accessToken || businessManagerId) {
       const test = await testConnection();
-      return NextResponse.json({ success: true, settings: result, connectionTest: test });
+      return NextResponse.json({ success: true, settings: safe, connectionTest: test });
     }
 
-    return NextResponse.json({ success: true, settings: result });
+    return NextResponse.json({ success: true, settings: safe });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to update meta settings:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }

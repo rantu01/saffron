@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getOverviewReport, getFinancialReport, getUserActivityReport, getAdSpendReport } from "@/lib/reportService";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "overview";
     const period = searchParams.get("period") || "daily";
@@ -29,6 +33,13 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch report:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { deleteUserRelatedData } from "@/lib/userCleanup";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get('uid');
-    if (!uid) return NextResponse.json({ success: false, message: 'uid required' }, { status: 400 });
+    const uid = authContext.uid;
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || 'saffron');
@@ -15,15 +17,20 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, user });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || 'Failed' }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }
 
 export async function PATCH(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
     const body = await request.json();
-    const { uid, displayName, avatarUrl, phoneNumber, username, walletAddress, walletNetwork } = body;
-    if (!uid) return NextResponse.json({ success: false, message: 'uid required' }, { status: 400 });
+    const { displayName, avatarUrl, phoneNumber, username, walletAddress, walletNetwork, preferredLanguage } = body;
+    const uid = authContext.uid;
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || 'saffron');
@@ -34,6 +41,7 @@ export async function PATCH(request) {
     if (typeof phoneNumber === 'string') update.phoneNumber = phoneNumber;
     if (typeof walletAddress === 'string') update.walletAddress = walletAddress.trim();
     if (typeof walletNetwork === 'string' && walletNetwork.trim()) update.walletNetwork = walletNetwork.trim();
+    if (typeof preferredLanguage === 'string' && ['en', 'fr', 'es'].includes(preferredLanguage)) update.preferredLanguage = preferredLanguage;
 
     if (typeof username === 'string' && username.trim()) {
       const normalizedUsername = username.trim().toLowerCase();
@@ -54,15 +62,19 @@ export async function PATCH(request) {
 
     return NextResponse.json({ success: true, message: 'Profile updated' });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || 'Failed' }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }
 
 export async function DELETE(request) {
   try {
-    const body = await request.json();
-    const { uid } = body;
-    if (!uid) return NextResponse.json({ success: false, message: 'uid required' }, { status: 400 });
+    const authContext = await requireFirebaseAuth(request);
+    const body = await request.json().catch(() => ({}));
+    const uid = authContext.uid;
 
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || 'saffron');
@@ -71,14 +83,18 @@ export async function DELETE(request) {
     if (!user) return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
 
     await db.collection('users').deleteOne({ uid });
-    await db.collection('tasks').deleteMany({ assigneeUid: uid });
-    await db.collection('deposits').deleteMany({ uid });
-    await db.collection('withdrawals').deleteMany({ uid });
-    await db.collection('userTaskSets').deleteMany({ uid });
-    await db.collection('balanceLogs').deleteMany({ uid });
+
+    const { failed } = await deleteUserRelatedData(db, uid);
+    if (failed.length) {
+      console.error(`Related data cleanup incomplete for ${uid}:`, failed);
+    }
 
     return NextResponse.json({ success: true, message: 'Account deleted' });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || 'Failed' }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

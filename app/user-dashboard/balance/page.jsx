@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 
 const NETWORKS = [
@@ -15,6 +16,7 @@ const NETWORKS = [
 
 export default function BalancePage() {
 	const { user, loading } = useAuth();
+	const { t } = useLanguage();
 	const [balance, setBalance] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState("");
@@ -94,7 +96,7 @@ export default function BalancePage() {
 	if (!user) {
 		return (
 			<div className="px-4 py-8">
-				<h1 className="text-2xl font-semibold">Available Balance</h1>
+				<h1 className="text-2xl font-semibold">{t("balance.title")}</h1>
 				<p className="mt-2 text-slate-600">Please login to view your balance.</p>
 			</div>
 		);
@@ -102,7 +104,7 @@ export default function BalancePage() {
 
 	return (
 		<div className="max-w-4xl mx-auto px-4 py-8">
-			<h1 className="text-2xl font-semibold">Available Balance</h1>
+			<h1 className="text-2xl font-semibold">{t("balance.title")}</h1>
 			{error && <p className="mt-2 text-red-600">{error}</p>}
 
 			<div className="mt-4 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">

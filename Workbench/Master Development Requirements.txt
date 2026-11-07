@@ -1,0 +1,834 @@
+# MASTER DEVELOPMENT REQUIREMENTS
+## Saffron Edge – Backend Optimization, User Management, Combined Task Management, VIP Configuration & Terms Acceptance System
+
+**Project:** Saffron Edge  
+**Development Environment:** Existing project repository  
+**Development Approach:** Incremental, Phase-Based Implementation  
+**Primary Objective:** Improve the existing system without breaking existing functionality, data, business logic, or user workflows.
+
+---
+
+# IMPORTANT DEVELOPMENT INSTRUCTIONS
+
+Before making any changes, thoroughly analyze the entire existing project, including its frontend, backend, database structure, API routes, authentication system, user roles, task management logic, financial transactions, and existing admin functionality.
+
+The original Terms & Conditions document is located at:
+
+`D:\Code\Project\Office Work\Task Base Website\saffronedge\Workbench\Terms & Conditions.txt`
+
+**This document is the primary reference for all business rules and Terms & Conditions.**
+
+Read and understand the complete document before implementing any VIP-related functionality or creating the new Terms & Conditions page.
+
+Do not assume business rules, invent missing information, or introduce conflicting configurations.
+
+If any requirement in this specification conflicts with the original Terms & Conditions document or the existing business logic, identify the conflict, document it, and resolve it based on the original source of truth. Do not silently make assumptions.
+
+## Development Rules
+
+1. Preserve the existing project architecture, design system, authentication flow, database structure, and working functionality wherever possible.
+2. Do not unnecessarily rewrite existing modules or replace working implementations.
+3. Do not delete, reset, overwrite, or modify existing production data.
+4. Do not introduce dummy data, sample users, fake transactions, or placeholder business logic.
+5. All new functionality must use real database records and properly validated backend APIs.
+6. Maintain consistency between frontend interfaces, backend logic, database records, and admin configurations.
+7. Ensure proper authentication, authorization, input validation, error handling, and security.
+8. All financial operations must be accurate, traceable, and protected against duplicate execution.
+9. Every new feature must work responsively across mobile, tablet, and desktop devices.
+10. Implement changes incrementally and verify each phase before proceeding to the next.
+
+---
+
+# 1. Overall Backend System Optimization
+
+Optimize the entire backend system to improve performance, reliability, scalability, and response times.
+
+### Requirements
+
+- Analyze the existing backend architecture and identify performance bottlenecks.
+- Optimize API response times and database queries.
+- Improve MongoDB query efficiency, indexing, and connection management where necessary.
+- Eliminate unnecessary database requests and redundant processing.
+- Optimize authentication, authorization, and session management.
+- Improve error handling and backend stability.
+- Optimize resource consumption and server performance.
+- Ensure efficient processing of concurrent user requests.
+- Prevent unnecessary API calls and repeated database operations.
+- Ensure consistent performance across mobile, tablet, and desktop clients.
+
+**Important:** Do not perform unnecessary database migrations or structural changes. Any required database changes must be carefully planned and backward-compatible.
+
+---
+
+# 2. User Account and Resource Management
+
+Implement a comprehensive User Account Management system that allows administrators to manage individual user accounts and their associated resources directly from the admin panel.
+
+### 2.1 User Account Management
+
+Administrators must be able to:
+
+- View complete user account information.
+- Access and manage individual user accounts.
+- View account status and verification status.
+- View assigned VIP levels.
+- View account-related information and activity.
+- Manage account status where authorized.
+- Access the user's complete account history.
+
+### 2.2 Manual Balance Management
+
+Provide administrators with the ability to manually adjust individual user balances.
+
+Required operations:
+
+- Credit: Add funds to a user's balance.
+- Deduct: Subtract funds from a user's balance.
+- Display the current available balance.
+- Record the adjustment amount.
+- Require an adjustment reason.
+- Display the administrator responsible for the adjustment.
+- Record the exact date and time of each adjustment.
+
+Every balance adjustment must be processed securely and recorded as an auditable financial transaction.
+
+Balance adjustments must never silently overwrite previous transaction records.
+
+### 2.3 IP Address Tracking
+
+Provide administrators with access to user IP information.
+
+Requirements:
+
+- Record the IP address associated with login events.
+- Display the IP address in the user's account details.
+- Maintain historical IP records.
+- Associate each IP address with its corresponding login event and timestamp.
+
+### 2.4 Complete Login History
+
+Create a detailed login history for every user.
+
+Each login record should contain:
+
+- Login date.
+- Login timestamp.
+- IP address.
+- Relevant device or browser information, where available.
+- Login status (Successful or Failed), where supported.
+
+Administrators must be able to review the complete login history of individual users.
+
+### 2.5 Complete Administrative Activity Logs
+
+Maintain a comprehensive audit log of all important administrative and account-related operations.
+
+Record the following information for every relevant action:
+
+- Who performed the action.
+- Which user or resource was affected.
+- What action was performed.
+- Previous value, where applicable.
+- New value, where applicable.
+- Exact date and time.
+- Relevant reason or description.
+- Associated transaction or resource reference, where applicable.
+
+This must include:
+
+- User account modifications.
+- Balance credits and deductions.
+- VIP level changes.
+- Task configuration changes.
+- Combined Task modifications.
+- Account status changes.
+- Other important administrative operations.
+
+Audit records must be preserved and must not be silently overwritten or deleted through ordinary administrative operations.
+
+---
+
+# 3. Advanced Combined Task Management
+
+Implement an advanced Combined Task Management system that allows administrators to configure multiple Combined Tasks at different task positions simultaneously.
+
+### 3.1 Multiple Combined Task Positions
+
+The backend must support multiple independently configured Combined Tasks within the same task sequence.
+
+Example configuration:
+
+| Combined Task | Task Position |
+|---|---:|
+| Combined Task 1 | 6 |
+| Combined Task 2 | 9 |
+| Combined Task 3 | 14 |
+| Combined Task 4 | 16 |
+| Combined Task 5 | 18 |
+
+The system must automatically trigger the next configured Combined Task when the user reaches its assigned task position.
+
+### 3.2 Automatic Task Triggering
+
+Expected workflow:
+
+1. The user starts completing their assigned tasks.
+2. When the user completes Task 6, the next configured Combined Task is triggered at Task 9.
+3. After completing the relevant task sequence, the next Combined Task is triggered at Task 14.
+4. The same process continues for Task 16.
+5. Finally, the Combined Task assigned to Task 18 is triggered.
+
+The system must follow the configured task positions and execution order.
+
+### 3.3 Dynamic Backend Configuration
+
+Administrators must be able to:
+
+- Add multiple Combined Tasks.
+- Edit existing Combined Task configurations.
+- Modify task positions.
+- Rearrange the execution order.
+- Update upcoming Combined Tasks.
+- Remove or disable future Combined Task configurations where appropriate.
+- Manage pending Combined Tasks independently.
+
+### 3.4 Modify Upcoming Tasks During Execution
+
+A particularly important requirement is that administrators must be able to modify the remaining Combined Tasks even after the first Combined Task has already been completed.
+
+For example:
+
+If a user has completed the Combined Task at position 6, an administrator must still be able to modify the configurations or positions of the remaining Combined Tasks at positions 9, 14, 16, and 18.
+
+Changes must be applied according to a clearly defined effective time and execution state.
+
+The system must maintain an accurate record of:
+
+- Previous configuration.
+- Updated configuration.
+- Administrator responsible.
+- Modification timestamp.
+- Effective timestamp.
+- Affected task positions.
+
+### 3.5 Data Integrity and Task History Protection
+
+**Critical Requirement:**
+
+Modifying upcoming Combined Tasks must never negatively affect:
+
+- Tasks already completed by users.
+- Existing user account balances.
+- Previous financial transactions.
+- Historical task completion records.
+- Previously generated transaction references.
+
+Completed tasks must remain immutable from the perspective of historical records.
+
+Future configuration changes must only affect eligible pending tasks.
+
+Use appropriate database transactions, atomic updates, versioning, or other safeguards where necessary to prevent inconsistent task states.
+
+---
+
+# 4. Homepage Language Selection
+
+Implement a language selection feature that allows users to change the website language both before and after logging in.
+
+### Supported Languages
+
+1. English
+2. French
+3. Spanish
+
+### Requirements
+
+- Add a language selector to the homepage.
+- Make language selection available before login.
+- Keep language selection accessible after login.
+- Display relevant website content in the selected language.
+- Maintain the selected language during navigation.
+- Persist the language preference appropriately.
+- Ensure that translated content remains consistent across all relevant pages.
+
+The implementation must be scalable so that additional languages can be introduced in the future without rewriting the entire translation system.
+
+---
+
+# 5. VIP Levels, Terms & Conditions, and Task Configuration
+
+Implement a flexible VIP management system with independent Terms & Conditions and task configurations for each VIP level.
+
+Administrators must be able to assign VIP levels to individual users and manage their associated task configurations through the admin panel.
+
+## 5.1 VIP-1 – Beginner Level
+
+Configuration:
+
+- Maximum Properties Order Groups per day: 3
+- Tasks per Properties Order Group: 20
+- Declared Profit Rate per Transaction: 0.5%
+- Withdrawal Policy: Multiple withdrawal requests per day are permitted, subject to the applicable withdrawal requirements.
+
+## 5.2 VIP-2 – Advanced Level
+
+Configuration:
+
+- Maximum Properties Order Groups per day: 4
+- Tasks per Properties Order Group: 25
+- Declared Profit Rate per Transaction: 0.6%
+- Withdrawal Policy: Multiple withdrawal requests per day are permitted, subject to the applicable withdrawal requirements.
+
+## 5.3 VIP-3 – Expert Level
+
+Configuration:
+
+- Maximum Properties Order Groups per day: 5
+- Tasks per Properties Order Group: 35
+- Declared Profit Rate per Transaction: 0.8%
+- Withdrawal Policy: Multiple withdrawal requests per day are permitted, subject to the applicable withdrawal requirements.
+
+## 5.4 VIP-4 – Master Level
+
+Configuration:
+
+- Maximum Properties Order Groups per day: 6
+- Tasks per Properties Order Group: 60
+- Declared Profit Rate per Transaction: 1%
+- Withdrawal Policy: Multiple withdrawal requests per day are permitted, subject to the applicable withdrawal requirements.
+
+### 5.5 Centralized VIP Configuration Management
+
+Do not hardcode VIP configurations throughout the application.
+
+Create a centralized and database-driven configuration system.
+
+Administrators should be able to manage:
+
+- VIP level names.
+- VIP descriptions.
+- Daily Properties Order Group limits.
+- Tasks per group.
+- Declared profit rates.
+- Applicable withdrawal requirements.
+- VIP-specific Terms & Conditions.
+- Associated task configurations.
+- VIP availability or activation status.
+
+All configurations must be editable from the backend without requiring code changes for ordinary configuration updates.
+
+### 5.6 User-Specific VIP Assignment
+
+Administrators must be able to:
+
+- Assign a VIP level to an individual user.
+- Change a user's VIP level.
+- View the user's current VIP configuration.
+- Ensure the correct task limits and rules are applied.
+- Maintain a history of VIP assignment changes.
+
+VIP configuration changes must not retroactively alter completed tasks or historical transactions.
+
+Where configuration changes affect active users, define and enforce a clear effective-time policy.
+
+---
+
+# 6. Complete Terms & Conditions Page and User Acceptance System
+
+Create a complete, professional, and responsive Terms & Conditions page.
+
+The original Terms & Conditions document must be treated as the primary source of truth:
+
+`D:\Code\Project\Office Work\Task Base Website\saffronedge\Workbench\Terms & Conditions.txt`
+
+### 6.1 Terms & Conditions Content
+
+Carefully review the complete original document and incorporate all applicable information into the new Terms & Conditions system.
+
+The new page must include all relevant:
+
+- General Terms & Conditions.
+- VIP-1 rules.
+- VIP-2 rules.
+- VIP-3 rules.
+- VIP-4 rules.
+- Properties Order Group limits.
+- Task limits.
+- Declared profit rates.
+- Withdrawal requirements and policies.
+- Other applicable conditions specified in the original document.
+
+Do not omit important clauses from the original document.
+
+Do not invent additional financial conditions, withdrawal restrictions, profit guarantees, or business rules.
+
+If any information is unclear or conflicts with the requirements in this specification, document it for review rather than making assumptions.
+
+### 6.2 Registration Acceptance Workflow
+
+Implement the following registration process:
+
+1. A new user initiates the Sign Up process.
+2. The user is presented with the Terms & Conditions page.
+3. The complete Terms & Conditions must be accessible before account creation.
+4. An acceptance checkbox must be displayed at the bottom of the page.
+5. The user must explicitly accept the Terms & Conditions.
+6. Without acceptance, the user must not be able to proceed with registration or create a Work Account.
+7. After acceptance, the user can continue the registration process.
+
+Acceptance must be validated on the backend, not just through frontend checkbox validation.
+
+### 6.3 Acceptance Record Management
+
+For every acceptance, store:
+
+- User ID.
+- Accepted Terms & Conditions version.
+- Acceptance date.
+- Acceptance timestamp.
+- Relevant acceptance status.
+
+The acceptance record must be associated with the corresponding user account.
+
+### 6.4 Terms & Conditions Version Management
+
+Implement a version-based Terms & Conditions management system.
+
+Requirements:
+
+- Maintain identifiable document versions.
+- Store the complete content of each published version.
+- Preserve previous versions.
+- Record which version each user accepted.
+- Detect when a new version has been published.
+- Require users to accept the latest applicable version when necessary.
+- Prevent users from continuing to restricted Work Account functionality until required acceptance is completed.
+
+Previous acceptance records must remain available for auditing.
+
+### 6.5 Professional UI/UX Requirements
+
+The Terms & Conditions page must have a clean, modern, professional design.
+
+Design requirements:
+
+- Clear page title and section headings.
+- Proper content hierarchy.
+- Readable typography.
+- Consistent spacing.
+- Clearly separated VIP sections.
+- Visually distinguishable important conditions.
+- Accessible acceptance checkbox.
+- Clear acceptance action.
+- Responsive layout for mobile, tablet, and desktop.
+
+The page must integrate naturally with the existing Saffron Edge design system.
+
+---
+
+# 7. Original Terms & Conditions Document Review
+
+Before implementing VIP-related functionality:
+
+1. Open and read the complete original `Terms & Conditions.txt` file.
+2. Extract all relevant business rules and conditions.
+3. Identify every VIP level and its associated requirements.
+4. Identify all task-related conditions.
+5. Identify all financial and withdrawal-related rules.
+6. Compare the extracted information against this specification.
+7. Identify missing, conflicting, or ambiguous information.
+8. Create a documented source-of-truth reference for implementation.
+
+Do not begin implementing VIP rules until this review is complete.
+
+The final implementation must maintain consistency between:
+
+- Original Terms & Conditions.
+- New Terms & Conditions page.
+- VIP configuration records.
+- Backend business logic.
+- User task assignments.
+- Withdrawal validation.
+- Admin panel configuration.
+
+---
+
+# 8. Admin Panel and Future Configuration Flexibility
+
+The overall backend architecture must be designed so that administrators can control the system without requiring developers to modify source code for routine business configuration changes.
+
+The admin panel should eventually support centralized management of:
+
+- User accounts.
+- User balances.
+- User IP and login history.
+- Administrative audit logs.
+- VIP levels.
+- VIP-specific Terms & Conditions.
+- Properties Order Group limits.
+- Tasks per group.
+- Profit rates.
+- Withdrawal requirements.
+- Combined Task configurations.
+- Combined Task positions.
+- Task execution order.
+- Language configuration.
+- Terms & Conditions versions.
+- Other relevant business settings.
+
+All administrative operations must follow proper role-based access control.
+
+Sensitive operations must be restricted to authorized administrators.
+
+---
+
+# 9. Development Workflow – Mandatory Phase-Based Implementation
+
+**Do not attempt to implement all requirements in one operation.**
+
+Work incrementally in small, manageable phases.
+
+Before making any code changes, analyze the existing project and prepare the development documentation described below.
+
+## 9.1 Required Documentation Files
+
+Create and maintain the following files in the project's Workbench directory, or another clearly documented existing project documentation directory if more appropriate.
+
+### `project_overview.md`
+
+Document:
+
+- Existing project architecture.
+- Frontend technology and structure.
+- Backend architecture.
+- Database technology and collections.
+- Authentication and authorization system.
+- Existing user management functionality.
+- Existing task management implementation.
+- Existing VIP-related functionality.
+- Existing financial and withdrawal logic.
+- Important API routes.
+- Relevant frontend pages.
+- Dependencies between modules.
+
+### `todo.md`
+
+Create a detailed development checklist divided into phases.
+
+Each task must have a clear status:
+
+- [ ] Pending
+- [x] Completed
+- [~] In Progress
+- [!] Blocked
+
+Organize the tasks according to implementation priority and dependencies.
+
+### `progress.md`
+
+Maintain a chronological development progress report.
+
+For every completed or partially completed phase, record:
+
+- Phase number.
+- Work completed.
+- Files created.
+- Files modified.
+- Database changes, if any.
+- APIs implemented or updated.
+- Tests performed.
+- Issues discovered.
+- Remaining tasks.
+- Next development step.
+
+### `backend_analysis.md`
+
+Document:
+
+- Existing backend structure.
+- Database query patterns.
+- API performance issues.
+- Authentication and security concerns.
+- Existing business logic.
+- Potential data integrity risks.
+- Required optimizations.
+- Recommended implementation approach.
+
+### `terms_conditions_analysis.md`
+
+Document the complete review of the original Terms & Conditions file.
+
+Include:
+
+- All extracted VIP rules.
+- Task configurations.
+- Profit rates.
+- Withdrawal requirements.
+- Other relevant conditions.
+- Conflicting or ambiguous information.
+- Mapping between original clauses and new system requirements.
+
+### `api_status.md`
+
+Maintain an inventory of relevant existing and newly implemented APIs.
+
+Include:
+
+- API endpoint.
+- HTTP method.
+- Purpose.
+- Authentication requirements.
+- Required permissions.
+- Request validation.
+- Response behavior.
+- Implementation status.
+
+These documents must be updated continuously throughout development.
+
+---
+
+# 10. Recommended Implementation Phases
+
+Follow the phases below in order. Adjust the internal task breakdown only when required by the existing architecture.
+
+### Phase 1 – Project Analysis and Documentation
+
+- Analyze the entire existing project.
+- Review the original Terms & Conditions document.
+- Understand existing database collections and relationships.
+- Identify existing functionality and missing requirements.
+- Create all required documentation files.
+- Prepare a detailed implementation plan.
+
+**Do not make unnecessary code or database changes during this phase.**
+
+### Phase 2 – Backend Performance and Security Optimization
+
+- Analyze slow APIs and database queries.
+- Improve query efficiency.
+- Review database indexing.
+- Optimize authentication and authorization.
+- Improve error handling.
+- Address identified security issues.
+- Verify that existing functionality remains intact.
+
+### Phase 3 – User Account Management and Audit Logs
+
+- Implement user account management improvements.
+- Implement manual balance credit and deduction.
+- Implement login history.
+- Implement IP tracking.
+- Implement administrative activity logs.
+- Implement financial adjustment records.
+- Verify audit trail integrity.
+
+### Phase 4 – Combined Task Management
+
+- Implement multiple Combined Task configurations.
+- Implement task-position-based triggering.
+- Implement dynamic task rearrangement.
+- Support editing upcoming Combined Tasks during execution.
+- Preserve completed task history and financial records.
+- Verify execution order and configuration versioning.
+
+### Phase 5 – Centralized VIP Configuration
+
+- Implement the four VIP levels.
+- Add configurable daily group limits.
+- Add configurable tasks per group.
+- Add configurable profit rates.
+- Integrate applicable withdrawal requirements.
+- Implement individual user VIP assignment.
+- Verify backend enforcement.
+
+### Phase 6 – Terms & Conditions System
+
+- Create the complete Terms & Conditions page.
+- Incorporate the verified original document content.
+- Implement document version management.
+- Implement registration acceptance.
+- Implement backend acceptance validation.
+- Store acceptance records.
+- Implement re-acceptance for updated versions.
+
+### Phase 7 – Language Selection and Localization
+
+- Implement English.
+- Implement French.
+- Implement Spanish.
+- Add the homepage language selector.
+- Support language selection before and after login.
+- Ensure consistent translations across relevant pages.
+
+### Phase 8 – Integration and Final Testing
+
+- Verify all new modules work together.
+- Test admin permissions.
+- Test user-specific VIP configurations.
+- Test Combined Task execution.
+- Test balance adjustments.
+- Test transaction history preservation.
+- Test Terms & Conditions acceptance.
+- Test language persistence.
+- Test responsive layouts.
+- Check for API errors and database inconsistencies.
+- Fix any regressions introduced by the implementation.
+
+---
+
+# 11. Testing and Data Integrity Requirements
+
+Before marking any phase as completed, perform appropriate testing.
+
+### Functional Testing
+
+Verify that:
+
+- Administrators can manage user accounts.
+- Balance credits and deductions work correctly.
+- Login history displays accurate records.
+- IP addresses are correctly associated with login events.
+- Administrative actions are recorded.
+- Multiple Combined Tasks can be configured.
+- Upcoming Combined Tasks can be modified.
+- Completed task records remain unchanged.
+- VIP-specific task limits are enforced.
+- VIP-specific profit rates are applied according to the verified business rules.
+- Withdrawal requirements are enforced.
+- Users cannot register without accepting the applicable Terms & Conditions.
+- Updated Terms & Conditions versions trigger the appropriate acceptance workflow.
+- All three supported languages work correctly.
+
+### Regression Testing
+
+Existing functionality must continue working.
+
+Pay particular attention to:
+
+- User authentication.
+- User dashboard.
+- Task execution.
+- Task completion.
+- Account balance.
+- Transaction history.
+- Withdrawal functionality.
+- Admin dashboard.
+- Existing API integrations.
+
+### Database Safety
+
+- Do not delete existing collections.
+- Do not reset existing records.
+- Do not overwrite historical financial data.
+- Do not modify completed task records.
+- Do not perform bulk updates without explicit justification and a documented migration plan.
+- Ensure that all required schema changes are backward-compatible.
+- Use appropriate transaction handling for financial and task-related operations.
+
+---
+
+# 12. Incremental Execution Instructions for OpenCode
+
+This section is mandatory.
+
+You must behave like a senior full-stack engineer managing a structured production development project.
+
+### Step 1: Analyze First
+
+Start by inspecting the project structure, existing code, database integrations, APIs, and the original Terms & Conditions document.
+
+Do not immediately start coding.
+
+### Step 2: Prepare Documentation
+
+Create:
+
+- `project_overview.md`
+- `todo.md`
+- `progress.md`
+- `backend_analysis.md`
+- `terms_conditions_analysis.md`
+- `api_status.md`
+
+Populate them with actual findings from the existing project.
+
+Do not fill these documents with assumptions.
+
+### Step 3: Implement One Small Task at a Time
+
+After the analysis phase, select the highest-priority pending task from `todo.md`.
+
+Implement only a manageable portion of that task.
+
+Avoid making too many unrelated changes in a single development cycle.
+
+### Step 4: Verify Every Change
+
+After implementing each small task:
+
+1. Review the modified code.
+2. Run relevant tests or build checks.
+3. Verify the affected API endpoints.
+4. Check database behavior where applicable.
+5. Verify that existing functionality has not been broken.
+6. Fix any issues before proceeding.
+
+### Step 5: Update Progress Files
+
+After each meaningful development step:
+
+- Update `todo.md`.
+- Update `progress.md`.
+- Update `api_status.md` if APIs changed.
+- Update relevant analysis documentation if new findings emerge.
+
+Never mark an incomplete task as completed.
+
+### Step 6: Continue Incrementally
+
+Once the current task has been implemented and verified, proceed to the next pending task.
+
+Maintain the original development plan unless actual project findings require a documented adjustment.
+
+### Step 7: Report Blockers Clearly
+
+If a requirement cannot be implemented because of missing information, conflicting business rules, unavailable dependencies, or existing architectural limitations:
+
+- Do not invent a workaround that changes business logic.
+- Document the exact issue.
+- Explain its impact.
+- Identify what information or decision is required.
+- Continue with independent tasks that can safely proceed.
+
+### Step 8: Final Verification
+
+At the end of development, provide a clear summary containing:
+
+- Completed features.
+- Modified files.
+- Newly created files.
+- New or modified APIs.
+- Database changes.
+- Testing results.
+- Outstanding issues.
+- Pending tasks.
+
+---
+
+# FINAL INSTRUCTION
+
+The primary objective is to improve and extend the existing Saffron Edge application while preserving its current functionality and data integrity.
+
+**Accuracy is more important than development speed.**
+
+Do not implement features based on assumptions.
+
+Do not introduce mismatched VIP rules, task limits, profit rates, withdrawal conditions, or Combined Task positions.
+
+Always use the original Terms & Conditions document as the primary reference for business rules.
+
+Build the backend with centralized, database-driven configurations so that future changes can be managed directly through the admin panel.
+
+Work in small, verified development steps. Maintain `todo.md` and `progress.md` throughout the entire process.
+
+**Start with Phase 1: Complete Project Analysis and Documentation. Do not begin implementing the remaining phases until Phase 1 has been properly completed and documented.**

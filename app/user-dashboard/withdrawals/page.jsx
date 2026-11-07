@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 
 export default function WithdrawalsPage() {
     const { user, loading } = useAuth();
+    const { t } = useLanguage();
     const [withdrawals, setWithdrawals] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -126,8 +128,8 @@ export default function WithdrawalsPage() {
     if (!user) {
         return (
             <div>
-                <h1 className="text-2xl font-bold">Withdrawals</h1>
-                <p className="mt-2 text-slate-600">Please login to view withdrawals.</p>
+                <h1 className="text-2xl font-bold">{t("withdrawals.title")}</h1>
+                <p className="mt-2 text-slate-600">{t("withdrawals.loginRequired")}</p>
             </div>
         );
     }
@@ -148,7 +150,7 @@ export default function WithdrawalsPage() {
 
             <div className="mb-6 flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold ">Withdrawals</h1>
+                    <h1 className="text-2xl font-bold ">{t("withdrawals.title")}</h1>
                     <p className="text-sm  mt-1">Available Balance: ${formatMoney(balance)}</p>
                 </div>
                 <button
@@ -166,13 +168,13 @@ export default function WithdrawalsPage() {
                     }}
                     className={`rounded px-4 py-2 text-white ${hasIncompleteTasks ? "bg-slate-400 cursor-not-allowed" : "bg-[#E05305] hover:bg-[#c84a04]"}`}
                 >
-                    {showForm ? "Cancel" : "New Withdrawal"}
+                    {showForm ? t("withdrawals.cancel") : t("withdrawals.newWithdrawal")}
                 </button>
             </div>
 
             {showForm && (
                 <div className="mb-6 rounded-lg border border-slate-200 bg-white p-6">
-                    <h2 className="text-lg font-semibold mb-4">Request Withdrawal</h2>
+                    <h2 className="text-lg font-semibold mb-4">{t("withdrawals.requestWithdrawal")}</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-2">Wallet Address</label>
@@ -204,7 +206,7 @@ export default function WithdrawalsPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Withdrawal Amount (USDT)</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-2">{t("withdrawals.amount")}</label>
                             <input
                                 type="number"
                                 step="0.01"

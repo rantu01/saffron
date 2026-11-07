@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 import { useRouter } from "next/navigation";
 
 export default function DepositsPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
   const [showForm, setShowForm] = useState(true);
   const [form, setForm] = useState({ amount: "", screenshot: null });
@@ -101,8 +103,8 @@ export default function DepositsPage() {
   if (!user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold">Deposits</h1>
-        <p className="mt-2 text-slate-600">Please login to make a deposit.</p>
+        <h1 className="text-2xl font-bold">{t("deposits.title")}</h1>
+        <p className="mt-2 text-slate-600">{t("deposits.loginRequired")}</p>
       </div>
     );
   }
@@ -111,14 +113,14 @@ export default function DepositsPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold ">New Deposit</h1>
+          <h1 className="text-2xl font-bold ">{t("deposits.newDeposit")}</h1>
           <p className="text-sm  mt-1">Submit a deposit request for verification</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="rounded bg-[#E05305] px-4 py-2 text-white hover:bg-[#c84a04]"
         >
-          {showForm ? "Hide Form" : "New Deposit"}
+          {showForm ? t("deposits.hideForm") : t("deposits.newDeposit")}
         </button>
       </div>
 
@@ -126,7 +128,7 @@ export default function DepositsPage() {
         <div className="max-w-lg rounded-lg border border-slate-200 bg-white p-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Amount (USDT)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">{t("deposits.amount")}</label>
               <input
                 type="number"
                 step="0.01"

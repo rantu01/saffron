@@ -1,4 +1,9 @@
+import { NextResponse } from "next/server";
 import { subscribeRealtime, formatSSE } from "@/lib/realtimeHub";
+import { getBearerToken } from "@/lib/apiAuth";
+import { getAdminAuth } from "@/lib/firebaseAdmin";
+import { getUserByUid } from "@/lib/userModel";
+import { normalizeRole } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,8 +35,42 @@ async function getUserCounts(uid) {
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const uid = searchParams.get("uid") || null;
-  const role = searchParams.get("role") === "admin" ? "admin" : "user";
+
+  // SSE clients (EventSource) cannot set headers, so accept the Firebase ID
+  // token either via the Authorization header or the `token` query param.
+  let role;
+  let uid;
+  try {
+    const token = getBearerToken(request) || searchParams.get("token");
+    if (!token) {
+      return NextResponse.json(
+        { success: false, message: "Authentication is required." },
+        { status: 401 }
+      );
+    }
+    const decodedToken = await getAdminAuth().verifyIdToken(token);
+    uid = decodedToken?.uid;
+    const user = uid ? await getUserByUid(uid) : null;
+    if (!user?.role) {
+      return NextResponse.json(
+        { success: false, message: "Your account does not have an assigned role." },
+        { status: 403 }
+      );
+    }
+    role = normalizeRole(user.role);
+  } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : (error?.code === "auth/id-token-expired" ? 401 : 500);
+    if (status === 500) {
+      console.error("Failed to authenticate realtime stream:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: error?.message || "Authentication failed." },
+      { status }
+    );
+  }
 
   const encoder = new TextEncoder();
   let closed = false;

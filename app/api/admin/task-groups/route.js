@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getVipTasksPerSet } from "@/lib/vipModel";
 import { generateTasksForGroup } from "@/lib/taskGenerator";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const client = await clientPromise;
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
 
@@ -35,15 +39,25 @@ export async function GET() {
 
     return NextResponse.json({ success: true, groups: result });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch groups:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch groups." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { name, description, vipLevel } = body;
 
@@ -82,9 +96,16 @@ export async function POST(request) {
       group: { ...group, _id: groupId },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create group:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to create group." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

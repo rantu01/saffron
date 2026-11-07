@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { createDeposit, getDepositsByUid } from "@/lib/depositModel";
 import { publishRealtime } from "@/lib/realtimeHub";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { uid, email, amount, screenshot } = body;
+    const { amount, screenshot } = body;
+    const uid = authContext.uid;
+    const email = authContext.user?.email || body.email;
 
     if (!uid || !email || !amount || !screenshot) {
       return NextResponse.json(
@@ -15,9 +20,9 @@ export async function POST(request) {
     }
 
     const numAmount = Number(amount);
-    if (numAmount <= 0) {
+    if (!Number.isFinite(numAmount) || numAmount <= 0) {
       return NextResponse.json(
-        { success: false, message: "Amount must be greater than 0" },
+        { success: false, message: "Amount must be a valid number greater than 0" },
         { status: 400 }
       );
     }
@@ -31,17 +36,24 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, deposit });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create deposit:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to create deposit" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json(
@@ -54,9 +66,16 @@ export async function GET(request) {
 
     return NextResponse.json({ success: true, deposits });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch deposits:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch deposits" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

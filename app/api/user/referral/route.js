@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
-    const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
@@ -64,9 +65,16 @@ export async function GET(request) {
       },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to load referral data:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to load referral data" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

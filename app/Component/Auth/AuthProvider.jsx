@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "@/lib/firebaseClient";
+import { setCurrentAuthUser, installAuthFetch } from "@/lib/clientAuth";
 
 const AuthContext = createContext({
   user: null,
@@ -15,7 +16,9 @@ export default function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    installAuthFetch();
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      setCurrentAuthUser(nextUser);
       setUser(nextUser);
       setLoading(false);
     });

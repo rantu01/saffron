@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { fetchAdAccountsFromBM, syncAllAdAccounts } from "@/lib/metaApiService";
 import { saveMetaAdAccounts, getMetaAdAccounts, getSyncLogs, createSyncLog } from "@/lib/metaSettingsModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { action } = body;
 
@@ -27,12 +31,25 @@ export async function POST(request) {
 
     return NextResponse.json({ success: false, message: "Invalid action" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to sync meta data:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
 
@@ -48,6 +65,16 @@ export async function GET(request) {
 
     return NextResponse.json({ success: false, message: "Invalid type parameter" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch meta sync data:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }

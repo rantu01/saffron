@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 
 export default function ReferralsPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const [referral, setReferral] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -60,7 +62,7 @@ export default function ReferralsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold ">Referral Program</h1>
+      <h1 className="text-2xl font-bold ">{t("referrals.title")}</h1>
       <p className="text-sm  mt-1">Invite friends and earn from their activities</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">

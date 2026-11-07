@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
-import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle, Crown } from "lucide-react";
+import { LayoutGrid, CheckSquare, Users, DollarSign, Send, History, Share2, Layers, Megaphone, Settings, RefreshCw, MessageSquare, BarChart3, MessageCircle, Crown, Shield, FileText } from "lucide-react";
 import { useAdminNotificationCounts } from "./AdminNotificationContext";
 
 const navigation = [
@@ -12,9 +12,13 @@ const navigation = [
     { label: "Task Management", href: "/admin/task-management", icon: CheckSquare },
     { label: "Combined Tasks", href: "/admin/combo-settings", icon: Layers },
     { label: "VIP Levels", href: "/admin/vip-levels", icon: Crown },
+    { label: "VIP Configuration", href: "/admin/vip-config", icon: Crown },
     { label: "Fund Verification", href: "/admin/deposits", icon: DollarSign },
     { label: "Withdrawal Requests", href: "/admin/withdrawals", icon: Send },
     { label: "Balance Logs", href: "/admin/balance-logs", icon: History },
+    { label: "Activity Logs", href: "/admin/activity-logs", icon: Shield },
+    { label: "Terms & Conditions", href: "/admin/terms", icon: FileText },
+    { label: "Login History", href: "/admin/login-history", icon: History },
     { label: "Referral Management", href: "/admin/referrals", icon: Share2 },
     // { label: "Ad Accounts", href: "/admin/ad-accounts", icon: Megaphone },
     { label: "Customer Service", href: "/admin/chat", icon: MessageCircle },

@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
 import Swal from "sweetalert2";
 import { getAuth, updatePassword, EmailAuthProvider, reauthenticateWithCredential, sendEmailVerification } from "firebase/auth";
 
 export default function ProfilePage() {
   const { user: authUser, loading } = useAuth();
+  const { t } = useLanguage();
   const [profile, setProfile] = useState({ displayName: "", avatarUrl: "", phoneNumber: "", referralCode: "", referralCodeReusable: false, username: "" });
   const [usernameError, setUsernameError] = useState('');
   const [usernameChecking, setUsernameChecking] = useState(false);
@@ -159,7 +161,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
-      <h1 className="text-2xl font-semibold">Profile</h1>
+      <h1 className="text-2xl font-semibold">{t("profile.title")}</h1>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-slate-100">

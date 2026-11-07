@@ -1,0 +1,82 @@
+প্রয়োজনীয় ব্যাকএন্ড অপ্টিমাইজেশন এবং নতুন ফিচার সংযোজন
+
+১. সামগ্রিক সিস্টেম অপ্টিমাইজেশন (Overall System Optimization)
+উন্নত পারফরম্যান্স, স্থিতিশীলতা এবং দ্রুত রেসপন্স নিশ্চিত করার জন্য সম্পূর্ণ ব্যাকএন্ড সিস্টেম অপ্টিমাইজ করতে হবে।
+সব ধরনের ডিভাইসে (মোবাইল, ট্যাবলেট ও ডেস্কটপ) যেন সিস্টেমটি দ্রুত, নির্ভরযোগ্য এবং স্বাচ্ছন্দ্যে কাজ করে, তা নিশ্চিত করতে হবে।
+সার্ভারের কার্যক্ষমতা বৃদ্ধি করতে হবে এবং সিস্টেমের সামগ্রিক দক্ষতা উন্নত করতে হবে।
+
+২. ইউজার অ্যাকাউন্ট ও রিসোর্স ম্যানেজমেন্ট (User Account and Resource Management)
+Make similar like this---> "UI Layout & Design Specification1. Top Navigation Bar (Header)Baame (Left): Ekti hamburger menu icon (tinti horizontal line). Tar pashe "SAFFRON EDGE" logo royeche, jar baame ekti golden lotus/flower icon ache.   Daane (Right): Ekti notification bell icon jar opor ekti lal color-er badge-e "3" lekha ache, ebong tar pashe user profile avatar ("SA") ebong dropdown arrow royeche.   2. Page Header / BreadcrumbEkti chhoto back arrow icon er pashe gray rang-er "User Management" text.   Tar niche boro bold font-e "User Details" title royeche.   3. Profile Summary Card (Top Card)Background: Sada (White) card, rounded corners (border-radius) ebong halka shadow.   User Info Section:Baame ekti gol grey profile placeholder icon.   Pashe boro kore user-er nam "John Doe" ebong tar niche ID: SE-2026-00184.   Daane ekti VIP badge royeche: "VIP 2" (crown icon soho purple/golden gradient background-e).   Nam-er niche duiti status pill/tag royeche: "Active" (halka green background o green dot soho) ebong "Verified" (halka blue background o blue check icon soho).   Meta Info Row (Joined & Last Login):Card-er nicher dike duiti info column ache.   Baame calendar icon soho "Joined: Aug 12, 2026".   Daane clock icon soho "Last Login: Today, 10:42 AM".   4. Available Balance BannerBackground: Dark purple/indigo gradient background.   Content:Baame wallet icon.   Tar pashe choto text: "Available Balance" ebong boro bold font-e "1,250.00 USDC".   Daane ekti "Adjust" button royeche jar sathe settings/filter icon royeche.   5. Navigation TabsEkti horizontal scrollable ba segmented tab bar.   Tabs gulo:Overview (Active/Selected: solid purple background, white text, grid icon).   Transactions (Inactive: grey outline/text, list icon).   Login Logs (Inactive, clock icon).   Activity (Inactive, document icon).   6. Account Information Section (Card)Sada card jar opore header ache: "Account Information" (user icon soho).   Key-value pair-gulo duiti column-e (label baame, value daane) sajano ache:Username: johndoe184   Email Address: john@example.com   Phone Number: +1 416 XXX 0184   Account Status: Active (green highlight pill)   Account Level: VIP 2 (orange/yellow highlight pill)   Referral Code: JD184SE   Referred By: SE-2026-00072   7. Recent Activity SectionHeader: "Recent Activity" (lightning bolt icon baame) ebong daane "View All ->" link.   Timeline/List items (protiti item-e icon, title, date/time, ebong daane ekti tag):Successful Login: Green check icon | Nov 05, 2026 - 10:42 AM • IP: 192.168.1.105 | Tag: Login (green).   Balance Credited: Blue wallet icon | Nov 05, 2026 - 09:18 AM • +100.00 USDC | Tag: Transaction (blue).   Profile Updated: Purple settings gear icon | Nov 04, 2026 - 03:12 PM | Tag: Settings (purple).   8. Bottom Sticky ButtonScreen-er niche ekti full-width rounded button royeche: "View Full Details" (shield/lock icon soho center-aligned)."
+অ্যাডমিনদের জন্য প্রতিটি ইউজারের অ্যাকাউন্ট এবং সংশ্লিষ্ট রিসোর্স সম্পূর্ণভাবে নিয়ন্ত্রণ করার সুবিধা যুক্ত করতে হবে।
+প্রয়োজনীয় ফিচারসমূহ:
+অ্যাডমিন প্যানেল থেকে যেকোনো ইউজারের অ্যাকাউন্ট ম্যানেজ করার সুবিধা।
+ম্যানুয়ালি ইউজারের অ্যাকাউন্ট ব্যালেন্স যোগ (Credit) অথবা বিয়োগ (Deduct) করার সুবিধা।
+প্রতিটি ইউজারের IP Address দেখার সুবিধা।
+ইউজারের সম্পূর্ণ Login History এবং Login Timestamp দেখার সুবিধা।
+প্রতিটি অ্যাডমিন অ্যাকশন, ব্যালেন্স পরিবর্তন এবং অ্যাকাউন্ট সংক্রান্ত কার্যক্রমের পূর্ণাঙ্গ রেকর্ড সংরক্ষণ করতে হবে।
+প্রতিটি পরিবর্তনের ক্ষেত্রে কে, কখন এবং কী পরিবর্তন করেছে, তার বিস্তারিত লগ রাখতে হবে।
+
+৩. অ্যাডভান্সড কম্বাইন্ড টাস্ক ম্যানেজমেন্ট (Advanced Combined Task Management)
+ব্যাকএন্ডে একাধিক Combined Task নির্দিষ্ট Task Position অনুযায়ী একই সঙ্গে সেট করার সুবিধা যুক্ত করতে হবে।
+উদাহরণস্বরূপ, আমি ৬, ৯, ১৪, ১৬ এবং ১৮ নম্বর অবস্থানে পাঁচটি সম্মিলিত স্ট্যাক কনফিগার করতে চাই। সিস্টেম যেভাবে কাজ করবে:
+ইউজার যখন Task 6 সম্পন্ন করবে, তখন পরবর্তী নির্ধারিত Combined Task স্বয়ংক্রিয়ভাবে Task 9-এ ট্রিগার হবে।
+এরপর Task 14, Task 16 এবং Task 18-এ পর্যায়ক্রমে নির্ধারিত Combined Task চালু হবে।
+অ্যাডমিন ব্যাকএন্ড থেকে যেকোনো সময় বাকি Combined Task-গুলো Edit, Modify অথবা Rearrange করতে পারবেন।
+প্রথম Combined Task সম্পন্ন হওয়ার পরও পরবর্তী Combined Task-গুলোর অবস্থান বা কনফিগারেশন পরিবর্তন করার সুবিধা থাকতে হবে।
+পরিবর্তনগুলো ব্যাকএন্ড থেকে পরিচালনা করা যাবে এবং সিস্টেমে পরিবর্তনের সঠিক কার্যকর সময় ও রেকর্ড সংরক্ষিত থাকতে হবে।
+বিশেষ নির্দেশনা: চলমান টাস্কের পরিবর্তন যেন ইউজারের সম্পন্ন করা কাজ, অ্যাকাউন্ট ব্যালেন্স বা পূর্ববর্তী Transaction History-তে কোনো অনাকাঙ্ক্ষিত প্রভাব না ফেলে।
+
+
+৪. হোমপেজে ভাষা পরিবর্তনের অপশন (Language Selection)
+ওয়েবসাইটের হোমপেজে লগইন করার আগে অথবা লগইন করার পর ভাষা পরিবর্তনের সুবিধা যুক্ত করতে হবে।
+নিম্নলিখিত তিনটি ভাষা থাকতে হবে:
+English (ইংরেজি)
+French (ফরাসি)
+Spanish (স্প্যানিশ)
+ইউজার যেন নিজের পছন্দ অনুযায়ী ভাষা নির্বাচন করতে পারেন এবং ওয়েবসাইটের সংশ্লিষ্ট কনটেন্ট সেই ভাষায় দেখতে পারেন।
+
+
+৫. VIP সেকশনে নতুন শর্তাবলি এবং নির্দিষ্ট টাস্ক ম্যানেজমেন্ট
+প্রতিটি VIP লেভেলের জন্য আলাদা Terms & Conditions এবং নির্দিষ্ট Task Configuration যুক্ত করতে হবে।
+অ্যাডমিন প্যানেল থেকে যেন সহজেই প্রতিটি ইউজারকে তার নির্ধারিত VIP লেভেল অনুযায়ী নির্দিষ্ট টাস্ক অ্যাসাইন করা যায়, সেই ব্যবস্থা করতে হবে।
+৫.১ Beginner Level — VIP-1
+প্রতিদিন সর্বোচ্চ ৩টি Properties Order Group সম্পন্ন করার সীমা।
+প্রতি Group-এ ২০টি Task থাকবে।
+প্রতি Transaction-এ ঘোষিত Profit Rate: ০.৫%।
+প্রযোজ্য Withdrawal Requirements পূরণ সাপেক্ষে প্রতিদিন একাধিকবার Withdrawal Request জমা দেওয়ার সুবিধা থাকবে।
+৫.২ Advanced Level — VIP-2
+প্রতিদিন সর্বোচ্চ ৪টি Properties Order Group সম্পন্ন করার সীমা।
+প্রতি Group-এ ২৫টি Task থাকবে।
+প্রতি Transaction-এ ঘোষিত Profit Rate: ০.৬%।
+প্রযোজ্য Withdrawal Requirements পূরণ সাপেক্ষে প্রতিদিন একাধিকবার Withdrawal Request জমা দেওয়ার সুবিধা থাকবে।
+৫.৩ Expert Level — VIP-3
+প্রতিদিন সর্বোচ্চ ৫টি Properties Order Group সম্পন্ন করার সীমা।
+প্রতি Group-এ ৩৫টি Task থাকবে।
+প্রতি Transaction-এ ঘোষিত Profit Rate: ০.৮%।
+প্রযোজ্য Withdrawal Requirements পূরণ সাপেক্ষে প্রতিদিন একাধিকবার Withdrawal Request জমা দেওয়ার সুবিধা থাকবে।
+৫.৪ Master Level — VIP-4
+প্রতিদিন সর্বোচ্চ ৬টি Properties Order Group সম্পন্ন করার সীমা।
+প্রতি Group-এ ৬০টি Task থাকবে।
+প্রতি Transaction-এ ঘোষিত Profit Rate: ১%।
+প্রযোজ্য Withdrawal Requirements পূরণ সাপেক্ষে প্রতিদিন একাধিকবার Withdrawal Request জমা দেওয়ার সুবিধা থাকবে।
+
+৬. Terms & Conditions পেজ এবং ইউজার অ্যাকসেপ্টেন্স সিস্টেম
+ওয়েবসাইটে একটি সম্পূর্ণ Terms & Conditions পেজ তৈরি করতে হবে, যেখানে উপরে উল্লেখিত চারটি VIP লেভেলের সব নিয়ম, শর্তাবলি, Task Limit, Profit Rate এবং Withdrawal Policy বিস্তারিতভাবে উল্লেখ থাকবে।
+এই পেজের কার্যপ্রণালি:
+নতুন ইউজার Sign Up করতে গেলে প্রথমেই Terms & Conditions পেজ দেখতে পাবে।
+ইউজারকে অ্যাকাউন্ট তৈরি করার আগে সম্পূর্ণ Terms & Conditions পড়ার সুযোগ দিতে হবে।
+পেজের নিচে একটি Acceptance Checkbox রাখতে হবে।
+Checkbox-এ সম্মতি না দেওয়া পর্যন্ত Sign Up বা Work Account তৈরি করা যাবে না।
+সম্মতি দেওয়ার পর ইউজার Registration Process সম্পন্ন করতে পারবে।
+ইউজারের সম্মতির তারিখ, সময় এবং কোন Terms & Conditions Version গ্রহণ করেছে, তা ব্যাকএন্ডে সংরক্ষণ করতে হবে।
+ভবিষ্যতে Terms & Conditions পরিবর্তন করা হলে নতুন Version অনুযায়ী পুনরায় সম্মতি নেওয়ার ব্যবস্থা রাখতে হবে।
+ডেভেলপারদের জন্য বিশেষ নির্দেশনা
+Terms & Conditions পেজটি যেন সুন্দর, পরিষ্কার এবং Professional Design-এ তৈরি করা হয়। মোবাইল ও ডেস্কটপ উভয় ডিভাইসে সম্পূর্ণ Responsive হতে হবে।
+
+
+৭. অতিরিক্ত নির্দেশনা
+D:\Code\Project\Office Work\Task Base Website\saffronedge\Workbench\Terms & Conditions.txt এ Terms & Conditions- পাঠানো হয়েছে।
+অনুগ্রহ করে  দেওয়া মূল Terms & Conditions ভালোভাবে পর্যালোচনা করুন।
+এরপর এর সব প্রয়োজনীয় তথ্য উপরের VIP সেকশন এবং ওয়েবসাইটের নতুন Terms & Conditions পেজে অন্তর্ভুক্ত করতে হবে।
+গুরুত্বপূর্ণ: এই ডকুমেন্টে উল্লেখিত ফিচারগুলো ব্যাকএন্ডে এমনভাবে তৈরি করতে হবে, যেন ভবিষ্যতে অ্যাডমিন প্যানেল থেকেই সহজে VIP Level, Task Configuration, Combined Task Position, User Balance এবং অন্যান্য প্রয়োজনীয় সেটিংস নিয়ন্ত্রণ ও পরিবর্তন করা যায়।
+

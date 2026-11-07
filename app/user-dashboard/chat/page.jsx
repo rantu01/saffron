@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
+import { useLanguage } from "@/app/user-dashboard/components/LanguageContext";
+import { getAuthToken } from '@/lib/clientAuth';
 import LiveChat from '@/app/Component/Common/LiveChat';
 import { useUserNotifications } from '@/app/user-dashboard/components/UserNotificationContext';
 import { playNotificationSound } from '@/app/Component/Common/notificationSound';
@@ -10,6 +12,7 @@ import { MessageCircle, Bell } from 'lucide-react';
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { unreadChat, refresh } = useUserNotifications();
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -40,10 +43,12 @@ export default function ChatPage() {
     if (!user?.uid || typeof window === "undefined" || !("EventSource" in window)) return;
     let stopped = false;
     let es = null;
-    function connect() {
+    async function connect() {
       if (stopped) return;
       try {
-        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(user.uid)}`);
+        const token = await getAuthToken();
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(user.uid)}${tokenParam}`);
         es.addEventListener("chat-message", (e) => {
           try {
             const payload = JSON.parse(e.data);
@@ -76,7 +81,7 @@ export default function ChatPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold">Live Chat</h1>
+      <h1 className="text-2xl font-bold">{t("chat.title")}</h1>
       <p className="text-sm mt-1">Chat with our Customer Service team</p>
 
       {unreadCount > 0 && (

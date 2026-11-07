@@ -2,14 +2,17 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { initializeUserTaskSet } from "@/lib/taskSetModel";
 import { buildTaskFinancialProfile, generateCombinationPositions, roundCurrency } from "@/lib/taskModel";
-import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPosition, generateNormalTaskAmount } from "@/lib/comboTaskModel";
+import { getComboConfig, createStageComboTask, isEligibleForFirstCombo, isEligibleForSecondCombo, getComboPositions, generateNormalTaskAmount } from "@/lib/comboTaskModel";
 import { getDailyLimitStatus } from "@/lib/taskSetModel";
 import { getVipTaskConfig } from "@/lib/vipModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { uid } = body;
+    const uid = authContext.uid;
 
     if (!uid) {
       return NextResponse.json({ success: false, message: "uid required" }, { status: 400 });
@@ -38,7 +41,7 @@ export async function POST(request) {
     const userBalance = Number(user.availableBalance || 0);
 
     // VIP tier controls how many tasks are generated per set and the profit rate.
-    const vipConfig = getVipTaskConfig(Number(user.vipLevel || 1));
+    const vipConfig = await getVipTaskConfig(Number(user.vipLevel || 1));
     const tasksPerSet = Math.max(1, Number(user.vipTasksPerSet || vipConfig.tasksPerSet));
     const vipProfitIncrease = Number(user.vipProfitIncrease || vipConfig.profitIncrease);
 
@@ -138,26 +141,25 @@ export async function POST(request) {
     const slicedTemplates = templateTasks.slice(0, tasksPerSet);
 
     const comboConfig = await getComboConfig();
+    // Map of position -> comboId for all combined tasks created in this set.
+    const comboPositionMap = new Map();
     let hasComboTask = false;
-    let comboTaskId = null;
-    let comboPosition = null;
 
     const isFirstComboEligible = await isEligibleForFirstCombo(user, comboConfig);
     const isSecondComboEligible = await isEligibleForSecondCombo(user, comboConfig);
+    const stage = isFirstComboEligible ? 1 : isSecondComboEligible ? 2 : 0;
 
-    if (isFirstComboEligible) {
-      const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, 1);
-      if (comboResult) {
-        comboTaskId = String(comboResult._id);
-        comboPosition = comboResult.position;
-        hasComboTask = true;
-      }
-    } else if (isSecondComboEligible) {
-      const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, 2);
-      if (comboResult) {
-        comboTaskId = String(comboResult._id);
-        comboPosition = comboResult.position;
-        hasComboTask = true;
+    if (stage === 1 || stage === 2) {
+      // Support multiple independent combined tasks at configured positions.
+      const positions = getComboPositions(comboConfig, uid, user.accountType || "main");
+      // De-duplicate positions.
+      const uniquePositions = [...new Set(positions)];
+      for (const pos of uniquePositions) {
+        const comboResult = await createStageComboTask(uid, nextSetNumber, comboConfig, stage, pos);
+        if (comboResult) {
+          comboPositionMap.set(comboResult.position, String(comboResult._id));
+          hasComboTask = true;
+        }
       }
     }
 
@@ -166,10 +168,13 @@ export async function POST(request) {
 
     const tasksToInsert = slicedTemplates.map((t, index) => {
       const position = index + 1;
-      // Clamp the combo position to the (possibly reduced) set size so it never
-      // falls outside the assigned tasks.
-      const clampedComboPosition = hasComboTask ? Math.min(comboPosition, slicedTemplates.length) : null;
-      const isComboPosition = hasComboTask && position === clampedComboPosition;
+      // Determine if this position is one of the configured combined-task positions.
+      // Clamp configured combo positions to the (possibly reduced) set size.
+      const comboIdForPosition = hasComboTask
+        ? comboPositionMap.get(position) ||
+          [...comboPositionMap.entries()].find(([p]) => Math.min(p, slicedTemplates.length) === position)?.[1]
+        : null;
+      const isComboPosition = Boolean(comboIdForPosition);
 
       if (isComboPosition) {
         return {
@@ -191,7 +196,7 @@ export async function POST(request) {
           taskType: "combo",
           isCombinationTask: false,
           isComboTask: true,
-          comboId: comboTaskId,
+          comboId: comboIdForPosition,
           profitMultiplier: 1,
           requiredBalance: 0,
           combinationPositions: [],
@@ -244,12 +249,19 @@ export async function POST(request) {
       groupName: availableGroup.name,
       createdCount: tasksToInsert.length,
       hasComboTask,
-      comboPosition,
+      comboPositions: [...comboPositionMap.keys()],
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Auto-assignment failed:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Auto-assignment failed." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

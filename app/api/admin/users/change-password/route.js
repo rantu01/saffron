@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { uid, newPassword } = body;
 
@@ -36,16 +40,24 @@ export async function POST(request) {
       message: "Password updated successfully.",
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
     const code = error?.errorInfo?.code || error?.code || "";
-    let message = error.message || "Failed to update password.";
+    let message = status === 500 ? "Internal server error." : error.message;
 
     if (code === "auth/user-not-found") {
       message = "User not found in Firebase Authentication.";
     }
 
+    if (status === 500) {
+      console.error("Failed to update password:", error);
+    }
+
     return NextResponse.json(
       { success: false, message },
-      { status: 500 }
+      { status: status === 500 ? 500 : status }
     );
   }
 }

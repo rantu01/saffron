@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAllAdAccounts, createAdAccount, updateAdAccount, deleteAdAccount, getUnassignedAdAccounts } from "@/lib/adAccountModel";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const includeUnassigned = searchParams.get("includeUnassigned") === "true";
 
@@ -14,14 +18,28 @@ export async function GET(request) {
     const adAccounts = await getAllAdAccounts(includeUnassigned);
     return NextResponse.json({ success: true, adAccounts });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to fetch" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to fetch ad accounts:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
-    const { uid, email, name, accountId, budget, status, metaAccountId, metaAccountName, currency, spendCap, assignedBy } = body;
+    const { uid, email, name, accountId, budget, status, metaAccountId, metaAccountName, currency, spendCap } = body;
+    const assignedBy = authContext.uid;
 
     const adAccount = await createAdAccount({
       uid: uid || "",
@@ -39,12 +57,25 @@ export async function POST(request) {
 
     return NextResponse.json({ success: true, adAccount });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to create" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to create ad account:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }
 
 export async function PATCH(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { _id, ...updates } = body;
 
@@ -55,12 +86,25 @@ export async function PATCH(request) {
     const result = await updateAdAccount(_id, updates);
     return NextResponse.json({ success: true, adAccount: result });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to update" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to update ad account:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }
 
 export async function DELETE(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
@@ -71,6 +115,16 @@ export async function DELETE(request) {
     await deleteAdAccount(id);
     return NextResponse.json({ success: true, message: "Deleted" });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message || "Failed to delete" }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to delete ad account:", error);
+    }
+    return NextResponse.json(
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
+    );
   }
 }

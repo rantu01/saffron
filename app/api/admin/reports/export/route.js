@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getFinancialReport, getUserActivityReport, getAdSpendReport, generateCSV, generatePDFHtml } from "@/lib/reportService";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type") || "financial";
     const format = searchParams.get("format") || "csv";
@@ -100,6 +104,13 @@ export async function GET(request) {
 
     return NextResponse.json({ success: false, message: "Invalid format" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to export report:", error);
+    }
+    return NextResponse.json({ success: false, message: status === 500 ? "Internal server error." : error.message }, { status });
   }
 }

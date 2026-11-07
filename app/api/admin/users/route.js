@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { resolveFrozenBalanceState } from "@/lib/userModel";
+import { getUserByUid, resolveFrozenBalanceState } from "@/lib/userModel";
+import { createBalanceLog } from "@/lib/balanceLog";
+import { deleteUserRelatedData } from "@/lib/userCleanup";
+import { requireAdminUser, requireFirebaseAuth } from "@/lib/apiAuth";
+import { createActivityLog } from "@/lib/activityLog";
 
 export async function GET(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search")?.trim();
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -47,15 +54,27 @@ export async function GET(request) {
       totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to fetch users:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to fetch users." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const { uid, email: inputEmail, password } = body;
 
@@ -135,21 +154,51 @@ export async function POST(request) {
 
     await db.collection("users").insertOne(demoUser);
 
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: "user.demo.create",
+        targetType: "user",
+        targetId: demoUser.uid,
+        targetSnapshot: { uid: demoUser.uid, email: demoUser.email, accountType: "demo" },
+        before: null,
+        after: { uid: demoUser.uid, email: demoUser.email },
+        reason: "",
+        metadata: { originalUid: body?.uid },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
+
     return NextResponse.json({
       success: true,
       message: "Demo account created successfully.",
       user: { ...demoUser, password: undefined },
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to create demo account:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to create demo account." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function PATCH(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const body = await request.json();
     const {
       uid,
@@ -174,6 +223,19 @@ export async function PATCH(request) {
     }
 
     const update = { updatedAt: new Date() };
+    let balanceBefore = null;
+
+    if (availableBalance !== undefined) {
+      const existingUser = await getUserByUid(uid);
+      if (!existingUser) {
+        return NextResponse.json(
+          { success: false, message: "User not found." },
+          { status: 404 }
+        );
+      }
+      balanceBefore = Number(existingUser.availableBalance || 0);
+    }
+
     if (typeof role === "string" && role) {
       update.role = role;
     }
@@ -191,10 +253,18 @@ export async function PATCH(request) {
     if (typeof accountStatus === "string" && accountStatus) {
       update.accountStatus = accountStatus;
       update.isFrozen = accountStatus === "frozen";
-      if (accountStatus === "active" && freezeReason === undefined) {
+      update.statusActorUid = authContext.uid;
+      update.statusUpdatedAt = new Date();
+      if (freezeReason !== undefined) {
+        update.statusReason = freezeReason || null;
+      } else if (body?.statusReason !== undefined) {
+        update.statusReason = body.statusReason || null;
+      }
+      if (accountStatus === "active" && freezeReason === undefined && body?.statusReason === undefined) {
         update.freezeReason = null;
         update.freezeThreshold = 0;
         update.freezeContext = null;
+        update.statusReason = null;
       }
     }
 
@@ -251,6 +321,28 @@ export async function PATCH(request) {
 
     await db.collection("users").updateOne({ uid }, { $set: update });
 
+    if (availableBalance !== undefined && balanceBefore !== null) {
+      const balanceAfter = Number(update.availableBalance || 0);
+      const delta = balanceAfter - balanceBefore;
+
+      if (delta !== 0) {
+        await createBalanceLog({
+          uid,
+          email: body.email || "",
+          type: "admin_adjustment",
+          amount: delta,
+          balanceBefore,
+          balanceAfter,
+          description:
+            body.description?.trim() ||
+            `Available balance set by admin: $${balanceBefore.toFixed(2)} → $${balanceAfter.toFixed(2)}`,
+          referenceId: authContext.uid,
+          referenceType: "admin_adjustment",
+          metadata: { actorUid: authContext.uid, source: "admin_users_patch" },
+        });
+      }
+    }
+
     if (typeof referralCodeReusable === "boolean") {
       await db.collection("invitationCodes").updateMany(
         { createdByUid: uid, isActive: true },
@@ -262,17 +354,47 @@ export async function PATCH(request) {
       await resolveFrozenBalanceState(uid);
     }
 
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: "user.update",
+        targetType: "user",
+        targetId: uid,
+        targetSnapshot: { uid },
+        before: null,
+        after: { accountStatus, availableBalance, role, freezeThreshold, demoProfitSharePercent },
+        reason: body?.freezeReason || body?.reason || "",
+        metadata: { fields: Object.keys(body || {}) },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
+
     return NextResponse.json({ success: true, message: "User updated successfully." });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to update admin user:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "User update failed." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function DELETE(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { searchParams } = new URL(request.url);
     const uid = searchParams.get("uid") || (await request.json().then((b) => b.uid));
 
@@ -311,21 +433,31 @@ export async function DELETE(request) {
     }
 
     try {
-      await Promise.all([
-        db.collection("tasks").deleteMany({ assigneeUid: uid }),
-        db.collection("taskSets").deleteMany({ assigneeUid: uid }),
-        db.collection("taskGroups").deleteMany({ assigneeUid: uid }),
-        db.collection("records").deleteMany({ uid }),
-        db.collection("balanceLogs").deleteMany({ uid }),
-        db.collection("notifications").deleteMany({ uid }),
-        db.collection("deposits").deleteMany({ uid }),
-        db.collection("withdrawals").deleteMany({ uid }),
-        db.collection("messages").deleteMany({ $or: [{ senderUid: uid }, { receiverUid: uid }] }),
-        db.collection("invitationCodes").deleteMany({ createdByUid: uid }),
-      ]);
+      const { failed } = await deleteUserRelatedData(db, uid);
+      if (failed.length) {
+        console.error(`Related data cleanup incomplete for ${uid}:`, failed);
+      }
     } catch (cleanupError) {
       console.error(`Related data cleanup failed for ${uid}:`, cleanupError?.message || cleanupError);
     }
+
+    try {
+      await createActivityLog({
+        actorUid: authContext.uid,
+        actorEmail: authContext.user?.email || "",
+        actorRole: authContext.user?.role || "",
+        action: "user.delete",
+        targetType: "user",
+        targetId: uid,
+        targetSnapshot: { uid },
+        before: { exists: true },
+        after: { exists: false },
+        reason: "",
+        metadata: { firebaseDeleted },
+        ip: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "",
+        userAgent: request.headers.get("user-agent") || "",
+      });
+    } catch {}
 
     return NextResponse.json({
       success: true,
@@ -333,9 +465,18 @@ export async function DELETE(request) {
       firebaseDeleted,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to delete admin user:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to delete user." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

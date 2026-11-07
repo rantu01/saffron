@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
 
 export async function PUT(request, { params }) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { id } = await params;
     const body = await request.json();
     const { appName, appLogo, totalAmount, description, submissionConfig, taskGroupId } = body;
@@ -73,15 +77,25 @@ export async function PUT(request, { params }) {
       task: result,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to update task:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to update task." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
 
 export async function DELETE(request, { params }) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+    requireAdminUser(authContext.user);
+
     const { id } = await params;
 
     const client = await clientPromise;
@@ -104,9 +118,16 @@ export async function DELETE(request, { params }) {
       taskGroupId: task.taskGroupId || null,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to delete task:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to delete task." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

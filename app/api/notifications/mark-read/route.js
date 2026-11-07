@@ -1,17 +1,14 @@
 import { NextResponse } from "next/server";
 import { markNotificationsAsRead, markAllNotificationsAsRead } from "@/lib/notificationModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function PATCH(request) {
   try {
-    const body = await request.json();
-    const { uid, ids, all } = body;
+    const authContext = await requireFirebaseAuth(request);
+    const uid = authContext.uid;
 
-    if (!uid) {
-      return NextResponse.json(
-        { success: false, message: "uid is required." },
-        { status: 400 }
-      );
-    }
+    const body = await request.json();
+    const { ids, all } = body || {};
 
     if (all) {
       await markAllNotificationsAsRead(uid);
@@ -28,9 +25,16 @@ export async function PATCH(request) {
     await markNotificationsAsRead(ids, uid);
     return NextResponse.json({ success: true, message: "Notifications marked as read." });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+    if (status === 500) {
+      console.error("Failed to mark notifications as read:", error);
+    }
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to mark notifications as read." },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }

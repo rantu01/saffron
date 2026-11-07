@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { X, ChevronDown, LayoutGrid, BookOpen, FileCode, Calculator, Briefcase, Bookmark, User, Star, Search, Sparkles, Rocket, Megaphone } from 'lucide-react'; // আইকনের জন্য lucide-react ব্যবহার করা হয়েছে
 import { useAuth } from '@/app/Component/Auth/AuthProvider';
+import { useLanguage } from "@/components/LanguageContext";
+import LanguageSelector from "@/components/LanguageSelector";
 
 const Navbar = () => {
   // ব্যানারটি দেখাবে কি দেখাবে না তা ট্র্যাক করার জন্য state
@@ -14,6 +16,7 @@ const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
+  const { t } = useLanguage();
   const [role, setRole] = useState(null);
 
   useEffect(() => {
@@ -145,7 +148,7 @@ const Navbar = () => {
           <div className="hidden md:flex items-center gap-8 text-gray-800 font-medium text-base">
             <div className="relative group">
               <button className="flex items-center gap-1 hover:text-[#E05305] transition-colors cursor-pointer">
-                Services <ChevronDown size={16} className="mt-0.5" />
+                {t("site.services")} <ChevronDown size={16} className="mt-0.5" />
               </button>
 
               <div className="absolute left-1/2 -translate-x-1/2 top-full pt-4 z-40 opacity-0 translate-y-3 scale-y-95 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-y-100 group-hover:pointer-events-auto transition-all duration-300 ease-out origin-top">
@@ -183,7 +186,7 @@ const Navbar = () => {
 
             <div className="relative group">
               <button className="flex items-center gap-1 hover:text-[#E05305] transition-colors cursor-pointer">
-                Company <ChevronDown size={16} className="mt-0.5" />
+                {t("site.company")} <ChevronDown size={16} className="mt-0.5" />
               </button>
 
               <div className="absolute left-0 top-full pt-4 z-40 opacity-0 translate-y-[-12px] pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 ease-out">
@@ -257,11 +260,12 @@ const Navbar = () => {
 
               
             </div> */}
+            <LanguageSelector className="hidden md:inline-block" />
             <Link
               href="/contact"
               className="bg-[#E05305] text-white px-6 py-2.5 rounded-md font-semibold text-base hover:bg-[#c84a04] transition-colors inline-block"
             >
-              Contact Us
+              {t("site.contactUs")}
             </Link>
           </div>
         </div>
@@ -432,7 +436,7 @@ const Navbar = () => {
               onClick={() => setMobileOpen(false)}
               className="block bg-[#E05305] text-white text-center py-3 rounded-md font-medium hover:bg-[#c84a04] transition-colors shadow-sm"
             >
-              Contact Us
+              {t("site.contactUs")}
             </Link>
           </div>
         </aside>

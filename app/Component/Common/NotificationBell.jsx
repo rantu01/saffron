@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Bell, Volume2, VolumeX, MessageCircle } from "lucide-react";
 import { playNotificationSound, isNotificationSoundEnabled, setNotificationSoundEnabled } from "./notificationSound";
 import { pushRealtimeToast } from "./RealtimeToasts";
+import { getAuthToken } from "@/lib/clientAuth";
 
 export default function NotificationBell({ uid, dark = false }) {
   const [notifications, setNotifications] = useState([]);
@@ -72,10 +73,12 @@ export default function NotificationBell({ uid, dark = false }) {
     if (!uid || typeof window === "undefined" || !("EventSource" in window)) return;
     let stopped = false;
     let es = null;
-    function connect() {
+    async function connect() {
       if (stopped) return;
       try {
-        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(uid)}`);
+        const token = await getAuthToken();
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : "";
+        es = new EventSource(`/api/realtime/stream?role=user&uid=${encodeURIComponent(uid)}${tokenParam}`);
         esRef.current = es;
         es.addEventListener("counts", (e) => {
           try {

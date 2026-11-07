@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { startComboOrder } from "@/lib/comboTaskModel";
+import { requireFirebaseAuth } from "@/lib/apiAuth";
 
 export async function POST(request) {
   try {
+    const authContext = await requireFirebaseAuth(request);
+
     const body = await request.json();
-    const { comboId, uid } = body;
+    const { comboId } = body;
+    const uid = authContext.uid;
 
     if (!comboId || !uid) {
       return NextResponse.json({ success: false, message: "comboId and uid required" }, { status: 400 });
@@ -34,9 +38,18 @@ export async function POST(request) {
       orderIndex: result.orderIndex,
     });
   } catch (error) {
+    const status =
+      error instanceof Error && "status" in error && typeof error.status === "number"
+        ? error.status
+        : 500;
+
+    if (status === 500) {
+      console.error("Failed to start order:", error);
+    }
+
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to start order" },
-      { status: 500 }
+      { success: false, message: status === 500 ? "Internal server error." : error.message },
+      { status }
     );
   }
 }
