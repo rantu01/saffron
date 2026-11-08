@@ -29,7 +29,6 @@ export async function GET(request) {
       db
         .collection("tasks")
         .find({ assigneeUid: userUid })
-        .project({ status: 1, createdAt: 1, completedAt: 1, earnedAmount: 1, reward: 1, totalAmount: 1, position: 1, setNumber: 1, isComboTask: 1 })
         .sort({ createdAt: -1 })
         .toArray(),
       db

@@ -16,7 +16,7 @@ export async function GET(request) {
 
     if (error instanceof Error && "status" in error && typeof error.status === "number") {
       return NextResponse.json(
-        { success: false, message: status === 500 ? "Internal server error." : error.message },
+        { success: false, message: error.status === 500 ? "Internal server error." : error.message },
         { status: error.status }
       );
     }

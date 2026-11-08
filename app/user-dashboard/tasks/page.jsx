@@ -16,6 +16,7 @@ export default function UserTasksPage() {
   const [setProgress, setSetProgress] = useState(null);
   const [allTaskSets, setAllTaskSets] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [isAutoAssigning, setIsAutoAssigning] = useState(false);
   const [noGroupsAvailable, setNoGroupsAvailable] = useState(false);
   const [dailyLimitReached, setDailyLimitReached] = useState(false);
@@ -96,17 +97,15 @@ export default function UserTasksPage() {
         body: JSON.stringify({ uid: user.uid }),
       }).catch(() => {});
 
-      const [tasksRes, progressRes, dashRes] = await Promise.all([
-        fetch(`/api/admin/tasks?assigneeUid=${encodeURIComponent(user.uid)}&limit=200`),
+      const [progressRes, dashRes] = await Promise.all([
         fetch(`/api/admin/task-sets/progress?uid=${encodeURIComponent(user.uid)}`),
         fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
       ]);
 
-      const tasksData = await tasksRes.json();
-      const progressData = await progressRes.json();
-      const dashData = await dashRes.json();
+      const progressData = await progressRes.json().catch(() => ({ success: false }));
+      const dashData = await dashRes.json().catch(() => ({ success: false }));
 
-      const tasksFetched = tasksData?.success ? (tasksData.tasks || []) : [];
+      const tasksFetched = dashData?.success ? (dashData.dashboard?.tasks || []) : [];
       const setsFetched = progressData?.success ? (progressData.taskSets || []) : [];
 
       // A newer loadData() started while this one was in flight. Discard these
@@ -128,8 +127,14 @@ export default function UserTasksPage() {
       }
 
       const tasks = tasksFetched;
-      if (tasksData?.success) {
+      if (dashData?.success) {
         setAssignedTasks(tasks);
+        setLoadError("");
+      } else {
+        setLoadError(dashData?.message || "Failed to load tasks.");
+      }
+      if ((!progressRes.ok || !progressData?.success) && !dashData?.success) {
+        setLoadError(progressData?.message || "Failed to load task progress.");
       }
 
       const sets = setsFetched;
@@ -156,6 +161,7 @@ export default function UserTasksPage() {
       return { tasks, sets };
     } catch (err) {
       console.error(err);
+      setLoadError(err?.message || "Failed to load tasks.");
       return [];
     }
   }, [user?.uid]);
@@ -531,7 +537,18 @@ export default function UserTasksPage() {
         <div className="flex-1 flex flex-col gap-2 min-h-0 overflow-hidden">
           {/* Progress Card */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col items-center justify-center shrink-0">
-            {assignedTasks.length === 0 ? (
+            {loadError ? (
+              <div className="text-center py-4">
+                <p className="text-sm font-bold text-red-600">Failed to load tasks</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{loadError}</p>
+                <button
+                  onClick={() => { setIsLoading(true); loadData().finally(() => setIsLoading(false)); }}
+                  className="mt-2 inline-block bg-[#E05305] text-white rounded-lg px-5 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : assignedTasks.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm font-bold text-slate-900">No tasks assigned yet</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">Contact the admin to receive a task group.</p>
@@ -569,19 +586,8 @@ export default function UserTasksPage() {
 
             {dailyLimitReached ? (
               <div className="text-center">
-                <p className="text-sm font-bold text-slate-900">No tasks assigned yet</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Contact the admin to receive a task group.</p>
-                <a
-                  href="/user-dashboard/chat"
-                  className="mt-2 inline-block bg-[#E05305] text-white rounded-lg px-5 py-2 text-xs font-semibold hover:bg-[#c84a04] transition shadow"
-                >
-                  Contact Admin
-                </a>
-              </div>
-            ) : dailyLimitReached ? (
-              <div className="text-center">
-              <p className="text-sm font-bold text-amber-600">Try again in 24 hours.</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Try again in 24 hours."}</p>
+                <p className="text-sm font-bold text-amber-600">Try again in 24 hours.</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{dailyLimitMessage || "Try again in 24 hours."}</p>
               </div>
             ) : noGroupsAvailable ? (
               <div className="text-center">

@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getDailyLimitStatus } from "@/lib/taskSetModel";
-import { requireFirebaseAuth, requireAdminUser } from "@/lib/apiAuth";
+import { requireFirebaseAuth, ApiError } from "@/lib/apiAuth";
+import { normalizeRole } from "@/lib/roles";
 
 const DB_NAME = process.env.MONGODB_DB_NAME || "saffron";
 
 export async function GET(request) {
   try {
     const authContext = await requireFirebaseAuth(request);
-    requireAdminUser(authContext.user);
-
     const { searchParams } = new URL(request.url);
-    const uid = searchParams.get("uid");
+    const uid = searchParams.get("uid") || authContext.uid;
+
+    const isAdmin = normalizeRole(authContext.user?.role) === "admin";
+    if (!isAdmin && uid !== authContext.uid) {
+      throw new ApiError(403, "You can only access your own task progress.");
+    }
 
     if (!uid) {
       return NextResponse.json(
