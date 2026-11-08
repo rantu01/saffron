@@ -8,7 +8,7 @@ import { normalizeRole } from "@/lib/roles";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const POLL_MS = 3000;
+const POLL_MS = 5000;
 
 async function getAdminCounts() {
   const [{ getPendingDepositCount }, { getTotalUnreadMessageCount }, { getPendingVipRequestCount }] =

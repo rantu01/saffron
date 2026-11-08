@@ -4,13 +4,14 @@ import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/app/Component/Auth/AuthProvider";
 import {
-  Eye, EyeOff, TrendingUp, TrendingDown, ChevronRight,
+  Eye, EyeOff, ChevronRight,
   CheckCircle2, Clock, AlertCircle, Activity,
   Calendar, Award, Target, BarChart3,
   Wallet, PlusCircle, Send, MessageCircle, Gift,
+  ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
 
-const GOLD = "#FBBF24";
+const GOLD = "#5550D9";
 
 function formatMoney(val) {
   const n = Number(val || 0);
@@ -29,7 +30,7 @@ function formatTime(dateString) {
 function formatDateShort(dateString) {
   if (!dateString) return "";
   const d = new Date(dateString);
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[d.getMonth()]} ${d.getDate()}`;
 }
 
@@ -57,7 +58,7 @@ function CircularProgress({ percent, size = 110, strokeWidth = 8 }) {
   return (
     <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="transform -rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e4e6f4" strokeWidth={strokeWidth} />
         <circle
           cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={GOLD} strokeWidth={strokeWidth}
           strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round"
@@ -107,8 +108,8 @@ function EarningsChart({ data, width = 340, height = 160 }) {
           const y = pad.top + ch * (1 - r);
           return (
             <g key={i}>
-              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
-              <text x={pad.left - 5} y={y + 4} textAnchor="end" fill="rgba(255,255,255,0.2)" fontSize="7" fontFamily="Arial, sans-serif">
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} stroke="#e8eaf5" strokeWidth="1" />
+              <text x={pad.left - 5} y={y + 4} textAnchor="end" fill="#69708d" fontSize="7" fontFamily="Arial, sans-serif">
                 ${Math.round(max * r + min * (1 - r))}
               </text>
             </g>
@@ -118,7 +119,7 @@ function EarningsChart({ data, width = 340, height = 160 }) {
           if (data.length > 10 && i % 2 !== 0) return null;
           const x = pad.left + (i / Math.max(data.length - 1, 1)) * cw;
           return (
-            <text key={i} x={x} y={height - 5} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize="7" fontFamily="Arial, sans-serif">
+            <text key={i} x={x} y={height - 5} textAnchor="middle" fill="#69708d" fontSize="7" fontFamily="Arial, sans-serif">
               {d.label}
             </text>
           );
@@ -134,14 +135,14 @@ function EarningsChart({ data, width = 340, height = 160 }) {
 }
 
 /* ─── User Account Card ─── */
-function UserAccountCard({ profile, user }) {
+function UserAccountCard({ profile, user, onNavigate }) {
   const displayName = profile?.username || profile?.displayName || user?.displayName || user?.email?.split("@")[0] || "User";
   const email = user?.email || "";
   const initials = displayName.charAt(0).toUpperCase();
   const accountId = profile?.referralCode || user?.uid?.slice(0, 10) || "----";
 
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center gap-3.5">
+    <button type="button" onClick={() => onNavigate("/user-dashboard/profile")} className="dashboard-card dashboard-account-card mx-4 mt-4 w-[calc(100%-2rem)] text-left rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center gap-3.5">
       <div className="w-12 h-12 rounded-full overflow-hidden bg-gradient-to-br from-amber-400 to-orange-500 flex-shrink-0 flex items-center justify-center text-slate-900 font-bold text-lg">
         {profile?.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -154,7 +155,7 @@ function UserAccountCard({ profile, user }) {
         <h2 className="text-sm font-bold text-white truncate">{displayName}</h2>
         <p className="text-[11px] text-slate-400 truncate">{email}</p>
         <div className="flex items-center gap-1.5 mt-1">
-          <span className="inline-flex items-center gap-1 bg-emerald-500/15 text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full">
+          <span className="inline-flex items-center gap-1 bg-emerald-500/15 !text-black text-[9px] font-bold px-1.5 py-0.5 rounded-full">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             Active
           </span>
@@ -162,17 +163,20 @@ function UserAccountCard({ profile, user }) {
         </div>
       </div>
       <ChevronRight size={16} className="text-slate-500 flex-shrink-0" />
-    </div>
+    </button>
   );
 }
 
 /* ─── System Status ─── */
-function SystemStatus() {
+function SystemStatus({ accountStatus = "active" }) {
+  const isOperational = accountStatus !== "frozen";
   return (
-    <div className="mx-4 mt-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 flex items-center justify-between">
+    <div className={`dashboard-status mx-4 mt-3 rounded-xl px-4 py-2.5 flex items-center justify-between ${isOperational ? "bg-emerald-500/10 border border-emerald-500/20" : "bg-red-500/10 border border-red-500/20"}`}>
       <div className="flex items-center gap-2">
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[11px] font-medium text-emerald-400">All systems operational</span>
+        <span className={`w-2 h-2 rounded-full animate-pulse ${isOperational ? "bg-emerald-400" : "bg-red-400"}`} />
+        <span className={`text-[11px] font-medium ${isOperational ? "text-emerald-400" : "text-red-400"}`}>
+          {isOperational ? "Account operational" : "Account requires attention"}
+        </span>
       </div>
       <ChevronRight size={14} className="text-emerald-400/50" />
     </div>
@@ -181,11 +185,8 @@ function SystemStatus() {
 
 /* ─── Balance Card ─── */
 function BalanceCard({ balance, onToggleVisible, isVisible }) {
-  const todayChange = 12.50;
-  const changePercent = 2.4;
-
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-[#1a1a1a] via-[#161616] to-[#121212] p-5 relative overflow-hidden">
+    <div className="dashboard-balance mx-4 mt-4 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-[#1a1a1a] via-[#161616] to-[#121212] p-5 relative overflow-hidden">
       <div className="absolute -top-8 -right-8 w-40 h-40 bg-amber-500/[0.07] rounded-full" />
       <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-amber-500/[0.05] rounded-full" />
       <div className="relative">
@@ -198,15 +199,8 @@ function BalanceCard({ balance, onToggleVisible, isVisible }) {
         <div className="text-3xl font-bold text-white mt-1 tracking-tight">
           {isVisible ? `$${formatMoney(balance)}` : "••••••"}
         </div>
-        <div className="flex items-center gap-1.5 mt-2">
-          <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-emerald-400">
-            <TrendingUp size={12} /> +{formatMoney(todayChange)} today
-          </span>
-          <span className="text-[10px] font-medium text-emerald-400">
-            (+{changePercent}%)
-          </span>
-        </div>
-        
+        <p className="mt-2 text-[10px] font-medium text-white/85">Available to use for account activity</p>
+
       </div>
     </div>
   );
@@ -219,17 +213,17 @@ function StatsCards({ tasks }) {
   const month = getPeriodEarnings(tasks, "30 Days");
 
   const stats = [
-    { label: "Today", value: `$${formatMoney(today)}`, change: "+0%", positive: true, icon: Wallet, color: "text-amber-400", bg: "bg-amber-400/10" },
-    { label: "Week", value: `$${formatMoney(week)}`, change: "+0%", positive: true, icon: Calendar, color: "text-blue-400", bg: "bg-blue-400/10" },
-    { label: "Month", value: `$${formatMoney(month)}`, change: "+0%", positive: true, icon: Award, color: "text-purple-400", bg: "bg-purple-400/10" },
+    { label: "Today", value: `$${formatMoney(today)}`, icon: Wallet, color: "text-amber-400", bg: "bg-amber-400/10" },
+    { label: "7 days", value: `$${formatMoney(week)}`, icon: Calendar, color: "text-blue-400", bg: "bg-blue-400/10" },
+    { label: "This month", value: `$${formatMoney(month)}`, icon: Award, color: "text-purple-400", bg: "bg-purple-400/10" },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2 mt-4 px-4">
+    <div className="dashboard-stats grid grid-cols-3 gap-2 mt-4 px-4">
       {stats.map((stat, i) => {
         const Icon = stat.icon;
         return (
-          <div key={i} className="rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3">
+          <div key={i} className="dashboard-card rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{stat.label}</span>
               <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${stat.bg}`}>
@@ -237,9 +231,7 @@ function StatsCards({ tasks }) {
               </div>
             </div>
             <div className="text-base font-bold text-white">{stat.value}</div>
-            <div className={`text-[10px] font-medium mt-0.5 ${stat.positive ? "text-emerald-400" : "text-red-400"}`}>
-              {stat.change}
-            </div>
+            <div className="text-[10px] font-medium mt-0.5 text-slate-500">Completed earnings</div>
           </div>
         );
       })}
@@ -257,7 +249,7 @@ function QuickActions({ onNavigate }) {
   ];
 
   return (
-    <div className="mt-4 px-4">
+    <div className="dashboard-actions mt-4 px-4">
       <div className="grid grid-cols-4 gap-2">
         {actions.map((action, i) => {
           const Icon = action.icon;
@@ -265,7 +257,7 @@ function QuickActions({ onNavigate }) {
             <button
               key={i}
               onClick={() => onNavigate(action.href)}
-              className="rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3 flex flex-col items-center gap-1.5 hover:border-amber-500/20 transition-colors active:scale-[0.97]"
+              className="dashboard-action rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3 flex flex-col items-center gap-1.5 hover:border-amber-500/20 transition-colors active:scale-[0.97]"
             >
               <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
                 <Icon size={16} className="text-amber-400" />
@@ -281,20 +273,20 @@ function QuickActions({ onNavigate }) {
 }
 
 /* ─── Task Progress Card ─── */
-function TaskProgressCard({ tasks }) {
+function TaskProgressCard({ tasks, onNavigate }) {
   const completedCount = tasks?.filter(t => t.status === "completed").length || 0;
   const totalCount = tasks?.length || 0;
   const percent = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+    <div className="dashboard-card dashboard-task-progress mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
             <Target size={16} className="text-amber-400" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white">Today's Task Progress</h3>
+            <h3 className="text-sm font-bold text-white">Today&apos;s Task Progress</h3>
             <p className="text-[10px] text-slate-400">{completedCount} of {totalCount} completed</p>
           </div>
         </div>
@@ -325,7 +317,7 @@ function TaskProgressCard({ tasks }) {
           </div>
         </div>
       </div>
-      <button className="w-full mt-4 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-white text-xs font-semibold py-2.5 rounded-xl transition-colors">
+      <button onClick={() => onNavigate("/user-dashboard/tasks")} className="dashboard-secondary-action w-full mt-4 bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-white text-xs font-semibold py-2.5 rounded-xl transition-colors">
         Continue Tasks
       </button>
     </div>
@@ -360,20 +352,19 @@ function EarningsOverview({ tasks }) {
   const filters = ["Today", "7 Days", "30 Days"];
 
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+    <div className="dashboard-card dashboard-earnings mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-bold text-white">Earnings Overview</h3>
           <BarChart3 size={14} className="text-amber-400" />
         </div>
-        <div className="flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
+        <div className="dashboard-filter flex gap-1 bg-white/[0.04] rounded-lg p-0.5">
           {filters.map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${
-                filter === f ? "bg-amber-500/20 text-amber-400" : "text-slate-400 hover:text-slate-300"
-              }`}
+              className={`text-[10px] font-semibold px-2.5 py-1 rounded-md transition-colors ${filter === f ? "bg-amber-500/20 text-amber-400" : "text-slate-400 hover:text-slate-300"
+                }`}
             >
               {f}
             </button>
@@ -388,19 +379,19 @@ function EarningsOverview({ tasks }) {
 }
 
 /* ─── Recent Activity ─── */
-function RecentActivity({ records }) {
+function RecentActivity({ records, onNavigate }) {
   const activities = records?.slice(0, 5) || [];
 
   return (
-    <div className="mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
+    <div className="dashboard-card dashboard-activity mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-bold text-white">Recent Activity</h3>
           <Activity size={14} className="text-amber-400" />
         </div>
-        <span className="text-[11px] text-amber-400 font-medium cursor-pointer hover:text-amber-300">
+        <button type="button" onClick={() => onNavigate("/user-dashboard/records")} className="text-[11px] text-amber-400 font-medium hover:text-amber-300">
           View all →
-        </span>
+        </button>
       </div>
       <div className="space-y-1">
         {activities.length === 0 ? (
@@ -410,9 +401,8 @@ function RecentActivity({ records }) {
             const isPositive = record.profit >= 0 || record.status === "completed";
             return (
               <div key={i} className="flex items-center gap-3 py-2.5 px-2 rounded-xl hover:bg-white/[0.03] transition-colors">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                  isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
-                }`}>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
+                  }`}>
                   {isPositive ? (
                     <ArrowUpRight size={14} className="text-emerald-400" />
                   ) : (
@@ -450,11 +440,10 @@ export default function UserDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [balanceVisible, setBalanceVisible] = useState(true);
-  const [showWelcomeToast, setShowWelcomeToast] = useState(false);
+  const [showWelcomeToast, setShowWelcomeToast] = useState(() => searchParams.get("welcome") === "true");
 
   useEffect(() => {
     if (searchParams.get("welcome") === "true") {
-      setShowWelcomeToast(true);
       const cleanUrl = window.location.pathname;
       window.history.replaceState(null, "", cleanUrl);
       const timer = setTimeout(() => setShowWelcomeToast(false), 6000);
@@ -470,17 +459,13 @@ export default function UserDashboardPage() {
       }
       try {
         setError("");
-        const [dashboardRes, depositsRes, withdrawalsRes, profileRes, recordsRes] = await Promise.all([
+        const [dashboardRes, profileRes, recordsRes] = await Promise.all([
           fetch(`/api/user/dashboard?uid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/user/deposit?uid=${encodeURIComponent(user.uid)}`),
-          fetch(`/api/user/withdrawal?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/profile?uid=${encodeURIComponent(user.uid)}`),
           fetch(`/api/user/records?uid=${encodeURIComponent(user.uid)}`),
         ]);
 
         const dashboardResult = await dashboardRes.json();
-        const depositsResult = await depositsRes.json();
-        const withdrawalsResult = await withdrawalsRes.json();
         const profileResult = await profileRes.json();
         const recordsResult = await recordsRes.json();
 
@@ -489,8 +474,6 @@ export default function UserDashboardPage() {
         }
 
         setDashboard(dashboardResult.dashboard);
-        setDeposits(depositsResult.deposits || []);
-        setWithdrawals(withdrawalsResult.withdrawals || []);
         if (profileResult?.success) {
           setProfile(profileResult.user);
         }
@@ -509,20 +492,111 @@ export default function UserDashboardPage() {
 
   if (loading || isLoading) {
     return (
-      <div className="min-h-screen bg-[#121212]">
-        <div className="max-w-lg mx-auto px-4 py-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-20 bg-[#1a1a1a] rounded-2xl" />
-            <div className="h-12 bg-[#1a1a1a] rounded-xl" />
-            <div className="h-32 bg-[#1a1a1a] rounded-2xl" />
-            <div className="grid grid-cols-3 gap-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-20 bg-[#1a1a1a] rounded-xl" />
-              ))}
-            </div>
-            <div className="h-44 bg-[#1a1a1a] rounded-2xl" />
-            <div className="h-48 bg-[#1a1a1a] rounded-2xl" />
+      <div className="dashboard-page min-h-screen pb-20 animate-pulse">
+        {/* User Account Card skeleton */}
+        <div className="dashboard-card dashboard-account-card mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-full bg-slate-200 flex-shrink-0" />
+          <div className="flex-1 min-w-0 space-y-2">
+            <div className="h-3.5 bg-slate-200 rounded w-2/3" />
+            <div className="h-2.5 bg-slate-200 rounded w-1/2" />
+            <div className="h-2.5 bg-slate-200 rounded w-1/3" />
           </div>
+          <div className="w-4 h-4 bg-slate-200 rounded flex-shrink-0" />
+        </div>
+
+        {/* System Status skeleton */}
+        <div className="dashboard-status mx-4 mt-3 rounded-xl px-4 py-2.5 h-9 flex items-center">
+          <div className="h-2.5 bg-slate-200 rounded w-40" />
+        </div>
+
+        {/* Balance Card skeleton */}
+        <div className="dashboard-balance mx-4 mt-4 rounded-2xl p-5 h-28 flex flex-col justify-center gap-3">
+          <div className="h-2.5 bg-white/30 rounded w-28" />
+          <div className="h-8 bg-white/30 rounded w-36" />
+          <div className="h-2.5 bg-white/30 rounded w-44" />
+        </div>
+
+        {/* Stats Cards skeleton */}
+        <div className="dashboard-stats grid grid-cols-3 gap-2 mt-4 px-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="dashboard-card rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3 h-20 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="h-2 bg-slate-200 rounded w-2/3" />
+                <div className="w-6 h-6 bg-slate-200 rounded-lg" />
+              </div>
+              <div className="h-4 bg-slate-200 rounded w-1/2" />
+              <div className="h-2 bg-slate-200 rounded w-3/4" />
+            </div>
+          ))}
+        </div>
+
+        {/* Quick Actions skeleton */}
+        <div className="dashboard-actions mt-4 px-4">
+          <div className="grid grid-cols-4 gap-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="dashboard-action rounded-xl bg-[#1a1a1a] border border-white/[0.06] p-3 h-20 flex flex-col items-center justify-center gap-1.5">
+                <div className="w-9 h-9 bg-slate-200 rounded-xl" />
+                <div className="h-2 bg-slate-200 rounded w-10" />
+                <div className="h-1.5 bg-slate-200 rounded w-8" />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Task Progress skeleton */}
+        <div className="dashboard-card dashboard-task-progress mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 h-44 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+              <div className="space-y-1.5">
+                <div className="h-3 bg-slate-200 rounded w-32" />
+                <div className="h-2 bg-slate-200 rounded w-24" />
+              </div>
+            </div>
+            <div className="w-4 h-4 bg-slate-200 rounded" />
+          </div>
+          <div className="flex items-center gap-5">
+            <div className="w-[90px] h-[90px] rounded-full bg-slate-200 flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-2.5 bg-slate-200 rounded w-full" />
+              <div className="h-2 bg-slate-200 rounded-full w-full" />
+              <div className="flex gap-3">
+                <div className="h-2 bg-slate-200 rounded w-12" />
+                <div className="h-2 bg-slate-200 rounded w-12" />
+              </div>
+            </div>
+          </div>
+          <div className="h-9 bg-slate-200 rounded-xl w-full" />
+        </div>
+
+        {/* Earnings Overview skeleton */}
+        <div className="dashboard-card dashboard-earnings mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 h-48 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="h-3 bg-slate-200 rounded w-32" />
+            <div className="h-6 bg-slate-200 rounded-lg w-36" />
+          </div>
+          <div className="h-32 bg-slate-200/60 rounded-xl w-full" />
+        </div>
+
+        {/* Recent Activity skeleton */}
+        <div className="dashboard-card dashboard-activity mx-4 mt-4 rounded-2xl border border-white/[0.06] bg-[#1a1a1a] p-4 h-40 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="h-3 bg-slate-200 rounded w-28" />
+            <div className="h-2.5 bg-slate-200 rounded w-14" />
+          </div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-1.5">
+              <div className="w-8 h-8 bg-slate-200 rounded-lg flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="h-2.5 bg-slate-200 rounded w-2/3" />
+                <div className="h-2 bg-slate-200 rounded w-1/3" />
+              </div>
+              <div className="space-y-1.5 text-right">
+                <div className="h-2.5 bg-slate-200 rounded w-12" />
+                <div className="h-2 bg-slate-200 rounded w-8" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -540,17 +614,17 @@ export default function UserDashboardPage() {
   const accountStatus = dashboard.accountStatus || "active";
 
   return (
-    <div className="min-h-screen bg-[#121212] pb-20">
-      {/* Welcome Bonus Toast */}
+    <div className="dashboard-page min-h-screen pb-20">
+      {/* Welcome Toast */}
       {showWelcomeToast && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-slide-down">
-          <div className="bg-emerald-500/15 border border-emerald-500/25 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
+          <div className="dashboard-welcome bg-emerald-500/15 border border-emerald-500/25 rounded-2xl shadow-lg px-4 py-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
               <Gift size={16} />
             </div>
             <div>
-              <p className="text-xs font-bold text-emerald-400">Welcome! You've received a $5 signup bonus.</p>
-              <p className="text-[10px] text-emerald-300/70 mt-0.5">Check your balance to see the credit.</p>
+              <p className="text-xs font-bold text-emerald-400">Welcome back to your dashboard.</p>
+              <p className="text-[10px] text-emerald-300/70 mt-0.5">Your latest account activity is ready to review.</p>
             </div>
             {/* <button onClick={() => setShowWelcomeToast(false)} className="text-emerald-400/50 hover:text-emerald-400 ml-auto">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -560,10 +634,10 @@ export default function UserDashboardPage() {
       )}
 
       {/* User Account Card */}
-      <UserAccountCard profile={profile} user={user} />
+      <UserAccountCard profile={profile} user={user} onNavigate={(href) => router.push(href)} />
 
       {/* System Status */}
-      <SystemStatus />
+      <SystemStatus accountStatus={accountStatus} />
 
       {/* Balance Card */}
       <BalanceCard balance={balance} onToggleVisible={() => setBalanceVisible(v => !v)} isVisible={balanceVisible} />
@@ -575,17 +649,17 @@ export default function UserDashboardPage() {
       <QuickActions onNavigate={(href) => router.push(href)} />
 
       {/* Task Progress */}
-      <TaskProgressCard tasks={dashboard.tasks} />
+      <TaskProgressCard tasks={dashboard.tasks} onNavigate={(href) => router.push(href)} />
 
       {/* Earnings Overview */}
       <EarningsOverview tasks={dashboard.tasks} />
 
       {/* Recent Activity */}
-      <RecentActivity records={records} />
+      <RecentActivity records={records} onNavigate={(href) => router.push(href)} />
 
       {/* Account Freeze Alert */}
       {accountStatus === "frozen" && (
-        <div className="mx-4 mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 flex items-center gap-3 text-xs text-red-300">
+        <div className="dashboard-freeze-alert mx-4 mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3.5 flex items-center gap-3 text-xs text-red-300">
           <AlertCircle size={16} className="shrink-0" />
           <div>
             <span className="font-semibold">Account Frozen:</span> {dashboard.freezeReason || "Balance requirement not met."}

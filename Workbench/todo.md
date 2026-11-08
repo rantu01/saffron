@@ -6,7 +6,7 @@
 
 ## Current position
 
-- **Active phase:** Phases 1–3 complete; Phase 4 advanced (multi-position combos, versioning, auto-trigger, deposit-triggered unfreeze); Phase 5 advanced (VIP matrix seeded, config-driven readers, daily group limit from VIP); Phase 6 advanced (terms seeded, language-aware, acceptance); Phase 7 in progress; Phase 8 pending verification (DB read-only safety). Blockers B1/B2/B6 resolved; B3 partially resolved (unspecified financial clauses documented as pending). Verification-deposit requirement: none (documented).
+- **Active phase:** Phases 1-3 complete; Phase 4 advanced; Phase 5 advanced; Phase 6 advanced; Phase 7 in progress; Phase 8 pending verification (DB read-only safety). Blockers B1/B2/B3/B6 all resolved. Verification-deposit: not required. Withdrawal rules: configurable platform defaults. Fund freeze/unfreeze: preserved.
 - **Date:** 2026-11-05.
 - **Code changes so far:** Phase 2 expanded; server-side auth enforcement now covers all admin/user/chat/notification/realtime routes; uid binding, audit-identity replacement, SSE token auth, pagination for withdrawals/invitations/WhatsApp logs, unique/partial indexes, and global client fetch token injection added. Build passes.
 - **Database changes so far:** 33+ additive indexes defined in `lib/dbIndexes.js` (including new unique/partial constraints); applied on app startup.
@@ -151,7 +151,7 @@
 ## Phase 6 — Terms & Conditions System
 
 - [x] **6.1** Obtain the authoritative Terms & Conditions document (approved VIP matrix + verified clauses; unspecified financial clauses documented as pending).
-- [~] **6.2** Resolve the conflicting clauses (VIP values confirmed; extra verification deposit, large-amount channel, withdrawal caps, fund freezing remain unconfirmed and documented as pending).
+- [x] **6.2** Resolve the conflicting clauses (no verification deposit; no large-amount category; withdrawal rules defined with configurable defaults; fund freeze/unfreeze preserved).
 - [x] **6.3** Map verified clauses to system behaviour and record the mapping (Terms seed content + VIP matrix).
 - [x] **6.4** Create a `termsVersions` collection with version, content, effective date, and status. (`lib/termsModel.js` + indexes)
 - [x] **6.5** Create a `termsAcceptances` collection (uid, version, acceptedAt, IP, user agent, source). (`lib/termsModel.js` + indexes)
@@ -210,7 +210,7 @@
 |---|---|---|---|
 | B1 | Resolved: approved VIP matrix supplied by business manager. | Phases 5, 6 | Resolved |
 | B2 | Resolved: approved VIP matrix is source of truth; hardcoded values updated. | Phase 5 | Resolved |
-| B3 | Partially resolved: VIP values confirmed; extra verification deposit, large-amount channel, withdrawal caps, fund freezing remain unconfirmed and are documented as pending (not published). | Phase 6 | Business/legal confirmation still required for those clauses |
+| B3 | Resolved: no verification deposit; no large-amount category/threshold; withdrawal rules defined with configurable platform defaults (min $10, max $100000, 5 requests/day, 0% fee, 24-48h processing); fund freeze/unfreeze preserved. | Phase 6 | Resolved |
 | B4 | Demo/training accounts may not have Firebase Auth users | Phase 2 auth enforcement | Business/engineering must define the auth policy |
 | B5 | MongoDB replica-set support is unconfirmed | Phase 2 transactions | Engineering must confirm deployment topology |
 | B6 | Resolved: positions 6, 9, 14, 16, 18 specified by business manager. | Phase 4 | Resolved |
@@ -221,3 +221,23 @@
 2. Phase 4 and Phase 5 are coupled: tasks-per-set and profit rates come from VIP configuration, while combined tasks consume positions inside the set.
 3. Phase 6 must precede Phase 7 localization, because terms content needs a stable versioned source.
 4. Phase 8 is a gate, not a feature phase; do not start it until Phases 2–7 are verified individually.
+
+## Performance Optimization Pass (2026-11-07)
+
+- [x] next.config performance settings
+- [x] MongoDB pool tuning
+- [x] Dashboard projection
+- [x] Realtime polling reduction
+- [x] VIP eligibility parallel writes
+- [x] Homepage code splitting
+- [x] Performance docs created
+
+
+## Navigation Performance Pass (2026-11-07)
+
+- [x] Admin layout skeleton loading
+- [x] User layout skeleton loading
+- [x] Route-level loading.js
+- [x] Navigation progress indicator
+- [x] Navigation docs created
+

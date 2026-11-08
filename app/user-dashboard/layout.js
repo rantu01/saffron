@@ -11,7 +11,7 @@ export const metadata = {
 export default function DashboardLayout({ children }) {
   return (
     <AuthProvider>
-      <div className="min-h-screen bg-[#121212] text-white">
+      <div className="user-panel min-h-screen">
         <ClientLayout>{children}</ClientLayout>
       </div>
     </AuthProvider>

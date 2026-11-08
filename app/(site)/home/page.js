@@ -1,16 +1,18 @@
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import Hero from "../../Component/Home/Hero";
 import TrustedBy from "../../Component/Home/TrustedBy";
 import FunnelSwitcher from "../../Component/Home/FunnelSwitcher";
 import ServicesShowcase from "../../Component/Home/ServicesShowcase";
 import StatsShowcase from "../../Component/Home/StatsShowcase";
-import IndustryShowcase from "../../Component/Home/IndustryShowcase";
-import FeaturesGrid from "../../Component/Home/FeaturesGrid";
-import BotModelShowcase from "../../Component/Home/BotModelShowcase";
-import CaseStudiesGrid from "../../Component/Home/CaseStudiesGrid";
-import BlogsGrid from "../../Component/Home/BlogsGrid";
-import TestimonialsSlider from "../../Component/Home/TestimonialsSlider";
-import ContactSection from "../../Component/Home/ContactSection";
+
+const IndustryShowcase = dynamic(() => import("../../Component/Home/IndustryShowcase"), { ssr: true });
+const FeaturesGrid = dynamic(() => import("../../Component/Home/FeaturesGrid"), { ssr: true });
+const BotModelShowcase = dynamic(() => import("../../Component/Home/BotModelShowcase"), { ssr: true });
+const CaseStudiesGrid = dynamic(() => import("../../Component/Home/CaseStudiesGrid"), { ssr: true });
+const BlogsGrid = dynamic(() => import("../../Component/Home/BlogsGrid"), { ssr: true });
+const TestimonialsSlider = dynamic(() => import("../../Component/Home/TestimonialsSlider"), { ssr: true });
+const ContactSection = dynamic(() => import("../../Component/Home/ContactSection"), { ssr: true });
 
 export default function HomePage() {
   return (

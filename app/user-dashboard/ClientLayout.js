@@ -167,13 +167,27 @@ function ClientLayoutInner({ children }) {
   }, [loading, router, user]);
 
   if (loading || !user || roleChecking) {
-    return <div className='min-h-screen bg-[#121212]' />;
+    return (
+      <div className='user-panel min-h-screen animate-pulse bg-[#121212]'>
+        <div className='h-14 border-b border-slate-800 bg-[#1a1a1a]' />
+        <div className='px-4 py-6 space-y-4 max-w-6xl mx-auto'>
+          <div className='h-8 w-40 rounded bg-slate-700/40' />
+          <div className='grid grid-cols-2 sm:grid-cols-4 gap-3'>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className='h-20 rounded-xl bg-slate-700/40' />
+            ))}
+          </div>
+          <div className='h-56 rounded-xl bg-slate-700/40' />
+        </div>
+      </div>
+    );
   }
 
   return (
     <>
+      <a className="user-skip-link" href="#user-panel-main">Skip to content</a>
       <UserSidebar open={open} onClose={() => setOpen(false)} />
-      <div className='min-h-screen flex flex-col md:max-w-2xl mx-auto'>
+      <div className='user-panel-shell min-h-screen flex flex-col'>
         <UserTopbar onToggle={() => setOpen((v) => !v)} />
 
         {/* SITE MAINTENANCE GEAR BUTTON - fixed bottom-right on dashboard */}
@@ -191,7 +205,7 @@ function ClientLayoutInner({ children }) {
 
         {/* MOBILE APP LAUNCHER - hidden on dashboard (new design includes quick actions) and on records */}
         {isDashboard || isRecordsPage ? false : (
-        <div className="bg-[#121212] px-4 pt-2 pb-6 ">
+        <div className="user-launcher bg-[#121212] px-4 pt-2 pb-6 ">
           <div className="mb-6">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
               Saffron Edge
@@ -201,29 +215,29 @@ function ClientLayoutInner({ children }) {
             </h1>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 md:max-w-6xl mx-auto">
-            {mobileNavItems.map((item) => {
-              const Icon = item.icon;
-              const showBadge = item.href === '/user-dashboard/chat' && unreadChat > 0;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#FBBF24] p-1.5 aspect-square"
-                >
-                  <Icon size={16} className="text-slate-900" />
-                  <span className="text-[9px] font-bold text-slate-900 text-center leading-tight">
-                    {t(item.key)}
-                  </span>
-                  {showBadge && (
-                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full leading-none shadow">
-                      {unreadChat > 99 ? "99+" : unreadChat}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+          <div className="grid grid-cols-4 gap-2 md:max-w-6xl mx-auto text-white">
+  {mobileNavItems.map((item) => {
+    const Icon = item.icon;
+    const showBadge = item.href === '/user-dashboard/chat' && unreadChat > 0;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#FBBF24] p-1.5 aspect-square"
+      >
+        <Icon size={16} className="!text-white" />
+        <span className="text-[9px] font-bold !text-white text-center leading-tight">
+          {t(item.key)}
+        </span>
+        {showBadge && (
+          <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full leading-none shadow">
+            {unreadChat > 99 ? "99+" : unreadChat}
+          </span>
+        )}
+      </Link>
+    );
+  })}
+</div>
 
           {/* <div className="mt-6 rounded-2xl bg-slate-800/80 h-44 flex items-center justify-center overflow-hidden border border-slate-700/50">
             <div className="text-center">
@@ -236,8 +250,8 @@ function ClientLayoutInner({ children }) {
         </div>
         )}
 
-        <main className="px-4 pb-20 py-6 sm:px-6 bg-[#121212] h-full">
-          <div className='mx-auto w-full max-w-2xl h-full'>{children}</div>
+        <main id="user-panel-main" className="user-panel-main px-4 pb-24 py-5 sm:px-6 h-full" tabIndex="-1">
+          <div className='mx-auto w-full max-w-6xl h-full'>{children}</div>
         </main>
       </div>
 
@@ -245,7 +259,7 @@ function ClientLayoutInner({ children }) {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 ">
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
-          <div className="fixed left-0 top-0 h-screen w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
+          <div className="user-drawer fixed left-0 top-0 h-screen w-[280px] bg-[#121212] shadow-2xl overflow-y-auto animate-slide-in-left">
             <div className="p-5">
               {/* Close button */}
               <button
@@ -398,7 +412,7 @@ function ClientLayoutInner({ children }) {
       {/* <LiveChat /> */}
 
       {/* MOBILE BOTTOM NAV - visible on all dashboard pages */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#FBBF24]">
+      <div className="user-bottom-nav fixed bottom-0 left-0 right-0 z-50 bg-[#FBBF24]">
         <div className="mx-auto w-full max-w-2xl flex items-center justify-around py-2">
           {bottomNavItems.map((item) => {
             const Icon = item.icon;

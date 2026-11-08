@@ -680,6 +680,37 @@ Task **2.2** is complete (shared Firebase helper added and wired into `/api/auth
 ### Database modification confirmation
 - No existing records were modified during this session's verification. Only additive index creation (already applied in prior phases) and auto-seeded config/terms versions on first access (additive, non-destructive).
 
+## B3 Resolution & Withdrawal Rules (2026-11-06)
+**Status:** `[x]` Completed
+
+### Work completed
+1. **B3 resolved.** No verification deposit; no large-amount category/threshold; withdrawal rules defined with configurable platform defaults (min $10, max $100,000, 5 requests/day, 0% fee, 24-48h processing); fund freeze/unfreeze preserved.
+2. **Withdrawal config.** Added `lib/withdrawalConfig.js` (auto-seeded published version) + enforcement in `/api/user/withdrawal`.
+3. **Verification.** `npm run build` successful (single-worker).
+
 ## Phase 8 — Integration and Final Testing:
 
 **Status:** `[~]` In progress
+
+## Performance Optimization Pass (2026-11-07)
+
+Status: [x] Completed (config + code changes; build verified)
+
+- next.config.mjs: compression, AVIF/WebP, optimizePackageImports, cache headers.
+- MongoDB pool tuning (maxPoolSize 20, minPoolSize 2, retryWrites/Reads).
+- Dashboard task projection.
+- Realtime polling 3s->5s.
+- VIP eligibility parallel writes.
+- Homepage dynamic imports.
+- Created performance_audit.md, performance_optimization_report.md, performance_benchmark.md.
+- npm run build successful.
+
+
+## Navigation Performance Pass (2026-11-07)
+
+- Replaced blank loading states with skeleton shells.
+- Added loading.js for admin and user dashboard.
+- Added NavigationProgress component.
+- Created navigation_performance_audit.md and navigation_optimization_report.md.
+- npm run build successful.
+

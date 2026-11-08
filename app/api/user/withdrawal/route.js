@@ -29,6 +29,23 @@ export async function POST(request) {
       );
     }
 
+    // Configurable withdrawal rules (platform defaults; admin-configurable).
+    const { getActiveWithdrawalConfig } = await import("@/lib/withdrawalConfig");
+    const wcfg = await getActiveWithdrawalConfig();
+    if (numAmount < Number(wcfg.minAmount)) {
+      return NextResponse.json(
+        { success: false, message: `Minimum withdrawal amount is $${wcfg.minAmount}` },
+        { status: 400 }
+      );
+    }
+    if (numAmount > Number(wcfg.maxAmount)) {
+      return NextResponse.json(
+        { success: false, message: `Maximum withdrawal amount is $${wcfg.maxAmount}` },
+        { status: 400 }
+      );
+    }
+    // (daily limit check deferred until db is available)
+
     const client = await clientPromise;
     const user = await getUserByUid(uid);
 
@@ -56,6 +73,24 @@ export async function POST(request) {
     }
 
     const db = client.db(process.env.MONGODB_DB_NAME || "saffron");
+
+    // Daily request limit (configurable).
+    try {
+      const wcfg2 = wcfg;
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const todayCount = await db.collection("withdrawals").countDocuments({
+        uid,
+        createdAt: { $gte: startOfToday },
+      });
+      if (todayCount >= Number(wcfg2.dailyRequestLimit)) {
+        return NextResponse.json(
+          { success: false, message: `Daily withdrawal request limit (${wcfg2.dailyRequestLimit}) reached. Try again tomorrow.` },
+          { status: 429 }
+        );
+      }
+    } catch (e) {}
+
     const incompleteSet = await db.collection("userTaskSets").findOne({
       uid,
       $expr: { $lt: ["$completedTasks", "$totalTasks"] },

@@ -105,7 +105,23 @@ function AdminLayoutShell({ children }) {
 	}, [loading, router, user?.uid, user?.email]);
 
 	if (loading || roleChecking || !isAdmin) {
-		return <div className="min-h-screen lg:bg-[#F8F5F1] bg-[#121212]" />;
+		return (
+			<div className="min-h-screen lg:bg-[#F8F5F1] bg-[#121212] animate-pulse">
+				<div className="hidden lg:block fixed left-0 top-0 h-screen w-72 bg-[#1a1a1a]" />
+				<div className="lg:pl-72 min-h-screen">
+					<div className="h-16 border-b border-slate-200/20 bg-white/5" />
+					<div className="p-6 space-y-4">
+						<div className="h-8 w-48 rounded bg-slate-300/20" />
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+							{Array.from({ length: 4 }).map((_, i) => (
+								<div key={i} className="h-24 rounded-xl bg-slate-300/20" />
+							))}
+						</div>
+						<div className="h-64 rounded-xl bg-slate-300/20" />
+					</div>
+				</div>
+			</div>
+		);
 	}
 
 	return (
