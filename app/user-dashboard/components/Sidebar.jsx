@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { ListChecks, User, CreditCard, AppWindowMac, DollarSign, Send, ChevronDown, Share2, MessageCircle, Bell } from "lucide-react";
+import { ListChecks, User, CreditCard, AppWindowMac, DollarSign, Send, ChevronDown, Share2, MessageCircle, Bell, FileText } from "lucide-react";
 import { useUserNotifications } from "./UserNotificationContext";
 import { useLanguage } from "./LanguageContext";
 import LanguageSelector from "./LanguageSelector";
@@ -17,6 +17,7 @@ const navigation = [
     { key: "nav.customerService", href: "/user-dashboard/chat", icon: MessageCircle, badgeKey: "unreadChat" },
     { key: "nav.profile", href: "/user-dashboard/profile", icon: User },
     { key: "nav.records", href: "/user-dashboard/records", icon: User },
+    { key: "nav.terms", href: "/user-dashboard/terms-and-conditions", icon: FileText },
 ];
 
 const paymentChildren = [

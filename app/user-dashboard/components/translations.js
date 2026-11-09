@@ -97,11 +97,13 @@ export const STRINGS = {
       withdrawals: "Withdrawals",
       balanceHistory: "Balance History",
       records: "Records",
+      terms: "Terms & Conditions",
     },
     bottom: {
       home: "Home",
       starting: "Starting",
       records: "Records",
+      terms: "Terms & Conditions",
       more: "More",
     },
     drawer: {
@@ -278,6 +280,7 @@ export const STRINGS = {
       withdrawals: "Retraits",
       balanceHistory: "Historique du Solde",
       records: "Dossiers",
+      terms: "Conditions Générales",
     },
     bottom: {
       home: "Accueil",
@@ -459,6 +462,7 @@ export const STRINGS = {
       withdrawals: "Retiros",
       balanceHistory: "Historial de Saldo",
       records: "Registros",
+      terms: "Términos y Condiciones",
     },
     bottom: {
       home: "Inicio",

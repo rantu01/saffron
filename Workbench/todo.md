@@ -269,3 +269,8 @@
 - [x] Root cause identified: markSetCompletedToday outside transaction + missing await.
 - [x] Fix applied in complete route and taskSetModel.
 - [ ] Manual runtime verification of last task submission (pending).
+
+## Terms & Conditions Page (2026-11-09)
+
+- [x] Page created and sidebar integrated.
+- [ ] Manual visual verification (pending).

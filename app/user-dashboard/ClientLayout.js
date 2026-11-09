@@ -64,6 +64,7 @@ const drawerMenuSections = [
       { key: 'item.personalInfo', href: '/user-dashboard/profile', icon: User },
       { key: 'item.security', href: '/user-dashboard/profile', icon: ArrowDownToLine },
       { key: 'nav.referrals', href: '/user-dashboard/referrals', icon: Share2 },
+      { key: 'nav.terms', href: '/user-dashboard/terms-and-conditions', icon: FileText },
     ],
   },
   {
@@ -205,49 +206,52 @@ function ClientLayoutInner({ children }) {
 
         {/* MOBILE APP LAUNCHER - hidden on dashboard (new design includes quick actions) and on records */}
         {isDashboard || isRecordsPage ? false : (
-        <div className="user-launcher bg-[#121212] px-4 pt-2 pb-6 ">
-          <div className="mb-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
-              Saffron Edge
-            </p>
-            <h1 className="mt-1 text-xl font-bold text-white">
-              {t('misc.welcome')}{profileData?.username ? `, ${profileData.username}` : user?.displayName ? `, ${user.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}!
-            </h1>
-          </div>
-
-          <div className="grid grid-cols-4 gap-2 md:max-w-6xl mx-auto text-white">
-  {mobileNavItems.map((item) => {
-    const Icon = item.icon;
-    const showBadge = item.href === '/user-dashboard/chat' && unreadChat > 0;
-    return (
-      <Link
-        key={item.href}
-        href={item.href}
-        className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-[#FBBF24] p-1.5 aspect-square"
-      >
-        <Icon size={16} className="!text-white" />
-        <span className="text-[9px] font-bold !text-white text-center leading-tight">
-          {t(item.key)}
-        </span>
-        {showBadge && (
-          <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full leading-none shadow">
-            {unreadChat > 99 ? "99+" : unreadChat}
-          </span>
-        )}
-      </Link>
-    );
-  })}
-</div>
-
-          {/* <div className="mt-6 rounded-2xl bg-slate-800/80 h-44 flex items-center justify-center overflow-hidden border border-slate-700/50">
-            <div className="text-center">
-              <svg className="w-10 h-10 mx-auto text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <p className="mt-2 text-xs text-slate-500">Featured Content</p>
+          <div className="user-launcher px-4 pt-2 pb-6 ">
+            <div className="mb-6 mx-auto w-full max-w-6xl text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#FBBF24]">
+                Saffron Edge
+              </p>
+              <h1 className="mt-1 text-xl font-bold text-white">
+                {t('misc.welcome')}{profileData?.username ? `, ${profileData.username}` : user?.displayName ? `, ${user.displayName}` : user?.email ? `, ${user.email.split('@')[0]}` : ''}!
+              </h1>
             </div>
-          </div> */}
-        </div>
+
+            <div className="grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-4 md:max-w-2xl lg:max-w-3xl mx-auto text-white">
+              {mobileNavItems.map((item) => {
+                const Icon = item.icon;
+                const showBadge = item.href === '/user-dashboard/chat' && unreadChat > 0;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="relative flex flex-col items-center justify-center gap-1 rounded-2xl bg-[#FBBF24] p-1.5 sm:p-2 md:p-3 aspect-square w-full max-w-[100px] sm:max-w-[110px] md:max-w-[120px] mx-auto"
+                  >
+                    <Icon size={16} className="!text-white sm:!w-6 sm:!h-6 md:!w-7 md:!h-7" />
+
+                    <span className="text-[9px] sm:text-[10px] md:text-xs font-bold !text-white text-center leading-tight">
+                      {t(item.key)}
+                    </span>
+
+                    {showBadge && (
+                      <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-[16px] px-0.5 text-[9px] font-bold text-white bg-red-500 rounded-full leading-none shadow">
+                        {unreadChat > 99 ? "99+" : unreadChat}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* <div className="mt-6 rounded-2xl bg-slate-800/80 h-44 flex items-center justify-center overflow-hidden border border-slate-700/50">
+    <div className="text-center">
+      <svg className="w-10 h-10 mx-auto text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <p className="mt-2 text-xs text-slate-500">Featured Content</p>
+    </div>
+  </div> */}
+          </div>
         )}
 
         <main id="user-panel-main" className="user-panel-main px-4 pb-24 py-5 sm:px-6 h-full" tabIndex="-1">
@@ -289,7 +293,7 @@ function ClientLayoutInner({ children }) {
                     <button
                       onClick={async () => {
                         if (refCode) {
-                          try { await navigator.clipboard.writeText(refCode); } catch {}
+                          try { await navigator.clipboard.writeText(refCode); } catch { }
                         }
                       }}
                       className="text-slate-500 hover:text-white text-[10px] flex items-center gap-0.5 transition-colors"
@@ -335,7 +339,7 @@ function ClientLayoutInner({ children }) {
                   </div>
                 </div>
               </div> */}
-              
+
 
               {/* Menu List */}
               <div className="space-y-1 mb-6">

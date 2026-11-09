@@ -765,3 +765,10 @@ Status: [x] Completed (config + code changes; build verified)
 - Route now calls it with the active session.
 - Frontend already releases loading state in finally; backend returns meaningful errors.
 - Build passes.
+
+## Terms & Conditions Page (2026-11-09)
+
+- Created /user-dashboard/terms-and-conditions page with full supplied terms content, table of contents, and back-to-top.
+- Added sidebar and mobile drawer navigation entries.
+- Added nav.terms translations (EN/FR/ES).
+- Build passes.
