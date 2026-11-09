@@ -29,6 +29,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const conversationId = searchParams.get("conversationId");
     const afterId = searchParams.get("afterId");
+    const before = searchParams.get("before");
     const limit = parseInt(searchParams.get("limit") || "50", 10);
 
     if (!conversationId) {
@@ -46,7 +47,7 @@ export async function GET(request) {
     if (afterId) {
       messages = await getNewMessages({ conversationId, afterId });
     } else {
-      messages = await getMessages({ conversationId, limit });
+      messages = await getMessages({ conversationId, limit, before: before || undefined });
     }
 
     return NextResponse.json({ success: true, messages });

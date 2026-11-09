@@ -714,3 +714,54 @@ Status: [x] Completed (config + code changes; build verified)
 - Created navigation_performance_audit.md and navigation_optimization_report.md.
 - npm run build successful.
 
+
+## Critical Bug Fix — User Dashboard Task Progress Mismatch (2026-11-09)
+
+- Root cause: /user-dashboard/tasks fetched assigned tasks from admin-only /api/admin/tasks (403 for normal users).
+- Fix: tasks page now reads from user-scoped /api/user/dashboard; task-set progress endpoint allows self-access.
+- Files: app/api/user/dashboard/route.js, app/user-dashboard/tasks/page.jsx, app/api/admin/task-sets/progress/route.js.
+- Data preserved; no records modified. Build passes.
+
+## Open Issue — Combined Task assignment orders not displaying (2026-11-09)
+
+- Status: Under investigation. Requires tracing combo assignment -> comboTasks persistence -> retrieval and frontend modal wiring.
+- Preserve position sequence 6 -> 9 -> 14 -> 16 -> 18; no data changes until root cause confirmed.
+
+## Combined Task Assignment Visibility Fix (2026-11-09)
+
+- Root cause: records API used the latest set's currentPosition to decide whether a pending combo had appeared, so combos in non-latest sets (or freshly assigned sets) never appeared.
+- Fix: use each combo's own set currentPosition for the appeared check.
+- File: app/api/user/records/route.js.
+- Build passes.
+
+## Chat Loading Performance Fix (2026-11-09)
+
+- Investigated admin and user chat loading workflow, MongoDB queries, and realtime polling.
+- Fixed stale-message races when switching conversations by tracking the active conversation ID and ignoring outdated fetch results.
+- Added request cancellation (AbortController) for in-flight conversation loads.
+- Initial message loads now replace thread contents instead of merging into stale state.
+- LiveChat now clears messages on open and replaces on initial load.
+- Reduced excessive polling (conversations 5s->10s, messages 3s->5s) while keeping SSE realtime intact.
+- Optimized getConversations aggregation to sort by { conversationId, createdAt } so it uses the existing compound index instead of an in-memory global sort.
+- Added MongoDB indexes for message pagination, unread tracking, sender history, and global unread counts.
+- Added before cursor support to /api/chat/messages for efficient older-message pagination.
+- Added skeleton loading placeholders in both admin and user chat instead of blank/spinner-only states.
+- Preserved existing UI design, features, IDs, and realtime behavior.
+- Build passes.
+
+## Bronze Task Group Empty Fix (2026-11-09)
+
+- Root cause: /api/admin/task-groups POST called getVipTasksPerSet() (async) without await, so taskCount was a Promise; generateTasksForGroup received a Promise as count and produced 0 tasks.
+- Fix: awaited getVipTasksPerSet(Number(vipLevel)) so Bronze groups receive 20 (and other tiers their configured counts).
+- Added rollback cleanup (delete generated tasks + group) if task population fails.
+- Investigated existing groups: 4 groups have 0 tasks and one has 19; group documents do not store vipLevel, so historical groups were not auto-modified.
+- Build passes.
+
+## Last Task Submission Transaction Fix (2026-11-09)
+
+- Root cause: markSetCompletedToday ran outside the active transaction (no session) and updated the same userTaskSets document that the transaction had just locked, causing MongoDB to abort the transaction (NoSuchTransaction) on the final task.
+- Also fixed missing await on getVipTasksPerSet inside the transaction, which previously made setComplete always false.
+- markSetCompletedToday now accepts and uses a session.
+- Route now calls it with the active session.
+- Frontend already releases loading state in finally; backend returns meaningful errors.
+- Build passes.

@@ -54,36 +54,47 @@ export default function AdminChatPage() {
     }
   }, []);
 
-  const fetchMessages = useCallback(async (convId, afterId) => {
+  const fetchMessages = useCallback(async (convId, afterId, signal) => {
+    if (!convId) return afterId;
     try {
       const params = new URLSearchParams({ conversationId: convId });
       if (afterId) params.set("afterId", afterId);
-      const res = await fetch(`/api/chat/messages?${params}`);
+      const res = await fetch(`/api/chat/messages?${params}`, signal ? { signal } : undefined);
       const data = await res.json();
+      if (activeConvIdRef.current !== convId) return afterId;
       if (data.success && data.messages?.length > 0) {
         setMessages((prev) => {
-          const existingIds = new Set(prev.map((m) => m._id));
-          const newMsgs = data.messages.filter((m) => !existingIds.has(m._id));
-          if (newMsgs.length === 0) return prev;
-          return [...prev, ...newMsgs];
+          if (activeConvIdRef.current !== convId) return prev;
+          if (afterId) {
+            const existingIds = new Set(prev.map((m) => m._id));
+            const newMsgs = data.messages.filter((m) => !existingIds.has(m._id));
+            if (newMsgs.length === 0) return prev;
+            return [...prev, ...newMsgs];
+          }
+          // Initial load: replace so stale messages from another conversation
+          // can never bleed into the selected thread.
+          return data.messages.map((m) => ({ ...m }));
         });
         return data.messages[data.messages.length - 1]._id;
       }
       return afterId;
-    } catch {
+    } catch (error) {
+      if (error?.name === "AbortError") return afterId;
       return afterId;
     }
   }, []);
 
   useEffect(() => {
     fetchConversations();
-    const interval = setInterval(fetchConversations, 5000);
+    const interval = setInterval(fetchConversations, 10000);
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
   // Realtime SSE: instant incoming user messages with sound + toast.
   // REST polling above remains as fallback.
   const selectedConvRef = useRef(null);
+  const activeConvIdRef = useRef(null);
+  const abortRef = useRef(null);
   useEffect(() => {
     selectedConvRef.current = selectedConv;
   }, [selectedConv]);
@@ -111,7 +122,7 @@ export default function AdminChatPage() {
             if (open && payload?.conversationId === open.conversationId) {
               // Pull the full message into the open thread + mark read
               fetchMessages(open.conversationId, lastMessageIdRef.current).then((lastId) => {
-                if (lastId) lastMessageIdRef.current = lastId;
+                if (lastId && activeConvIdRef.current === open.conversationId) lastMessageIdRef.current = lastId;
               });
               fetch("/api/chat/read", {
                 method: "PUT",
@@ -144,40 +155,61 @@ export default function AdminChatPage() {
   }, [user?.uid, fetchConversations, fetchMessages, refreshCounts]);
 
   const openConversation = async (conv) => {
+    const convId = conv.conversationId;
+
+    // Cancel any in-flight load for a previous conversation.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    activeConvIdRef.current = convId;
+    selectedConvRef.current = conv;
     setSelectedConv(conv);
     setMessages([]);
     setLoadingMsgs(true);
     lastMessageIdRef.current = null;
 
-    const lastId = await fetchMessages(conv.conversationId);
-    lastMessageIdRef.current = lastId;
-    setLoadingMsgs(false);
-
     setConversations((prev) =>
       prev.map((c) =>
-        c.conversationId === conv.conversationId ? { ...c, unreadCount: 0 } : c
+        c.conversationId === convId ? { ...c, unreadCount: 0 } : c
       )
     );
 
-    await fetch("/api/chat/read", {
+    clearInterval(pollRef.current);
+
+    try {
+      const lastId = await fetchMessages(convId, null, controller.signal);
+      if (activeConvIdRef.current !== convId) return;
+      lastMessageIdRef.current = lastId;
+    } finally {
+      if (activeConvIdRef.current === convId) setLoadingMsgs(false);
+    }
+
+    // Mark read without blocking message rendering.
+    fetch("/api/chat/read", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversationId: conv.conversationId, byUid: user?.uid }),
-    });
+      body: JSON.stringify({ conversationId: convId, byUid: user?.uid }),
+    }).catch(() => {});
 
-    clearInterval(pollRef.current);
     pollRef.current = setInterval(async () => {
-      const lastId = await fetchMessages(conv.conversationId, lastMessageIdRef.current);
-      if (lastId) lastMessageIdRef.current = lastId;
-    }, 3000);
+      if (activeConvIdRef.current !== convId) return;
+      const lastId = await fetchMessages(convId, lastMessageIdRef.current);
+      if (activeConvIdRef.current === convId && lastId) lastMessageIdRef.current = lastId;
+    }, 5000);
 
     refreshCounts();
   };
 
   const closeConversation = () => {
+    abortRef.current?.abort();
+    activeConvIdRef.current = null;
+    selectedConvRef.current = null;
     clearInterval(pollRef.current);
+    pollRef.current = null;
     setSelectedConv(null);
     setMessages([]);
+    lastMessageIdRef.current = null;
   };
 
   const handleSend = async (text, imageUrl) => {
@@ -320,8 +352,15 @@ export default function AdminChatPage() {
 
             <div className="h-[400px] overflow-y-auto p-5 space-y-3 bg-gray-50/30">
               {loadingMsgs ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 size={20} className="text-[#E05305] animate-spin" />
+                <div className="space-y-3 animate-pulse">
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}
+                    >
+                      <div className="h-10 w-2/3 rounded-2xl bg-gray-200" />
+                    </div>
+                  ))}
                 </div>
               ) : messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full">

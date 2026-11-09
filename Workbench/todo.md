@@ -241,3 +241,31 @@
 - [x] Navigation progress indicator
 - [x] Navigation docs created
 
+
+## Open Issue (2026-11-09)
+
+- [~] Combined Task assignment orders not displaying in Combined Task section (individual assignment works). Investigation pending. Preserve position sequence 6 -> 9 -> 14 -> 16 -> 18.
+
+- [x] Combined Task assignment orders visibility fixed (records API per-set currentPosition). Build passes.
+
+## Chat Loading Performance (2026-11-09)
+
+- [x] Investigate chat loading workflow for user and admin.
+- [x] Fix stale message races and request cancellation on conversation switch.
+- [x] Add skeleton loading placeholders.
+- [x] Optimize getConversations aggregation and message indexes.
+- [x] Preserve realtime behavior and existing features.
+- [ ] Manual runtime verification of chat scenarios on staging (pending).
+
+## Bronze Group Task Population (2026-11-09)
+
+- [x] Root cause identified: missing await on getVipTasksPerSet.
+- [x] Fix applied in /api/admin/task-groups/route.js.
+- [x] Added failure rollback for group/task creation.
+- [ ] Manual verification of new Bronze group receiving 20 tasks (pending).
+
+## Last Task Submission (2026-11-09)
+
+- [x] Root cause identified: markSetCompletedToday outside transaction + missing await.
+- [x] Fix applied in complete route and taskSetModel.
+- [ ] Manual runtime verification of last task submission (pending).

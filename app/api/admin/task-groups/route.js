@@ -83,10 +83,19 @@ export async function POST(request) {
     const groupId = result.insertedId.toString();
 
     if (vipLevel) {
-      const taskCount = getVipTasksPerSet(Number(vipLevel));
-      const tasksToCreate = generateTasksForGroup(groupId, taskCount);
-      if (tasksToCreate.length > 0) {
-        await db.collection("tasks").insertMany(tasksToCreate);
+      try {
+        const taskCount = await getVipTasksPerSet(Number(vipLevel));
+        const tasksToCreate = generateTasksForGroup(groupId, taskCount);
+        if (tasksToCreate.length > 0) {
+          await db.collection("tasks").insertMany(tasksToCreate);
+        }
+      } catch (taskError) {
+        // Roll back the just-created group so we never leave an empty group behind.
+        try {
+          await db.collection("tasks").deleteMany({ taskGroupId: groupId, isTemplate: true });
+          await db.collection("taskGroups").deleteOne({ _id: result.insertedId });
+        } catch {}
+        throw taskError;
       }
     }
 

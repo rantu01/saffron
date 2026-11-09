@@ -65,16 +65,23 @@ export default function LiveChat({ inline = false }) {
     if (!user?.uid) return;
     try {
       const params = new URLSearchParams({ conversationId: user.uid });
-      if (lastMessageIdRef.current) {
+      const isIncremental = !!lastMessageIdRef.current;
+      if (isIncremental) {
         params.set('afterId', lastMessageIdRef.current);
       }
       const res = await fetch(`/api/chat/messages?${params}`);
       const data = await res.json();
+      if (!openRef.current) return;
       if (data.success && data.messages?.length > 0) {
         setMessages((prev) => {
+          if (!openRef.current) return prev;
           const existingIds = new Set(prev.map((m) => m._id));
           const newMsgs = data.messages.filter((m) => !existingIds.has(m._id));
           if (newMsgs.length === 0) return prev;
+          if (!isIncremental) {
+            // Initial load: replace to avoid stale messages.
+            return data.messages.map((m) => ({ ...m }));
+          }
           return [...prev, ...newMsgs];
         });
         lastMessageIdRef.current = data.messages[data.messages.length - 1]._id;
@@ -82,7 +89,7 @@ export default function LiveChat({ inline = false }) {
     } catch {
       // silent
     } finally {
-      setLoadingMessages(false);
+      if (openRef.current) setLoadingMessages(false);
     }
   }, [user?.uid]);
 
@@ -147,9 +154,10 @@ export default function LiveChat({ inline = false }) {
   useEffect(() => {
     if (!open || !user?.uid) return;
     setLoadingMessages(true);
+    setMessages([]);
     lastMessageIdRef.current = null;
     fetchMessages();
-    pollRef.current = setInterval(fetchMessages, 3000);
+    pollRef.current = setInterval(fetchMessages, 5000);
 
     fetch('/api/chat/read', {
       method: 'PUT',
@@ -303,8 +311,15 @@ export default function LiveChat({ inline = false }) {
 
       <div className="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
         {loadingMessages ? (
-          <div className="flex items-center justify-center h-full">
-            <Loader2 size={20} className="text-[#E05305] animate-spin" />
+          <div className="space-y-3 animate-pulse p-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}
+              >
+                <div className="h-10 w-2/3 rounded-2xl bg-gray-200" />
+              </div>
+            ))}
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">

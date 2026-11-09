@@ -59,15 +59,15 @@ export async function GET(request) {
       });
     }
 
-    // Current position is used to decide whether a still-pending combo has
-    // actually appeared to the user yet (future combos are not listed).
-    const latestSet = await db
+    // Current positions per set are used to decide whether a still-pending combo
+    // has actually appeared to the user yet (future combos are not listed).
+    const allSets = await db
       .collection("userTaskSets")
       .find({ uid })
-      .sort({ setNumber: -1 })
-      .limit(1)
       .toArray();
-    const currentPosition = Number(latestSet[0]?.currentPosition || 0);
+    const positionBySet = new Map(
+      allSets.map((s) => [Number(s.setNumber || 0), Number(s.currentPosition || 0)])
+    );
 
     // Combo tasks: each combo is grouped into a SINGLE record card (not one card
     // per order). A combo that has appeared and is incomplete or cancelled is shown
@@ -82,6 +82,10 @@ export async function GET(request) {
     for (const combo of combos) {
       const orders = Array.isArray(combo.orders) ? combo.orders : [];
       const comboPosition = Number(combo.position || 0);
+      const comboSetNumber = Number(combo.setNumber || 0);
+      const currentPosition = positionBySet.has(comboSetNumber)
+        ? positionBySet.get(comboSetNumber)
+        : 0;
 
       const appeared =
         combo.status === "completed" ||

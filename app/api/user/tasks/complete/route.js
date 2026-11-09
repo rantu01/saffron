@@ -273,11 +273,11 @@ export async function POST(request) {
 
         updatedSet = updatedSetDoc;
         setComplete = updatedSet
-          ? (updatedSet.completedTasks || 0) >= (updatedSet.totalTasks || getVipTasksPerSet(user.vipLevel))
+          ? (updatedSet.completedTasks || 0) >= (updatedSet.totalTasks || await getVipTasksPerSet(user.vipLevel))
           : false;
 
         if (setComplete && updatedSet) {
-          await markSetCompletedToday(uid, updatedSet.setNumber);
+          await markSetCompletedToday(uid, updatedSet.setNumber, session);
         }
       });
     } catch (err) {
